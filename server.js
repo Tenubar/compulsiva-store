@@ -6,7 +6,8 @@ import bcrypt from "bcryptjs"
 import jwt from "jsonwebtoken"
 import cookieParser from "cookie-parser"
 import multer from "multer"
-import fs from "fs"
+import { GridFSBucket } from "mongodb"
+import { Readable } from "stream"
 
 dotenv.config()
 
@@ -15,37 +16,35 @@ const app = express()
 // Middleware
 app.use(express.json())
 app.use(cookieParser())
-app.use("/uploads", express.static("uploads"))
+// Update the CORS configuration to allow image requests
 app.use(
   cors({
-    origin: ["https://compulsiva-store.onrender.com", "http://localhost:5173"],
+    origin: "http://localhost:5173", // Your frontend URL
     credentials: true,
+    exposedHeaders: ["Content-Type", "Content-Disposition"], // Important for file downloads
   }),
 )
 
 // MongoDB Connection
-const mongoURI = process.env.VITE_MONGODB_URI;
+const mongoURI = process.env.VITE_MONGODB_URI || "mongodb://localhost:27017/carol-store"
 
+// GridFS setup
 let gfs
+let bucket
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "uploads/")
-  },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + "-" + file.originalname)
-  },
-})
-
+// Configure multer for memory storage instead of disk storage
+const storage = multer.memoryStorage()
 const upload = multer({ storage })
 
 mongoose
   .connect(mongoURI)
   .then(() => {
     console.log("Connected to MongoDB")
-    gfs = new mongoose.mongo.GridFSBucket(mongoose.connection.db, {
-      bucketName: "productImages",
+    const db = mongoose.connection.db
+    gfs = new mongoose.mongo.GridFSBucket(db, {
+      bucketName: "uploads",
     })
+    bucket = new GridFSBucket(db, { bucketName: "uploads" })
   })
   .catch((err) => console.error("MongoDB connection error:", err))
 
@@ -88,7 +87,6 @@ const ratingSchema = new mongoose.Schema(
 
 const Rating = mongoose.model("Rating", ratingSchema)
 
-
 // Product Schema - Updated with new fields
 const productSchema = new mongoose.Schema(
   {
@@ -113,49 +111,105 @@ const productSchema = new mongoose.Schema(
 
 const Product = mongoose.model("Product", productSchema)
 
+// Image schema for tracking GridFS files
 const imageSchema = new mongoose.Schema({
-  _id: mongoose.Schema.Types.ObjectId,
   filename: String,
-  path: String,
+  originalname: String,
+  contentType: String,
   size: Number,
-  mimetype: String,
+  uploadDate: { type: Date, default: Date.now },
+  fileId: mongoose.Schema.Types.ObjectId,
 })
 
 const ImageModel = mongoose.model("Image", imageSchema)
 
 // Route for uploading image to GridFS
-
 app.post("/api/upload/productImage", upload.single("image"), async (req, res) => {
   if (!req.file) {
     return res.status(400).send({ error: "No file uploaded" })
   }
 
   try {
-    const newImage = new ImageModel({
-      _id: new mongoose.Types.ObjectId(),
-      filename: req.file.filename,
-      path: req.file.path,
-      size: req.file.size,
-      mimetype: req.file.mimetype,
+    const { originalname, mimetype, buffer, size } = req.file
+    const filename = Date.now() + "-" + originalname.replace(/\s+/g, "-")
+
+    // Create a readable stream from buffer
+    const readableStream = new Readable()
+    readableStream.push(buffer)
+    readableStream.push(null)
+
+    // Create a GridFS upload stream
+    const uploadStream = bucket.openUploadStream(filename, {
+      contentType: mimetype,
     })
 
-    const savedImage = await newImage.save()
-    res.status(200).send({ message: "File uploaded successfully", image: savedImage })
+    // Get the file ID
+    const fileId = uploadStream.id
+
+    // Pipe the readable stream to the upload stream
+    readableStream.pipe(uploadStream)
+
+    // Wait for the upload to finish
+    uploadStream.on("finish", async () => {
+      // Create a new image document to track the file
+      const newImage = new ImageModel({
+        filename,
+        originalname,
+        contentType: mimetype,
+        size,
+        fileId,
+      })
+
+      const savedImage = await newImage.save()
+
+      // Return the image URL that will be used to retrieve the image
+      res.status(200).send({
+        message: "File uploaded successfully",
+        image: {
+          _id: savedImage._id,
+          filename: savedImage.filename,
+          path: `${process.env.VITE_SITE_URL}/api/images/${savedImage.filename}`,
+          size: savedImage.size,
+          mimetype: savedImage.contentType,
+        },
+      })
+    })
+
+    uploadStream.on("error", (error) => {
+      console.error("Error uploading to GridFS:", error)
+      res.status(500).send({ error: "Failed to upload file to GridFS" })
+    })
   } catch (err) {
+    console.error("Upload error:", err)
     res.status(500).send({ error: "Failed to save file to database", details: err })
   }
 })
 
-// Route for serving images from GridFS
-app.get("/api/productImages/:filename", async (req, res) => {
+// Make sure the image route is properly configured
+app.get("/api/images/:filename", async (req, res) => {
   try {
-    const files = await gfs.find({ filename: req.params.filename }).toArray()
-    if (!files || files.length === 0) {
-      return res.status(404).json({ message: "File not found" })
+    const image = await ImageModel.findOne({ filename: req.params.filename })
+
+    if (!image) {
+      return res.status(404).json({ message: "Image not found" })
     }
 
-    const readStream = gfs.openDownloadStreamByName(req.params.filename)
-    readStream.pipe(res)
+    const downloadStream = bucket.openDownloadStream(image.fileId)
+
+    // Set the content type
+    res.set("Content-Type", image.contentType)
+
+    // Set cache headers to improve performance
+    res.set("Cache-Control", "public, max-age=31536000") // Cache for 1 year
+    res.set("Expires", new Date(Date.now() + 31536000000).toUTCString())
+
+    // Pipe the download stream to the response
+    downloadStream.pipe(res)
+
+    downloadStream.on("error", (error) => {
+      console.error("Error streaming file from GridFS:", error)
+      res.status(500).json({ message: "Error getting file", error: error.message })
+    })
   } catch (error) {
     console.error("Error serving file:", error)
     res.status(500).json({ message: "Error getting file", error: error.message })
@@ -375,12 +429,14 @@ app.get("/api/images", authenticateToken, isAdmin, async (req, res) => {
     if (req.query.includeProducts === "true") {
       const imagesWithProducts = await Promise.all(
         images.map(async (image) => {
+          const imagePath = `${process.env.VITE_SITE_URL}/api/images/${image.filename}`
           const productsUsingImage = await Product.find({
-            $or: [{ image: image.path }, { hoverImage: image.path }, { additionalImages: image.path }],
+            $or: [{ image: imagePath }, { hoverImage: imagePath }, { additionalImages: imagePath }],
           }).select("_id title")
 
           return {
             ...image.toObject(),
+            path: imagePath,
             products: productsUsingImage.map((p) => ({ id: p._id, title: p.title })),
           }
         }),
@@ -389,7 +445,13 @@ app.get("/api/images", authenticateToken, isAdmin, async (req, res) => {
       return res.json(imagesWithProducts)
     }
 
-    res.json(images)
+    // Transform the images to include the path
+    const transformedImages = images.map((image) => ({
+      ...image.toObject(),
+      path: `${process.env.VITE_SITE_URL}/api/images/${image.filename}`,
+    }))
+
+    res.json(transformedImages)
   } catch (error) {
     res.status(500).json({ message: "Error fetching images", error: error.message })
   }
@@ -404,8 +466,9 @@ app.get("/api/images/:id/products", authenticateToken, isAdmin, async (req, res)
       return res.status(404).json({ message: "Image not found" })
     }
 
+    const imagePath = `${process.env.VITE_SITE_URL}/api/images/${image.filename}`
     const productsUsingImage = await Product.find({
-      $or: [{ image: image.path }, { hoverImage: image.path }, { additionalImages: image.path }],
+      $or: [{ image: imagePath }, { hoverImage: imagePath }, { additionalImages: imagePath }],
     }).select("_id title")
 
     res.json({
@@ -424,10 +487,12 @@ app.delete("/api/images/:id", authenticateToken, isAdmin, async (req, res) => {
       return res.status(404).json({ message: "Image not found" })
     }
 
+    const imagePath = `${process.env.VITE_SITE_URL}/api/images/${image.filename}`
+
     // Check if image is used by any products (only if force=true is not set)
     if (req.query.force !== "true") {
       const productsUsingImage = await Product.find({
-        $or: [{ image: image.path }, { hoverImage: image.path }, { additionalImages: image.path }],
+        $or: [{ image: imagePath }, { hoverImage: imagePath }, { additionalImages: imagePath }],
       })
 
       if (productsUsingImage.length > 0) {
@@ -438,10 +503,8 @@ app.delete("/api/images/:id", authenticateToken, isAdmin, async (req, res) => {
       }
     }
 
-    // Delete the file from disk if it exists
-    if (image.path && fs.existsSync(image.path)) {
-      fs.unlinkSync(image.path)
-    }
+    // Delete the file from GridFS
+    await bucket.delete(image.fileId)
 
     // Delete from database
     await ImageModel.findByIdAndDelete(req.params.id)
@@ -465,51 +528,74 @@ app.post("/api/images/replace", authenticateToken, isAdmin, upload.single("image
   }
 
   try {
+    // Extract the filename from the path
+    const oldFilename = oldImagePath.split("/").pop()
+
     // Find the old image in the database
-    const oldImage = await ImageModel.findOne({ path: oldImagePath })
+    const oldImage = await ImageModel.findOne({ filename: oldFilename })
     if (!oldImage) {
       return res.status(404).send({ error: "Original image not found in database" })
     }
 
-    // Create a new image record
-    const newImage = new ImageModel({
-      _id: new mongoose.Types.ObjectId(),
-      filename: req.file.filename,
-      path: req.file.path,
-      size: req.file.size,
-      mimetype: req.file.mimetype,
+    // Upload new image to GridFS
+    const { originalname, mimetype, buffer, size } = req.file
+    const filename = Date.now() + "-" + originalname.replace(/\s+/g, "-")
+
+    // Create a readable stream from buffer
+    const readableStream = new Readable()
+    readableStream.push(buffer)
+    readableStream.push(null)
+
+    // Create a GridFS upload stream
+    const uploadStream = bucket.openUploadStream(filename, {
+      contentType: mimetype,
     })
 
-    const savedImage = await newImage.save()
+    // Get the file ID
+    const fileId = uploadStream.id
 
-    // Update all products that use the old image
-    await Product.updateMany({ image: oldImagePath }, { $set: { image: req.file.path } })
+    // Pipe the readable stream to the upload stream
+    readableStream.pipe(uploadStream)
 
-    await Product.updateMany({ hoverImage: oldImagePath }, { $set: { hoverImage: req.file.path } })
+    // Wait for the upload to finish
+    uploadStream.on("finish", async () => {
+      // Create a new image document
+      const newImage = new ImageModel({
+        filename,
+        originalname,
+        contentType: mimetype,
+        size,
+        fileId,
+      })
 
-    await Product.updateMany({ additionalImages: oldImagePath }, { $pull: { additionalImages: oldImagePath } })
+      const savedImage = await newImage.save()
+      const newImagePath = `${process.env.VITE_SITE_URL}/api/images/${filename}`
 
-    await Product.updateMany(
-      {},
-      {
-        $push: {
-          additionalImages: { $each: [], $cond: [{ $in: [oldImagePath, "$additionalImages"] }, [req.file.path], []] },
-        },
-      },
-    )
+      // Update all products that use the old image
+      await Product.updateMany({ image: oldImagePath }, { $set: { image: newImagePath } })
+      await Product.updateMany({ hoverImage: oldImagePath }, { $set: { hoverImage: newImagePath } })
+      await Product.updateMany({ additionalImages: oldImagePath }, { $pull: { additionalImages: oldImagePath } })
+      await Product.updateMany(
+        { additionalImages: { $in: [oldImagePath] } },
+        { $push: { additionalImages: newImagePath } },
+      )
 
-    // Delete the old image file if it exists
-    if (fs.existsSync(oldImagePath)) {
-      fs.unlinkSync(oldImagePath)
-    }
+      // Delete the old image from GridFS
+      await bucket.delete(oldImage.fileId)
 
-    // Delete the old image from the database
-    await ImageModel.findByIdAndDelete(oldImage._id)
+      // Delete the old image from the database
+      await ImageModel.findByIdAndDelete(oldImage._id)
 
-    res.status(200).send({
-      message: "Image replaced successfully",
-      path: req.file.path,
-      filename: req.file.filename,
+      res.status(200).send({
+        message: "Image replaced successfully",
+        path: newImagePath,
+        filename: filename,
+      })
+    })
+
+    uploadStream.on("error", (error) => {
+      console.error("Error uploading replacement to GridFS:", error)
+      res.status(500).send({ error: "Failed to upload replacement file to GridFS" })
     })
   } catch (err) {
     console.error("Error replacing image:", err)
@@ -526,40 +612,18 @@ app.post("/api/images/delete-by-path", authenticateToken, isAdmin, async (req, r
       return res.status(400).json({ message: "Image path is required" })
     }
 
-    const image = await ImageModel.findOne({ path })
+    // Extract the filename from the path
+    const filename = path.split("/").pop()
+
+    // Find the image in the database
+    const image = await ImageModel.findOne({ filename })
 
     if (!image) {
       return res.status(404).json({ message: "Image not found" })
     }
 
-    // // Check if image is used by any products
-    // const productsUsingImage = await Product.find({
-    //   $or: [{ image: path }, { hoverImage: path }, { additionalImages: path }],
-    // })
-
-    // if (productsUsingImage.length > 0) {
-    //   return res.status(400).json({
-    //     message: "Cannot delete image as it is used by products",
-    //     products: productsUsingImage.map((p) => ({ id: p._id, title: p.title })),
-    //   })
-    // }
-
-    // Check if image is used by any products
-    // const productsUsingImage = await Product.find({
-    //   $or: [{ image: path }, { hoverImage: path }],
-    // })
-
-    // if (productsUsingImage.length > 0) {
-    //   return res.status(400).json({
-    //     message: "Cannot delete the primary/secondary image as it is used by products",
-    //     products: productsUsingImage.map((p) => ({ id: p._id, title: p.title })),
-    //   })
-    // }
-
-    // Delete the file from disk if it exists
-    if (fs.existsSync(path)) {
-      fs.unlinkSync(path)
-    }
+    // Delete the file from GridFS
+    await bucket.delete(image.fileId)
 
     // Delete from database
     await ImageModel.findByIdAndDelete(image._id)
@@ -595,7 +659,6 @@ app.post("/api/products", async (req, res) => {
 // Update product - Added new route for API endpoint
 app.put("/api/products/:id", authenticateToken, isAdmin, async (req, res) => {
   try {
-
     const updatedProduct = await Product.findByIdAndUpdate(req.params.id, req.body, { new: true })
 
     if (!updatedProduct) {
@@ -655,8 +718,6 @@ app.patch("/api/products/:id/update-image", authenticateToken, isAdmin, async (r
     res.status(500).json({ message: "Error updating product image", error: error.message })
   }
 })
-
-
 
 // Increment product visits
 app.post("/api/products/:id/visit", async (req, res) => {
@@ -839,7 +900,6 @@ app.delete("/api/comments/:id", authenticateToken, async (req, res) => {
   }
 })
 
-
 // Update the product detail route to include image handling and recommended products with images
 app.get("/products/:id", async (req, res) => {
   try {
@@ -864,9 +924,7 @@ app.get("/products/:id", async (req, res) => {
       ratingCount: product.ratingCount || 0,
       reviews: [], // Empty array for reviews since we don't have them yet
       recommended: [], // Will be populated with recommended products
-      images: [product.image, product.hoverImage, ...(product.additionalImages || [])]
-        .filter(Boolean)
-        .map((img) => (img.startsWith("/") ? img : `/${img}`)), // Create an images array with both images
+      images: [product.image, product.hoverImage, ...(product.additionalImages || [])].filter(Boolean),
     }
 
     // Get some recommended products of the same type
@@ -890,7 +948,6 @@ app.get("/products/:id", async (req, res) => {
     res.status(500).json({ message: "Error fetching product", error: error.message })
   }
 })
-
 
 // Draft Schema
 const draftSchema = new mongoose.Schema(
@@ -995,19 +1052,21 @@ app.delete("/api/drafts/:id", authenticateToken, async (req, res) => {
       Boolean,
     )
 
-    // Delete all images from the database and file system
+    // Delete all images from GridFS and database
     for (const imagePath of imagePaths) {
       try {
+        // Extract the filename from the path
+        const filename = imagePath.split("/").pop()
+
         // Find the image in the database
-        const image = await ImageModel.findOne({ path: imagePath })
+        const image = await ImageModel.findOne({ filename })
+
         if (image) {
+          // Delete from GridFS
+          await bucket.delete(image.fileId)
+
           // Delete from database
           await ImageModel.findByIdAndDelete(image._id)
-
-          // Delete from file system
-          if (fs.existsSync(imagePath)) {
-            fs.unlinkSync(imagePath)
-          }
         }
       } catch (err) {
         console.error(`Error deleting image ${imagePath}:`, err)
@@ -1175,7 +1234,7 @@ app.delete("/api/cart/:id", authenticateToken, async (req, res) => {
 })
 
 // Update the delete product route to also delete associated images
-app.delete("/api/product/:id", async (req, res) => {
+app.delete("/api/product/:id", authenticateToken, isAdmin, async (req, res) => {
   try {
     // Find the product first to get image paths
     const product = await Product.findById(req.params.id)
@@ -1186,19 +1245,21 @@ app.delete("/api/product/:id", async (req, res) => {
     // Collect all image paths associated with this product
     const imagePaths = [product.image, product.hoverImage, ...(product.additionalImages || [])].filter(Boolean)
 
-    // Delete all images from the database and file system
+    // Delete all images from GridFS and database
     for (const imagePath of imagePaths) {
       try {
+        // Extract the filename from the path
+        const filename = imagePath.split("/").pop()
+
         // Find the image in the database
-        const image = await ImageModel.findOne({ path: imagePath })
+        const image = await ImageModel.findOne({ filename })
+
         if (image) {
+          // Delete from GridFS
+          await bucket.delete(image.fileId)
+
           // Delete from database
           await ImageModel.findByIdAndDelete(image._id)
-
-          // Delete from file system
-          if (fs.existsSync(imagePath)) {
-            fs.unlinkSync(imagePath)
-          }
         }
       } catch (err) {
         console.error(`Error deleting image ${imagePath}:`, err)
@@ -1208,17 +1269,6 @@ app.delete("/api/product/:id", async (req, res) => {
 
     // Delete the product
     const deletedProduct = await Product.findByIdAndDelete(req.params.id)
-
-    // Delete associated images from ImageModel
-    if (product.image) {
-      const imagePath = product.image
-      await ImageModel.findOneAndDelete({ path: imagePath })
-    }
-
-    if (product.hoverImage) {
-      const hoverImagePath = product.hoverImage
-      await ImageModel.findOneAndDelete({ path: hoverImagePath })
-    }
 
     // Also delete any cart items with this product
     await CartItem.deleteMany({ productId: req.params.id })
@@ -1240,7 +1290,7 @@ app.get("/api/test-route", (req, res) => {
 })
 
 // check admin status
-app.get("/api/check-admin", authenticateToken, async (req, res) => { 
+app.get("/api/check-admin", authenticateToken, async (req, res) => {
   try {
     const user = await User.findById(req.user.userId)
     if (user && user.email === process.env.VITE_ADMIN_USER_EMAIL) {

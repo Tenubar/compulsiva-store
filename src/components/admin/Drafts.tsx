@@ -4,6 +4,7 @@ import type React from "react"
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { ArrowLeft, Edit2, Trash2, Clock, FileText } from "lucide-react"
+import { getImageUrl, getPlaceholder } from "../../utils/imageUtils"
 
 interface Draft {
   _id: string
@@ -133,11 +134,11 @@ const Drafts: React.FC = () => {
                       <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-md border border-gray-200">
                         {draft.productData && draft.productData.image ? (
                           <img
-                            src={`/${draft.productData.image}`}
+                            src={getImageUrl(draft.productData.image) || "/placeholder.svg"}
                             alt={draft.title || draft.productData?.title || "Untitled Draft"}
                             className="h-full w-full object-cover"
                             onError={(e) => {
-                              ;(e.target as HTMLImageElement).src = "/placeholder.svg?height=64&width=64"
+                              ;(e.target as HTMLImageElement).src = getPlaceholder(64, 64)
                             }}
                           />
                         ) : (

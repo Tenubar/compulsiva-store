@@ -5,6 +5,7 @@ import { useState, useEffect } from "react"
 import axios from "axios"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import type { ProductType } from "../App"
+import { getImageUrl, getPlaceholder } from "../utils/imageUtils"
 
 interface Product {
   _id: string
@@ -93,12 +94,12 @@ const ProductList: React.FC<ProductListProps> = ({ onProductClick, selectedTypes
           >
             <div className="w-48 h-48 flex-shrink-0">
               <img
-                src={hoveredProduct === product._id ? product.hoverImage : product.image}
+                src={getImageUrl(hoveredProduct === product._id ? product.hoverImage : product.image)}
                 alt={product.title}
                 className="w-full h-full object-cover cursor-pointer"
                 onClick={() => (window.location.href = `/product/${product._id}`)}
                 onError={(e) => {
-                  ;(e.target as HTMLImageElement).src = "/placeholder.svg?height=300&width=300"
+                  ;(e.target as HTMLImageElement).src = getPlaceholder(300, 300)
                 }}
               />
             </div>

@@ -5,6 +5,7 @@ import { useState, useRef, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { ArrowLeft, Trash2, X, Upload, ChevronLeft, ChevronRight, RefreshCw } from "lucide-react"
 import type { ProductType } from "../../App"
+import { getImageUrl, getPlaceholder } from "../../utils/imageUtils"
 
 interface DraftData {
   title: string
@@ -669,11 +670,11 @@ const CreateProduct: React.FC = () => {
                 {allImages.slice(startIndex, startIndex + imagesPerView).map((img, index) => (
                   <div key={index} className="flex-shrink-0 w-20 h-20 relative">
                     <img
-                      src={`/${img}`}
+                      src={getImageUrl(img) || "/placeholder.svg"}
                       alt={`Product image ${index + startIndex + 1}`}
                       className="w-full h-full object-cover rounded-md"
                       onError={(e) => {
-                        ;(e.target as HTMLImageElement).src = "/placeholder.svg?height=80&width=80"
+                        ;(e.target as HTMLImageElement).src = getPlaceholder(80, 80)
                       }}
                     />
                   </div>
@@ -1033,11 +1034,11 @@ const CreateProduct: React.FC = () => {
                 {additionalImages.map((img, index) => (
                   <div key={index} className="relative w-20 h-20">
                     <img
-                      src={`/${img}`}
+                      src={getImageUrl(img) || "/placeholder.svg"}
                       alt={`Additional image ${index + 1}`}
                       className="w-full h-full object-cover rounded-md"
                       onError={(e) => {
-                        ;(e.target as HTMLImageElement).src = "/placeholder.svg?height=80&width=80"
+                        ;(e.target as HTMLImageElement).src = getPlaceholder(80, 80)
                       }}
                     />
                     <button

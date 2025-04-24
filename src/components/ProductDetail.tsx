@@ -8,6 +8,7 @@ import Header from "./Header"
 import { useNavigate } from "react-router-dom"
 import Footer from "./Footer"
 import { LanguageContext } from "../App"
+import { getImageUrl, getPlaceholder } from "../utils/imageUtils"
 
 interface ProductDetailProps {
   productId: string
@@ -541,11 +542,11 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onBack }) => {
                   onClick={() => setSelectedImage(img ?? null)}
                 >
                   <img
-                    src={img || "/placeholder.svg?height=80&width=80"}
+                    src={getImageUrl(img) || "/placeholder.svg"}
                     alt={`${product.title} - view ${index + 1}`}
                     className="w-full h-full object-cover"
                     onError={(e) => {
-                      ;(e.target as HTMLImageElement).src = "/placeholder.svg?height=80&width=80"
+                      ;(e.target as HTMLImageElement).src = getPlaceholder(80, 80)
                     }}
                   />
                 </div>
@@ -559,11 +560,11 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onBack }) => {
                 onClick={() => handleImageClick(selectedImage || product.image)}
               >
                 <img
-                  src={selectedImage || product.image || "/placeholder.svg?height=600&width=600"}
+                  src={getImageUrl(selectedImage || product.image)}
                   alt={product.title}
                   className="w-full h-full object-contain bg-white"
                   onError={(e) => {
-                    ;(e.target as HTMLImageElement).src = "/placeholder.svg?height=600&width=600"
+                    ;(e.target as HTMLImageElement).src = getPlaceholder(600, 600)
                   }}
                 />
               </div>
@@ -716,13 +717,11 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onBack }) => {
                   }}
                 >
                   <img
-                    src={
-                      `/${item.images && item.images[0]}` || `/${item.image}` || "/placeholder.svg?height=300&width=300"
-                    }
+                    src={getImageUrl(item.images && item.images[0] ? item.images[0] : item.image)}
                     alt={item.title}
                     className="w-full h-48 object-contain bg-white"
                     onError={(e) => {
-                      ;(e.target as HTMLImageElement).src = "/placeholder.svg?height=300&width=300"
+                      ;(e.target as HTMLImageElement).src = getPlaceholder(300, 300)
                     }}
                   />
                   <div className="p-4">
@@ -894,11 +893,11 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onBack }) => {
             onClick={(e) => e.stopPropagation()}
           >
             <img
-              src={modalImage || "/placeholder.svg"}
+              src={getImageUrl(modalImage ?? undefined) || "/placeholder.svg"}
               alt={product.title}
               className="w-full h-full object-contain bg-white"
               onError={(e) => {
-                ;(e.target as HTMLImageElement).src = "/placeholder.svg"
+                ;(e.target as HTMLImageElement).src = getPlaceholder(800, 800)
               }}
             />
 

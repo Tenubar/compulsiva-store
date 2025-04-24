@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { ArrowLeft, Edit2, X, Upload, ChevronLeft, ChevronRight, RefreshCw } from "lucide-react"
 import type { ProductType } from "../../App"
+import { getImageUrl, getPlaceholder } from "../../utils/imageUtils"
 
 interface Product {
   _id: string
@@ -418,11 +419,11 @@ const EditProducts: React.FC = () => {
                       .map((img, index) => (
                         <div key={index} className="flex-shrink-0 w-20 h-20 relative">
                           <img
-                            src={`/${img}`}
+                            src={getImageUrl(img) || "/placeholder.svg"}
                             alt={`Product image ${index + startIndex + 1}`}
                             className="w-full h-full object-cover rounded-md"
                             onError={(e) => {
-                              ;(e.target as HTMLImageElement).src = "/placeholder.svg?height=80&width=80"
+                              ;(e.target as HTMLImageElement).src = getPlaceholder(80, 80)
                             }}
                           />
                         </div>
@@ -743,11 +744,11 @@ const EditProducts: React.FC = () => {
               <div key={product._id} className="bg-white p-4 rounded-lg shadow flex items-center justify-between">
                 <div className="flex items-center space-x-4">
                   <img
-                    src={`/${product.image}` || "/placeholder.svg?height=64&width=64"}
+                    src={getImageUrl(product.image) || "/placeholder.svg"}
                     alt={product.title}
                     className="w-16 h-16 object-cover rounded"
                     onError={(e) => {
-                      ;(e.target as HTMLImageElement).src = "/placeholder.svg?height=64&width=64"
+                      ;(e.target as HTMLImageElement).src = getPlaceholder(64, 64)
                     }}
                   />
                   <div>

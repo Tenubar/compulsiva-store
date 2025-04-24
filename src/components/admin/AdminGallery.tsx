@@ -247,7 +247,7 @@ const AdminGallery: React.FC = () => {
               >
                 <div className="aspect-square relative">
                   <img
-                    src={`/${image.path}`}
+                    src={image.path || "/placeholder.svg"}
                     alt={image.filename}
                     className="w-full h-full object-cover"
                     onError={(e) => {
@@ -275,7 +275,7 @@ const AdminGallery: React.FC = () => {
               <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="flex items-center justify-center bg-gray-100 rounded-lg p-2">
                   <img
-                    src={`/${selectedImage.path}`}
+                    src={selectedImage.path || "/placeholder.svg"}
                     alt={selectedImage.filename}
                     className="max-h-80 max-w-full object-contain"
                     onError={(e) => {
