@@ -713,7 +713,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onBack }) => {
                     // Save current scroll position before navigating
                     lastScrollPosition = window.scrollY
                     // Navigate to the recommended product
-                    window.location.href = `/product/${item._id}`
+                    window.location.href = `${import.meta.env.VITE_SITE_URL}/product/${item._id}`
                   }}
                 >
                   <img
