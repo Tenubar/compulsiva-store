@@ -22,6 +22,8 @@ import {
 import type { Currency, Language } from "../App"
 import { useNavigate } from "react-router-dom"
 import { LanguageContext } from "../App"
+// Add import for the API utility functions
+import { getApiUrl } from "../utils/apiUtils"
 
 interface HeaderProps {
   currency: Currency
@@ -82,7 +84,7 @@ const Header: React.FC<HeaderProps> = ({ currency, setCurrency, language, setLan
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await fetch(`${import.meta.env.VITE_SITE_URL}/get-user-details`, {
+        const response = await fetch(getApiUrl("get-user-details"), {
           credentials: "include",
         })
         if (response.ok) {
@@ -107,7 +109,7 @@ const Header: React.FC<HeaderProps> = ({ currency, setCurrency, language, setLan
       if (isLoggedIn) {
         try {
           // Get cart count
-          const countResponse = await fetch(`${import.meta.env.VITE_SITE_URL}/api/cart/count`, {
+          const countResponse = await fetch(getApiUrl("api/cart/count"), {
             credentials: "include",
           })
           if (countResponse.ok) {
@@ -128,7 +130,7 @@ const Header: React.FC<HeaderProps> = ({ currency, setCurrency, language, setLan
     const fetchDraftCount = async () => {
       if (isLoggedIn && isAdmin) {
         try {
-          const response = await fetch(`${import.meta.env.VITE_SITE_URL}/api/drafts/count`, {
+          const response = await fetch(getApiUrl("api/drafts/count"), {
             credentials: "include",
           })
           if (response.ok) {
@@ -152,7 +154,7 @@ const Header: React.FC<HeaderProps> = ({ currency, setCurrency, language, setLan
 
     try {
       setLoading(true)
-      const response = await fetch(`${import.meta.env.VITE_SITE_URL}/api/cart`, {
+      const response = await fetch(getApiUrl("api/cart"), {
         credentials: "include",
       })
 
@@ -180,7 +182,7 @@ const Header: React.FC<HeaderProps> = ({ currency, setCurrency, language, setLan
 
   const handleLogout = async () => {
     try {
-      await fetch(`${import.meta.env.VITE_SITE_URL}/logout`, {
+      await fetch(getApiUrl("logout"), {
         method: "POST",
         credentials: "include",
       })

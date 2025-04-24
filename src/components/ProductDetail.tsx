@@ -9,6 +9,8 @@ import { useNavigate } from "react-router-dom"
 import Footer from "./Footer"
 import { LanguageContext } from "../App"
 import { getImageUrl, getPlaceholder } from "../utils/imageUtils"
+// Add import for the API utility functions
+import { getApiUrl } from "../utils/apiUtils"
 
 interface ProductDetailProps {
   productId: string
@@ -92,11 +94,22 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onBack }) => {
 
   const visitIncremented = useRef(false)
 
+  // Declare variables
+  const description = product?.description || ""
+  const materials = product?.materials || ""
+  const shipping = product?.shipping || ""
+  const images = product?.images || (product?.image ? [product.image] : [])
+  const averageRating = product?.averageRating || 0
+  const ratingCount = product?.ratingCount || 0
+  const productQuantity = product?.productQuantity || 0
+  const sizes = product?.sizes || []
+  const recommended = product?.recommended || []
+
   useEffect(() => {
     const fetchProduct = async () => {
       try {
         setLoading(true)
-        const response = await axios.get(`${import.meta.env.VITE_SITE_URL}/products/${productId}`)
+        const response = await axios.get(getApiUrl(`products/${productId}`))
         setProduct(response.data)
         // Set the first image as selected by default
         if (response.data.images && response.data.images.length > 0) {
@@ -124,7 +137,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onBack }) => {
 
     const checkAuth = async () => {
       try {
-        const response = await fetch(`${import.meta.env.VITE_SITE_URL}/get-user-details`, {
+        const response = await fetch(getApiUrl(`get-user-details`), {
           credentials: "include",
         })
         if (response.ok) {
@@ -148,9 +161,10 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onBack }) => {
     fetchComments(productId)
   }, [productId])
 
+  // Update the incrementVisits function
   const incrementVisits = async (id: string) => {
     try {
-      await fetch(`${import.meta.env.VITE_SITE_URL}/api/products/${id}/visit`, {
+      await fetch(getApiUrl(`api/products/${id}/visit`), {
         method: "POST",
       })
     } catch (error) {
@@ -158,9 +172,10 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onBack }) => {
     }
   }
 
+  // Update the fetchUserRating function
   const fetchUserRating = async (id: string) => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_SITE_URL}/api/products/${id}/user-rating`, {
+      const response = await fetch(getApiUrl(`api/products/${id}/user-rating`), {
         credentials: "include",
       })
 
@@ -173,10 +188,11 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onBack }) => {
     }
   }
 
+  // Update the fetchComments function
   const fetchComments = async (id: string) => {
     try {
       setLoadingComments(true)
-      const response = await fetch(`${import.meta.env.VITE_SITE_URL}/api/products/${id}/comments`)
+      const response = await fetch(getApiUrl(`api/products/${id}/comments`))
 
       if (response.ok) {
         const data = await response.json()
@@ -189,6 +205,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onBack }) => {
     }
   }
 
+  // Update the handleRatingSubmit function
   const handleRatingSubmit = async (rating: number) => {
     if (!isLoggedIn) {
       navigate("/login")
@@ -196,7 +213,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onBack }) => {
     }
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_SITE_URL}/api/products/${productId}/rate`, {
+      const response = await fetch(getApiUrl(`api/products/${productId}/rate`), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -223,6 +240,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onBack }) => {
     }
   }
 
+  // Update the handleCommentSubmit function
   const handleCommentSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -235,7 +253,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onBack }) => {
 
     try {
       setSubmittingComment(true)
-      const response = await fetch(`${import.meta.env.VITE_SITE_URL}/api/products/${productId}/comments`, {
+      const response = await fetch(getApiUrl(`api/products/${productId}/comments`), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -256,6 +274,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onBack }) => {
     }
   }
 
+  // Update the handleReplySubmit function
   const handleReplySubmit = async (parentId: string) => {
     if (!isLoggedIn) {
       navigate("/login")
@@ -266,7 +285,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onBack }) => {
 
     try {
       setSubmittingComment(true)
-      const response = await fetch(`${import.meta.env.VITE_SITE_URL}/api/products/${productId}/comments`, {
+      const response = await fetch(getApiUrl(`api/products/${productId}/comments`), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -303,9 +322,10 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onBack }) => {
     }
   }
 
+  // Update the handleDeleteComment function
   const handleDeleteComment = async (commentId: string) => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_SITE_URL}/api/comments/${commentId}`, {
+      const response = await fetch(getApiUrl(`api/comments/${commentId}`), {
         method: "DELETE",
         credentials: "include",
       })
@@ -338,73 +358,24 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onBack }) => {
     }
   }
 
-  const handleImageClick = (image: string) => {
-    setModalImage(image)
-    setShowModal(true)
-  }
-
-  const closeModal = () => {
-    setShowModal(false)
-  }
-
-  // Update quantity handling to respect product quantity limit
-  const handleQuantityChange = (newQuantity: number) => {
-    if (product && product.productQuantity) {
-      // Ensure quantity is between 1 and product quantity
-      const validQuantity = Math.min(Math.max(1, newQuantity), product.productQuantity)
-      setQuantity(validQuantity)
-    } else {
-      // If no product quantity is set, just ensure it's at least 1
-      setQuantity(Math.max(1, newQuantity))
-    }
-  }
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-primary-light flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 font-body text-gray-700">{t("loadingProductDetails")}</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (error || !product) {
-    return (
-      <div className="min-h-screen bg-primary-light flex items-center justify-center">
-        <div className="text-center max-w-md mx-auto p-6 bg-white rounded-lg shadow-md">
-          <h2 className="text-2xl font-title font-bold text-primary-dark mb-4">{t("error")}</h2>
-          <p className="font-body text-gray-700 mb-6">{error || t("productNotFound")}</p>
-          <button
-            onClick={() => navigate("/")}
-            className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark"
-          >
-            {t("returnToHome")}
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  // Update the handleAddToCart function to check stock limits
+  // Update the handleAddToCart function
   const handleAddToCart = async () => {
     try {
       setAddingToCart(true)
       setCartMessage("")
 
-      const response = await fetch(`${import.meta.env.VITE_SITE_URL}/api/cart`, {
+      const response = await fetch(getApiUrl(`api/cart`), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         credentials: "include",
         body: JSON.stringify({
-          productId: product._id,
-          title: product.title,
-          type: product.type || "Product",
-          price: product.price,
-          image: product.image,
+          productId: product?._id || "",
+          title: product?.title || "",
+          type: product?.type || "Product",
+          price: product?.price || 0,
+          image: product?.image || "",
           quantity: quantity,
         }),
       })
@@ -436,24 +407,11 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onBack }) => {
     }
   }
 
-  // Default values for missing fields
-  const description = product.description || "No description available."
-  const materials = product.materials || "Information not available."
-  const sizes = product.sizes || ["S", "M", "L"]
-  const shipping = product.shipping || "Standard shipping: 3-5 business days."
-  const reviews = product.reviews || []
-  const recommended = product.recommended || []
-  const productQuantity = product.productQuantity || 1
-  const averageRating = product.averageRating || 0
-  const ratingCount = product.ratingCount || 0
-
-  // Get all available images
-  const images = product.images || [product.image, product.hoverImage].filter(Boolean)
-
+  // Update the handlePayPalCheckout function
   const handlePayPalCheckout = async () => {
     try {
       // Get user details
-      const userResponse = await fetch(`${import.meta.env.VITE_SITE_URL}/get-user-details`, {
+      const userResponse = await fetch(getApiUrl(`get-user-details`), {
         credentials: "include",
       })
 
@@ -467,8 +425,8 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onBack }) => {
       // Create invoice data
       const invoice = {
         product: {
-          name: product.title,
-          price: product.price,
+          name: product?.title || "",
+          price: product?.price || 0,
           selectedQuantity: quantity,
           description: description,
           material: materials,
@@ -519,6 +477,21 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onBack }) => {
     }).format(date)
   }
 
+  const handleImageClick = (image: string | null) => {
+    setModalImage(image)
+    setShowModal(true)
+  }
+
+  const closeModal = () => {
+    setShowModal(false)
+  }
+
+  const handleQuantityChange = (newQuantity: number) => {
+    if (newQuantity >= 1 && newQuantity <= productQuantity) {
+      setQuantity(newQuantity)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-primary-light">
       <Header currency={currency} setCurrency={setCurrency} language={language} setLanguage={setLanguage} />
@@ -543,7 +516,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onBack }) => {
                 >
                   <img
                     src={getImageUrl(img) || "/placeholder.svg"}
-                    alt={`${product.title} - view ${index + 1}`}
+                    alt={`${product?.title || "Product"} - view ${index + 1}`}
                     className="w-full h-full object-cover"
                     onError={(e) => {
                       ;(e.target as HTMLImageElement).src = getPlaceholder(80, 80)
@@ -557,11 +530,11 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onBack }) => {
             <div className="flex-1 order-1 md:order-2">
               <div
                 className="rounded-lg shadow-lg overflow-hidden cursor-zoom-in h-[300px] sm:h-[400px] md:h-[500px] w-full"
-                onClick={() => handleImageClick(selectedImage || product.image)}
+                onClick={() => handleImageClick(selectedImage || (product?.image ?? ""))}
               >
                 <img
-                  src={getImageUrl(selectedImage || product.image)}
-                  alt={product.title}
+                  src={getImageUrl(selectedImage || (product?.image ?? ""))}
+                  alt={product?.title || "Product"}
                   className="w-full h-full object-contain bg-white"
                   onError={(e) => {
                     ;(e.target as HTMLImageElement).src = getPlaceholder(600, 600)
@@ -572,8 +545,10 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onBack }) => {
           </div>
 
           <div>
-            <h1 className="text-3xl font-title font-bold mb-4">{product.title}</h1>
-            <p className="text-2xl font-title font-[800] text-pricetxt text-[1.8rem] mb-6">${product.price} USD</p>
+            {product && <h1 className="text-3xl font-title font-bold mb-4">{product.title}</h1>}
+            {product && (
+              <p className="text-2xl font-title font-[800] text-pricetxt text-[1.8rem] mb-6">${product.price} USD</p>
+            )}
 
             {/* Product Rating */}
             <div className="mb-4 flex items-center">
@@ -694,7 +669,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onBack }) => {
               <div>
                 <h2 className="text-xl font-title font-semibold mb-2">{t("productStats")}</h2>
                 <p className="font-body text-gray-700">
-                  {t("views")}: {product.visits || 0}
+                  {t("views")}: {product?.visits || 0}
                 </p>
               </div>
             </div>
@@ -713,7 +688,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onBack }) => {
                     // Save current scroll position before navigating
                     lastScrollPosition = window.scrollY
                     // Navigate to the recommended product
-                    window.location.href = `${import.meta.env.VITE_SITE_URL}/product/${item._id}`
+                    window.location.href = `/product/${item._id}`
                   }}
                 >
                   <img
@@ -894,7 +869,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onBack }) => {
           >
             <img
               src={getImageUrl(modalImage ?? undefined) || "/placeholder.svg"}
-              alt={product.title}
+              alt={product?.title || "Product"}
               className="w-full h-full object-contain bg-white"
               onError={(e) => {
                 ;(e.target as HTMLImageElement).src = getPlaceholder(800, 800)

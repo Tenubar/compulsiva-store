@@ -6,6 +6,8 @@ import axios from "axios"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import type { ProductType } from "../App"
 import { getImageUrl, getPlaceholder } from "../utils/imageUtils"
+// Add import for the API utility functions
+import { getApiUrl } from "../utils/apiUtils"
 
 interface Product {
   _id: string
@@ -30,10 +32,11 @@ const ProductGrid: React.FC<ProductGridProps> = ({ onProductClick, selectedTypes
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // Update the fetchProducts function
     const fetchProducts = async () => {
       try {
         setLoading(true)
-        const response = await axios.get(`${import.meta.env.VITE_SITE_URL}/products`)
+        const response = await axios.get(getApiUrl("products"))
         setProducts(response.data)
       } catch (error) {
         console.error("Error fetching products:", error)
