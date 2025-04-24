@@ -18,13 +18,13 @@ app.use(cookieParser())
 app.use("/uploads", express.static("uploads"))
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: ["https://compulsiva-store.onrender.com", "http://localhost:5173"],
     credentials: true,
   }),
 )
 
 // MongoDB Connection
-const mongoURI = process.env.VITE_MONGODB_URI || "mongodb://localhost:27017/carol-store"
+const mongoURI = process.env.VITE_MONGODB_URI;
 
 let gfs
 
