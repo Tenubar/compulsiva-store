@@ -537,7 +537,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
     <div className="min-h-screen bg-primary-light">
       <Header currency={currency} setCurrency={setCurrency} language={language} setLanguage={setLanguage} />
 
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 py-8 mt-16">
         {/* Replace the onBack prop with our new function */}
         <button onClick={handleBackToProducts} className="flex items-center text-gray-700 hover:text-primary-dark mb-8">
           <ArrowLeft size={20} className="mr-2" /> {t("backToProducts")}
