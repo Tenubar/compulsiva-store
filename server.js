@@ -301,7 +301,13 @@ app.post("/login", async (req, res) => {
 })
 
 app.post("/logout", (req, res) => {
-  res.clearCookie("token")
+  res.clearCookie("token", {
+    httpOnly: true,
+    secure: process.env.VITE_NODE_ENV === "production",
+    sameSite: "none",
+    path: "/" // Asegúrate de que el path coincida con el usado al crear el cookie
+  });
+
   res.json({ message: "Logged out successfully" })
 })
                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
