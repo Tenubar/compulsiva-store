@@ -177,15 +177,7 @@ function App() {
             }
           />
 
-          <Route
-            path="/product/:id"
-            element={
-              <ProductDetail
-                productId={window.location.pathname.split("/").pop() || ""}
-                onBack={() => window.history.back()}
-              />
-            }
-          />
+          <Route path="/product/:id" element={<ProductDetail onBack={() => window.history.back()} />} />
           <Route
             path="/"
             element={

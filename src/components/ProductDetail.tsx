@@ -5,14 +5,13 @@ import { useState, useEffect, useRef, useContext } from "react"
 import axios from "axios"
 import { ArrowLeft, Star, X, ChevronLeft, ChevronRight, MessageSquare, Trash2, Reply } from "lucide-react"
 import Header from "./Header"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useParams } from "react-router-dom"
 import Footer from "./Footer"
 import { LanguageContext } from "../App"
 import { getImageUrl, getPlaceholder } from "../utils/imageUtils"
 import { getProductApiUrl } from "../utils/apiUtils"
 
 interface ProductDetailProps {
-  productId: string
   onBack: () => void
 }
 
@@ -65,7 +64,8 @@ interface Comment {
 // Add a global variable to store scroll position
 let lastScrollPosition = 0
 
-const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onBack }) => {
+const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
+  const { id } = useParams<{ id: string }>()
   const { t, language, setLanguage } = useContext(LanguageContext)
   const [quantity, setQuantity] = useState(1)
   const [currency, setCurrency] = useState<"USD" | "EUR" | "VES">("USD")
@@ -94,11 +94,17 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onBack }) => {
   const visitIncremented = useRef(false)
 
   useEffect(() => {
+    if (!id) {
+      setError("Product ID is missing")
+      setLoading(false)
+      return
+    }
+
     const fetchProduct = async () => {
       try {
         setLoading(true)
         // Use the utility function to get the correct API URL
-        const response = await axios.get(getProductApiUrl(productId))
+        const response = await axios.get(getProductApiUrl(id))
         setProduct(response.data)
         // Set the first image as selected by default
         if (response.data.images && response.data.images.length > 0) {
@@ -113,7 +119,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onBack }) => {
 
         // Increment visit count only once per page load
         if (!visitIncremented.current) {
-          incrementVisits(productId)
+          incrementVisits(id)
           visitIncremented.current = true
         }
       } catch (error) {
@@ -135,7 +141,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onBack }) => {
           setUserData(userData)
 
           // If user is logged in, fetch their rating for this product
-          fetchUserRating(productId)
+          fetchUserRating(id)
         } else {
           setIsLoggedIn(false)
         }
@@ -147,8 +153,8 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onBack }) => {
 
     fetchProduct()
     checkAuth()
-    fetchComments(productId)
-  }, [productId])
+    fetchComments(id)
+  }, [id])
 
   const incrementVisits = async (id: string) => {
     try {
@@ -197,8 +203,10 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onBack }) => {
       return
     }
 
+    if (!id) return
+
     try {
-      const response = await fetch(`${import.meta.env.VITE_SITE_URL}/api/products/${productId}/rate`, {
+      const response = await fetch(`${import.meta.env.VITE_SITE_URL}/api/products/${id}/rate`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -233,11 +241,11 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onBack }) => {
       return
     }
 
-    if (!commentText.trim()) return
+    if (!commentText.trim() || !id) return
 
     try {
       setSubmittingComment(true)
-      const response = await fetch(`${import.meta.env.VITE_SITE_URL}/api/products/${productId}/comments`, {
+      const response = await fetch(`${import.meta.env.VITE_SITE_URL}/api/products/${id}/comments`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -264,11 +272,11 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onBack }) => {
       return
     }
 
-    if (!replyText.trim()) return
+    if (!replyText.trim() || !id) return
 
     try {
       setSubmittingComment(true)
-      const response = await fetch(`${import.meta.env.VITE_SITE_URL}/api/products/${productId}/comments`, {
+      const response = await fetch(`${import.meta.env.VITE_SITE_URL}/api/products/${id}/comments`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -391,6 +399,8 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onBack }) => {
 
   // Update the handleAddToCart function to check stock limits
   const handleAddToCart = async () => {
+    if (!id) return
+
     try {
       setAddingToCart(true)
       setCartMessage("")
@@ -502,7 +512,9 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onBack }) => {
   // Update the onBack function to use the stored scroll position
   const handleBackToProducts = () => {
     // Store the current product ID in session storage before navigating back
-    sessionStorage.setItem("lastViewedProduct", productId)
+    if (id) {
+      sessionStorage.setItem("lastViewedProduct", id)
+    }
     navigate("/")
 
     // The scroll position will be restored in the App.tsx component
@@ -715,7 +727,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onBack }) => {
                     // Save current scroll position before navigating
                     lastScrollPosition = window.scrollY
                     // Navigate to the recommended product
-                    window.location.href = `/product/${item._id}`
+                    navigate(`/product/${item._id}`)
                   }}
                 >
                   <img
