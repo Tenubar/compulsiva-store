@@ -61,7 +61,7 @@ const Footer: React.FC = () => {
               </div>
             </div>
             <p className="text-primary-light">
-              Copyright © 2025 Carol Store
+              Copyright © 2025 Compulsiva Store
             </p>
           </div>
         </div>
