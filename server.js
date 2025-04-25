@@ -291,8 +291,9 @@ app.post("/login", async (req, res) => {
       httpOnly: true,
       secure: process.env.VITE_NODE_ENV === "production",
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
-      domain: process.env.VITE_SITE_URL,
       sameSite: "none",
+      domain: "https://compulsiva-store.onrender.com",
+      path: "/",    
     })
 
     res.json({ message: "Logged in successfully" })
