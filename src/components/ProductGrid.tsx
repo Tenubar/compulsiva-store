@@ -8,6 +8,7 @@ import type { ProductType } from "../App"
 import { getImageUrl, getPlaceholder } from "../utils/imageUtils"
 // Add import for the API utility functions
 import { getApiUrl } from "../utils/apiUtils"
+import { useNavigate } from "react-router-dom"
 
 interface Product {
   _id: string
@@ -30,6 +31,7 @@ const ProductGrid: React.FC<ProductGridProps> = ({ onProductClick, selectedTypes
   const [hoveredProduct, setHoveredProduct] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [loading, setLoading] = useState(true)
+  const navigate = useNavigate()
 
   useEffect(() => {
     // Update the fetchProducts function
@@ -99,7 +101,7 @@ const ProductGrid: React.FC<ProductGridProps> = ({ onProductClick, selectedTypes
                 src={getImageUrl(hoveredProduct === product._id ? product.hoverImage : product.image)}
                 alt={product.title}
                 className="w-full h-full object-cover cursor-pointer"
-                onClick={() => (window.location.href = `/product/${product._id}`)}
+                onClick={() => navigate(`/product/${product._id}`)}
                 onError={(e) => {
                   ;(e.target as HTMLImageElement).src = getPlaceholder(300, 300)
                 }}
