@@ -1,46 +1,36 @@
 /**
- * Utility functions for API calls
+ * Utility functions for API URLs
  */
 
-/**
- * Gets the base API URL from environment variables
- * @returns The base API URL
- */
+// Get the base API URL from environment variable
 export const getApiBaseUrl = (): string => {
-    return import.meta.env.VITE_SITE_URL || ""
-  }
-  
-  /**
-   * Constructs a full API URL
-   * @param endpoint The API endpoint (without leading slash)
-   * @returns The full API URL
-   */
-  export const getApiUrl = (endpoint: string): string => {
-    const baseUrl = getApiBaseUrl()
-    // Ensure there's exactly one slash between base URL and endpoint
-    const normalizedEndpoint = endpoint.startsWith("/") ? endpoint.substring(1) : endpoint
-    return `${baseUrl}/${normalizedEndpoint}`
-  }
-  
-  /**
-   * Gets the frontend base URL
-   * This is useful for constructing frontend URLs (like product detail pages)
-   * @returns The frontend base URL
-   */
-  export const getFrontendBaseUrl = (): string => {
-    // In a production environment, this would be your frontend domain
-    // For local development, it might be the same as the API URL
-    return window.location.origin
-  }
-  
-  /**
-   * Constructs a frontend URL
-   * @param path The path (without leading slash)
-   * @returns The full frontend URL
-   */
-  export const getFrontendUrl = (path: string): string => {
-    const baseUrl = getFrontendBaseUrl()
-    const normalizedPath = path.startsWith("/") ? path.substring(1) : path
-    return `${baseUrl}/${normalizedPath}`
-  }
-  
+  return import.meta.env.VITE_SITE_URL || "https://compulsiva-store-server.onrender.com"
+}
+
+/**
+ * Constructs a full API URL from a path
+ * @param path The API path (without leading slash)
+ * @returns The full API URL
+ */
+export const getApiUrl = (path: string): string => {
+  const baseUrl = getApiBaseUrl()
+  const normalizedPath = path.startsWith("/") ? path.substring(1) : path
+  return `${baseUrl}/${normalizedPath}`
+}
+
+/**
+ * Gets the product API URL for a specific product ID
+ * @param productId The product ID
+ * @returns The product API URL
+ */
+export const getProductApiUrl = (productId: string): string => {
+  return getApiUrl(`products/${productId}`)
+}
+
+/**
+ * Gets the products list API URL
+ * @returns The products list API URL
+ */
+export const getProductsApiUrl = (): string => {
+  return getApiUrl("products")
+}

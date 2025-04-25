@@ -19,7 +19,7 @@ app.use(cookieParser())
 // Update the CORS configuration to allow image requests
 app.use(
   cors({
-    origin: ["http://localhost:5173",  "https://compulsiva-store.onrender.com"], // Your frontend URL
+    origin: ["http://localhost:5173", "https://compulsiva-store.onrender.com"], // Your frontend URL
     credentials: true,
     exposedHeaders: ["Content-Type", "Content-Disposition"], // Important for file downloads
   }),
