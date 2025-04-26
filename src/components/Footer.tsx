@@ -1,21 +1,22 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { Facebook, Twitter, Instagram, CreditCard } from 'lucide-react';
+import { LanguageContext } from "../App";
 
 const Footer: React.FC = () => {
+  const { t } = useContext(LanguageContext);
   return (
     <footer className="bg-primary-dark text-white pt-12 pb-6">
       <div className="container mx-auto px-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
           <div>
-            <h3 className="text-xl font-semibold mb-4">About Me</h3>
+            <h3 className="text-xl font-semibold mb-4">{t("aboutUs")}</h3>
             <p className="text-primary-light">
-              Carol Store is your destination for quality fashion and accessories.
-              We pride ourselves on offering unique pieces at affordable prices.
+            {t("aboutUsText")}
             </p>
           </div>
 
           <div>
-            <h3 className="text-xl font-semibold mb-4">Follow Me</h3>
+            <h3 className="text-xl font-semibold mb-4">{t("followMe")}</h3>
             <div className="flex space-x-4">
               <a href="#" className="text-primary-light hover:text-gray-600">
                 <Facebook size={24} />
@@ -30,19 +31,19 @@ const Footer: React.FC = () => {
           </div>
 
           <div>
-            <h3 className="text-xl font-semibold mb-4">Quick Links</h3>
+            <h3 className="text-xl font-semibold mb-4">{t("quickLinks")}</h3>
             <ul className="space-y-2">
               <li>
-                <a href="#" className="text-primary-light hover:text-gray-600">About Us</a>
+                <a href="#" className="text-primary-light hover:text-gray-600">{t("quickLinksAbout")}</a>
               </li>
               <li>
-                <a href="#" className="text-primary-light hover:text-gray-600">Contact</a>
+                <a href="#" className="text-primary-light hover:text-gray-600">{t("quickLinksContact")}</a>
               </li>
               <li>
-                <a href="#" className="text-primary-light hover:text-gray-600">Shipping Policy</a>
+                <a href="#" className="text-primary-light hover:text-gray-600">{t("quickLinksShipping")}</a>
               </li>
               <li>
-                <a href="#" className="text-primary-light hover:text-gray-600">Returns</a>
+                <a href="#" className="text-primary-light hover:text-gray-600">{t("quickLinksSuggestion")}</a>
               </li>
             </ul>
           </div>
@@ -71,3 +72,5 @@ const Footer: React.FC = () => {
 };
 
 export default Footer;
+
+// Removed the unused custom useContext function.

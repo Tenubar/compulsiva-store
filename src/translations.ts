@@ -22,7 +22,17 @@ export const translations = {
       remaining: "remaining",
       subtotal: "Subtotal",
       checkout: "Checkout",
-  
+
+      // About Us
+      aboutUs: "About Compulsiva Store",
+      aboutUsText: "Compulsiva Store is your destination for quality fashion and accessories. I pride myself on offering unique pieces at affordable prices.",
+      followMe: "Follow Me",
+      quickLinks: "Quick Links",
+      quickLinksAbout: "About Me",
+      quickLinksContact: "Contact me",
+      quickLinksShipping: "Shipping Policy",
+      quickLinksSuggestion: "Suggestion Box",
+
       // Product Detail
       backToProducts: "Back to Products",
       addToCart: "Add to Cart",
@@ -91,7 +101,17 @@ export const translations = {
       remaining: "restantes",
       subtotal: "Subtotal",
       checkout: "Pagar",
-  
+
+      // About Us
+      aboutUs: "Sobre Compulsiva Store",
+      aboutUsText: "Compulsiva Store es tu destino para moda y accesorios de calidad. Me enorgullezco de ofrecer piezas únicas a precios asequibles.",
+      followMe: "Sígueme",
+      quickLinks: "Enlaces Rápidos",
+      quickLinksAbout: "Sobre Mi",
+      quickLinksContact: "Contactame",
+      quickLinksShipping: "Políticas de Envío",
+      quickLinksSuggestion: "Caja de Sugerencias",
+
       // Product Detail
       backToProducts: "Volver a Productos",
       addToCart: "Añadir al Carrito",
