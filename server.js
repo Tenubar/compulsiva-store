@@ -1015,25 +1015,29 @@ app.delete("/api/comments/:id", authenticateToken, async (req, res) => {
   }
 })
 
-// Update the product detail route to include image handling and recommended products with images
 app.get("/products/:id", async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id)
+    // Force a fresh fetch from MongoDB by using findById directly
+    const product = await Product.findById(req.params.id).lean()
+
     if (!product) {
       return res.status(404).json({ message: "Product not found" })
     }
+
+    // Log the product data for debugging
+    console.log(`Serving product ${req.params.id} with quantity: ${product.productQuantity}`)
 
     // Calculate average rating
     const averageRating = product.ratingCount > 0 ? product.ratingSum / product.ratingCount : 0
 
     // Add default values for fields that might be missing
     const enhancedProduct = {
-      ...product.toObject(),
+      ...product,
       description: product.description || "Quality product from Carol Store.",
       materials: product.materials || "Premium materials.",
       sizes: product.sizes || ["S", "M", "L", "XL"],
       shipping: product.shipping || "Standard shipping: 3-5 business days.",
-      productQuantity: product.productQuantity || 1,
+      productQuantity: product.productQuantity != null ? Number(product.productQuantity) : 1,
       visits: product.visits || 0,
       averageRating,
       ratingCount: product.ratingCount || 0,
@@ -1046,16 +1050,23 @@ app.get("/products/:id", async (req, res) => {
     const recommendedProducts = await Product.find({
       type: product.type,
       _id: { $ne: product._id },
-    }).limit(4)
+    })
+      .limit(4)
+      .lean()
 
     const enhancedRecommended = recommendedProducts.map((recProduct) => {
       return {
-        ...recProduct.toObject(),
+        ...recProduct,
         images: [recProduct.image, recProduct.hoverImage, ...(recProduct.additionalImages || [])].filter(Boolean),
       }
     })
 
     enhancedProduct.recommended = enhancedRecommended
+
+    // Set cache control headers to prevent caching
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate")
+    res.setHeader("Pragma", "no-cache")
+    res.setHeader("Expires", "0")
 
     res.json(enhancedProduct)
   } catch (error) {
@@ -1651,13 +1662,12 @@ function verifyIPN(verificationBody) {
   })
 }
 
-// Function to create an order from IPN data
 async function createOrderFromIPN(ipnData) {
   try {
-
     // Check if an order with this transaction ID already exists
     const existingOrder = await Order.findOne({ paypalTransactionId: ipnData.txn_id })
     if (existingOrder) {
+      console.log(`Order already exists for transaction ID: ${ipnData.txn_id}`)
       return existingOrder
     }
 
@@ -1707,20 +1717,17 @@ async function createOrderFromIPN(ipnData) {
     // Always update inventory when an order is created
     const purchaseQuantity = Number.parseInt(ipnData.quantity || 1)
 
-    // Use findOneAndUpdate to get the updated document
-    const updatedProduct = await Product.findByIdAndUpdate(
-      productId,
-      { $inc: { productQuantity: -purchaseQuantity } },
-      { new: true },
+    console.log(
+      `Updating stock for product ${productId}. Current quantity: ${product.productQuantity}, Purchase quantity: ${purchaseQuantity}`,
     )
 
-    console.log(`Stock updated for product ${productId}. New quantity: ${updatedProduct.productQuantity}`)
+    // Calculate new quantity and ensure it's not negative
+    const newQuantity = Math.max(0, product.productQuantity - purchaseQuantity)
 
-    // If stock is now zero or negative, ensure it's exactly zero
-    if (updatedProduct.productQuantity < 0) {
-      await Product.findByIdAndUpdate(productId, { productQuantity: 0 })
-      console.log(`Corrected negative stock for product ${productId}`)
-    }
+    // Update the product with the new quantity
+    const updatedProduct = await Product.findByIdAndUpdate(productId, { productQuantity: newQuantity }, { new: true })
+
+    console.log(`Stock updated for product ${productId}. New quantity: ${updatedProduct.productQuantity}`)
 
     // Remove the item from the user's cart if it exists
     await CartItem.deleteMany({

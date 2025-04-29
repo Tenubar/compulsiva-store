@@ -18,13 +18,14 @@ export const getApiUrl = (path: string): string => {
   return `${baseUrl}/${normalizedPath}`
 }
 
-/**
- * Gets the product API URL for a specific product ID
- * @param productId The product ID
- * @returns The product API URL
- */
-export const getProductApiUrl = (productId: string): string => {
-  return getApiUrl(`products/${productId}`)
+// Add a function to ensure we're getting the latest product data
+export const getProductApiUrl = (id: string) => {
+  return `${import.meta.env.VITE_SITE_URL}/products/${id}`
+}
+
+// Add a new function to force refresh product data
+export const getProductApiUrlWithRefresh = (id: string) => {
+  return `${import.meta.env.VITE_SITE_URL}/products/${id}?refresh=true&t=${Date.now()}`
 }
 
 /**

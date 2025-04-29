@@ -131,34 +131,46 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
     }
 
     try {
-      // If we're forcing a refresh or returning from purchase, don't use cache
-      const now = Date.now()
-      const useCache = !forceRefresh && !isReturningFromPurchase.current && now - lastFetchTime.current < 30000
-
+      // Always set loading state when fetching
       if (forceRefresh) {
         setRefreshing(true)
-      } else if (!useCache) {
+      } else {
         setLoading(true)
       }
 
-      // Add a cache-busting parameter if forcing refresh
-      const cacheBuster = forceRefresh || isReturningFromPurchase.current ? `?t=${now}` : ""
-      const response = await axios.get(`${getProductApiUrl(id)}${cacheBuster}`)
+      // Add a timestamp to prevent browser caching
+      const timestamp = Date.now()
+      const response = await axios.get(`${getProductApiUrl(id)}?t=${timestamp}`, {
+        // Disable axios caching
+        headers: {
+          "Cache-Control": "no-cache",
+          Pragma: "no-cache",
+          Expires: "0",
+        },
+      })
 
-      setProduct(response.data)
-      lastFetchTime.current = now
+      console.log("Fetched product data:", response.data)
+
+      // Ensure productQuantity is properly parsed as a number
+      const productData = {
+        ...response.data,
+        productQuantity: response.data.productQuantity != null ? Number(response.data.productQuantity) : 1,
+      }
+
+      setProduct(productData)
+      lastFetchTime.current = timestamp
       isReturningFromPurchase.current = false
 
       // Set the first image as selected by default
-      if (response.data.images && response.data.images.length > 0) {
-        setSelectedImage(response.data.images[0])
-      } else if (response.data.image) {
-        setSelectedImage(response.data.image)
+      if (productData.images && productData.images.length > 0) {
+        setSelectedImage(productData.images[0])
+      } else if (productData.image) {
+        setSelectedImage(productData.image)
       }
 
       // Initialize selected size when product loads
-      if (response.data && response.data.sizes && response.data.sizes.length > 0) {
-        setSelectedSize(response.data.sizes[0])
+      if (productData && productData.sizes && productData.sizes.length > 0) {
+        setSelectedSize(productData.sizes[0])
       }
 
       // Increment visit count only once per page load
@@ -176,6 +188,12 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
   }
 
   useEffect(() => {
+    // Check if we're returning from a successful purchase
+    const urlParams = new URLSearchParams(location.search)
+    if (urlParams.get("success") === "true") {
+      isReturningFromPurchase.current = true
+    }
+
     const checkAuth = async () => {
       try {
         const response = await fetch(`${import.meta.env.VITE_SITE_URL}/get-user-details`, {
@@ -202,7 +220,8 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
       }
     }
 
-    fetchProduct()
+    // Always fetch fresh data
+    fetchProduct(isReturningFromPurchase.current)
     checkAuth()
     fetchComments(id || "")
 
@@ -211,7 +230,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
       visitIncremented.current = false
       lastFetchTime.current = 0
     }
-  }, [id]) // Only depend on id to prevent unnecessary refetches
+  }, [id, location.search])
 
   // Add effect for login status changes
   useEffect(() => {
