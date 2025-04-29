@@ -3,7 +3,7 @@
 import type React from "react"
 import { useState, useEffect, useContext } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
-import { ArrowLeft, ShoppingBag, ExternalLink, AlertTriangle } from "lucide-react"
+import { ArrowLeft, ShoppingBag, ExternalLink, AlertTriangle, CheckCircle } from "lucide-react"
 import { LanguageContext } from "../App"
 import Header from "./Header"
 import Footer from "./Footer"
@@ -30,75 +30,17 @@ const Orders: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [successMessage, setSuccessMessage] = useState("")
-  const [orderCreationAttempted, setOrderCreationAttempted] = useState(false)
+  const [waitingForIPN, setWaitingForIPN] = useState(false)
+  const [paymentInfo, setPaymentInfo] = useState<{
+    productId?: string
+    title?: string
+    price?: string
+    quantity?: string
+    txnId?: string
+  } | null>(null)
 
   const navigate = useNavigate()
   const location = useLocation()
-
-  useEffect(() => {
-    // Parse query parameters
-    const queryParams = new URLSearchParams(location.search)
-    const success = queryParams.get("success")
-    const txnId = queryParams.get("txn_id")
-
-    // Only attempt to create an order if:
-    // 1. We haven't tried already
-    // 2. The success parameter is true
-    // 3. The txn_id is NOT "IPN_HANDLED" (which indicates IPN will handle it)
-    if (!orderCreationAttempted && success === "true" && txnId !== "IPN_HANDLED") {
-      createOrderFromQueryParams(queryParams)
-      setOrderCreationAttempted(true)
-    }
-  }, [location, orderCreationAttempted])
-
-  interface QueryParams {
-    get: (key: string) => string | null
-  }
-
-  interface CreateOrderResponse {
-    duplicate?: boolean
-  }
-
-  const createOrderFromQueryParams = async (queryParams: QueryParams): Promise<void> => {
-    try {
-      const productId = queryParams.get("productId")
-      const title = queryParams.get("title")
-      const price = queryParams.get("price")
-      const quantity = queryParams.get("quantity")
-      const txnId = queryParams.get("tx") // PayPal adds this parameter
-
-      if (!productId || !title || !price || !quantity || !txnId) {
-        console.error("Missing required parameters for order creation")
-        return
-      }
-
-      const response = await fetch(getApiUrl("api/orders"), {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify({
-          productId,
-          title,
-          price: Number.parseFloat(price),
-          quantity: Number.parseInt(quantity),
-          paypalTransactionId: txnId,
-          // Add other fields as needed
-        }),
-      })
-
-      const data: CreateOrderResponse = await response.json()
-
-      // If the order was already created by IPN, that's fine
-      if (data.duplicate) {
-        console.log("Order was already created by IPN")
-      }
-      fetchOrders() // Refresh the orders list
-    } catch (error) {
-      console.error("Error creating order:", error)
-    }
-  }
 
   // Check for query parameters (from PayPal success)
   useEffect(() => {
@@ -106,63 +48,35 @@ const Orders: React.FC = () => {
     const success = queryParams.get("success")
 
     if (success === "true") {
-      const productId = queryParams.get("productId")
-      const title = queryParams.get("title")
-      const price = queryParams.get("price")
-      const quantity = queryParams.get("quantity")
-
-      if (productId && title && price && quantity) {
-        // Create a new order
-        createOrder(productId, decodeURIComponent(title), Number.parseFloat(price), Number.parseInt(quantity))
+      // Extract payment information from URL
+      const paymentData = {
+        productId: queryParams.get("productId") || undefined,
+        title: queryParams.get("title") ? decodeURIComponent(queryParams.get("title")!) : undefined,
+        price: queryParams.get("price") || undefined,
+        quantity: queryParams.get("quantity") || undefined,
+        txnId: queryParams.get("tx") || undefined, // PayPal transaction ID
       }
+
+      setPaymentInfo(paymentData)
+
+      // Show waiting for IPN message
+      setWaitingForIPN(true)
+      setSuccessMessage(t("paymentSuccessful"))
 
       // Clear the URL parameters
       navigate("/orders", { replace: true })
+
+      // Wait a reasonable time for IPN to process (5 seconds)
+      // This gives the IPN webhook time to create the order
+      setTimeout(() => {
+        fetchOrders()
+        setWaitingForIPN(false)
+      }, 5000)
+    } else {
+      // If not coming from PayPal success, just fetch orders normally
+      fetchOrders()
     }
-  }, [location, navigate])
-
-  // Create a new order from PayPal success
-  const createOrder = async (productId: string, title: string, price: number, quantity: number) => {
-    try {
-      // Generate a mock PayPal transaction ID (in a real app, this would come from PayPal)
-      const paypalTransactionId = `PAYPAL-${Date.now()}-${Math.floor(Math.random() * 1000000)}`
-
-      const response = await fetch(getApiUrl("api/orders"), {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify({
-          productId,
-          title,
-          price,
-          quantity,
-          paypalTransactionId,
-          payerEmail: "customer@example.com", // In a real app, this would come from PayPal
-          payerName: "John Doe", // In a real app, this would come from PayPal
-          shippingAddress: {
-            name: "John Doe",
-            addressLine1: "123 Main St",
-            city: "Anytown",
-            state: "CA",
-            postalCode: "12345",
-            country: "US",
-          },
-        }),
-      })
-
-      if (response.ok) {
-        setSuccessMessage(t("orderCreatedSuccess"))
-        fetchOrders() // Refresh the orders list
-      } else {
-        setError(t("orderCreationFailed"))
-      }
-    } catch (error) {
-      console.error("Error creating order:", error)
-      setError(t("orderCreationFailed"))
-    }
-  }
+  }, [location, navigate, t])
 
   // Fetch user's orders
   const fetchOrders = async () => {
@@ -188,10 +102,6 @@ const Orders: React.FC = () => {
       setLoading(false)
     }
   }
-
-  useEffect(() => {
-    fetchOrders()
-  }, [navigate, t])
 
   // Format date
   const formatDate = (dateString: string) => {
@@ -242,6 +152,9 @@ const Orders: React.FC = () => {
             {successMessage && (
               <div className="bg-green-50 border-l-4 border-green-400 p-4 m-4">
                 <div className="flex">
+                  <div className="flex-shrink-0">
+                    <CheckCircle className="h-5 w-5 text-green-400" />
+                  </div>
                   <div className="ml-3">
                     <p className="text-sm text-green-700">{successMessage}</p>
                   </div>
@@ -250,7 +163,27 @@ const Orders: React.FC = () => {
             )}
 
             <div className="px-4 py-5 sm:p-6">
-              {loading ? (
+              {waitingForIPN ? (
+                <div className="text-center py-8">
+                  <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                  <p className="mt-2 text-gray-500">{t("processingPayment")}</p>
+                  {paymentInfo && (
+                    <div className="mt-4 p-4 bg-blue-50 rounded-md max-w-md mx-auto">
+                      <h3 className="font-medium text-blue-800">{t("paymentDetails")}</h3>
+                      <p className="text-sm text-blue-700 mt-1">{paymentInfo.title}</p>
+                      <p className="text-sm text-blue-700">
+                        {t("quantity")}: {paymentInfo.quantity}
+                      </p>
+                      <p className="text-sm text-blue-700">
+                        {t("total")}: $
+                        {paymentInfo.price && paymentInfo.quantity
+                          ? (Number.parseFloat(paymentInfo.price) * Number.parseInt(paymentInfo.quantity)).toFixed(2)
+                          : "0.00"}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ) : loading ? (
                 <div className="text-center py-8">
                   <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
                   <p className="mt-2 text-gray-500">{t("loadingOrders")}</p>

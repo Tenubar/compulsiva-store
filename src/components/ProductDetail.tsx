@@ -187,7 +187,6 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
     }
   }
 
-  
   const checkWishlist = async (productId: string) => {
     try {
       const response = await fetch(`${import.meta.env.VITE_SITE_URL}/api/wishlist/check/${productId}`, {
@@ -692,8 +691,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
                 </button>
               </div>
             </div>
-            
-            
+
             {/* Wishlist button */}
             <button
               onClick={toggleWishlist}
@@ -726,17 +724,18 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
                 {t("buyWithPayPal")}
               </button>
 
+              {/* PayPal form with return URL that redirects to orders page */}
               <form
-              id="paypal-form"
-              action="https://www.sandbox.paypal.com/cgi-bin/webscr"
-              method="post"
-              target="_top"
-              style={{ display: "none" }} // Hide the form
-            >
-              <input type="hidden" name="cmd" value="_xclick" />
-              <input type="hidden" name="business" value={import.meta.env.VITE_ADMIN_USER_EMAIL_PP} />
-              <input type="hidden" name="item_name" value={product.title} />
-              <input type="hidden" name="item_number" value={product._id} />
+                id="paypal-form"
+                action="https://www.sandbox.paypal.com/cgi-bin/webscr"
+                method="post"
+                target="_top"
+                style={{ display: "none" }} // Hide the form
+              >
+                <input type="hidden" name="cmd" value="_xclick" />
+                <input type="hidden" name="business" value={import.meta.env.VITE_ADMIN_USER_EMAIL_PP} />
+                <input type="hidden" name="item_name" value={product.title} />
+                <input type="hidden" name="item_number" value={product._id} />
                 <input type="hidden" name="amount" value={product.price} />
                 <input type="hidden" name="quantity" value={quantity} />
                 <input type="hidden" name="currency_code" value="USD" />
@@ -746,11 +745,12 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
                 <input type="hidden" name="tax" value="0" />
                 <input type="hidden" name="lc" value="US" />
                 <input type="hidden" name="bn" value="PP-BuyNowBF" />
-                <input type="hidden" name="notify_url" value={`${import.meta.env.VITE_SITE_URL}/api/paypal/ipn`}/>
+                <input type="hidden" name="notify_url" value={`${import.meta.env.VITE_SITE_URL}/api/paypal/ipn`} />
+                {/* Return URL now just redirects to orders page with success flag and product info */}
                 <input
                   type="hidden"
                   name="return"
-                  value={`${window.location.origin}/orders?success=true&productId=${product._id}&title=${encodeURIComponent(product.title)}&price=${product.price}&quantity=${quantity}&txn_id=IPN_HANDLED`}
+                  value={`${window.location.origin}/orders?success=true&productId=${product._id}&title=${encodeURIComponent(product.title)}&price=${product.price}&quantity=${quantity}`}
                 />
                 <input type="hidden" name="cancel_return" value={`${window.location.origin}/product/${product._id}`} />
                 <input
@@ -762,11 +762,6 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
                   style={{ border: 0 }}
                 />
               </form>
-
-
-            
-
-            
             </div>
             <p className="text-center text-gray-500 text-sm mb-8">{t("otherPaymentMethods")}</p>
 
