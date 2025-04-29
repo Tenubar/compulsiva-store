@@ -751,6 +751,11 @@ app.get("/products", async (req, res) => {
 
 app.post("/api/products", async (req, res) => {
   try {
+
+    if (req.body.productQuantity) {
+      req.body.productQuantity = Number(req.body.productQuantity)
+    }
+
     const newProduct = new Product(req.body)
     const savedProduct = await newProduct.save()
     res.status(201).json({ product: savedProduct })
@@ -763,6 +768,12 @@ app.post("/api/products", async (req, res) => {
 // Update product - Added new route for API endpoint
 app.put("/api/products/:id", authenticateToken, isAdmin, async (req, res) => {
   try {
+
+    // Ensure productQuantity is a number
+    if (req.body.productQuantity) {
+      req.body.productQuantity = Number(req.body.productQuantity)
+    }
+
     const updatedProduct = await Product.findByIdAndUpdate(req.params.id, req.body, { new: true })
 
     if (!updatedProduct) {
@@ -1693,10 +1704,23 @@ async function createOrderFromIPN(ipnData) {
 
     await order.save()
 
-    // If the order was successful, we might want to update inventory
-    await Product.findByIdAndUpdate(productId, {
-      $inc: { productQuantity: -Number.parseInt(ipnData.quantity || 1) },
-    })
+    // Always update inventory when an order is created
+    const purchaseQuantity = Number.parseInt(ipnData.quantity || 1)
+
+    // Use findOneAndUpdate to get the updated document
+    const updatedProduct = await Product.findByIdAndUpdate(
+      productId,
+      { $inc: { productQuantity: -purchaseQuantity } },
+      { new: true },
+    )
+
+    console.log(`Stock updated for product ${productId}. New quantity: ${updatedProduct.productQuantity}`)
+
+    // If stock is now zero or negative, ensure it's exactly zero
+    if (updatedProduct.productQuantity < 0) {
+      await Product.findByIdAndUpdate(productId, { productQuantity: 0 })
+      console.log(`Corrected negative stock for product ${productId}`)
+    }
 
     // Remove the item from the user's cart if it exists
     await CartItem.deleteMany({
