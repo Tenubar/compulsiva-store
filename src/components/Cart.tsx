@@ -160,6 +160,7 @@ const Cart: React.FC = () => {
                       <button
                         onClick={() => handleUpdateQuantity(item._id, item.quantity - 1)}
                         className="text-gray-500 focus:outline-none focus:text-gray-600 p-1"
+                        disabled={item.quantity <= 1}
                       >
                         <span className="text-lg">-</span>
                       </button>
@@ -172,6 +173,7 @@ const Cart: React.FC = () => {
                       <button
                         onClick={() => handleUpdateQuantity(item._id, item.quantity + 1)}
                         className="text-gray-500 focus:outline-none focus:text-gray-600 p-1"
+                        disabled={true} 
                       >
                         <span className="text-lg">+</span>
                       </button>
@@ -183,7 +185,8 @@ const Cart: React.FC = () => {
                     </button>
                   </div>
                 </li>
-              ))}
+              ),
+            )}
             </ul>
             <div className="border-t border-gray-200 px-6 py-4">
               <div className="flex justify-between text-base font-medium text-gray-900">

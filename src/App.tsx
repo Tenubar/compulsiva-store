@@ -23,6 +23,16 @@ import Drafts from "./components/admin/Drafts"
 import AdminRoute from "./components/AdminRoute"
 import Unauthorized from "./components/Unauthorized"
 import { translations, type LanguageType } from "./translations"
+import Profile from "./components/Profile"
+import Wishlist from "./components/Wishlist"
+import AboutMe from "./components/AboutMe"
+import Contact from "./components/Contact"
+import ShippingPolicy from "./components/ShippingPolicy"
+import Returns from "./components/Returns"
+import SuggestionBox from "./components/SuggestionBox"
+import Orders from "./components/Orders"
+import OrderDetail from "./components/OrderDetail"
+
 
 // Add this function to restore scroll position
 function ScrollToTop() {
@@ -59,7 +69,7 @@ export const LanguageContext = React.createContext<{
   setLanguage: (lang: Language) => void
   t: (key: string) => string
 }>({
-  language: "Spanish", // Default language
+  language: "Español", // Default language
   setLanguage: () => {},
   t: (key) => key,
 })
@@ -67,12 +77,13 @@ export const LanguageContext = React.createContext<{
 function App() {
   const [viewMode, setViewMode] = useState<ViewMode>("grid")
   const [currency, setCurrency] = useState<Currency>("USD")
-  const [language, setLanguage] = useState<Language>("Spanish") // Default to Spanish
+  const [language, setLanguage] = useState<Language>("Español") // Default to Spanish
   const [selectedTypes, setSelectedTypes] = useState<ProductType[]>([])
 
   // Translation function
-  const t = (key: string) => {
-    return translations[language][key as keyof (typeof translations)[typeof language]] || key
+  const t = (key: string): string => {
+    const translation = translations[language][key as keyof (typeof translations)[typeof language]];
+    return typeof translation === "string" ? translation : key;
   }
 
   // Add effect to store scroll position when navigating to product detail
@@ -117,7 +128,12 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/cart" element={<Cart />} />
+          <Route path="/wishlist" element={<Wishlist />} />
           <Route path="/unauthorized" element={<Unauthorized />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/orders" element={<Orders />} />
+          <Route path="/orders/:id" element={<OrderDetail />} />
+
 
           {/* Admin Routes */}
           <Route
@@ -178,6 +194,11 @@ function App() {
           />
 
           <Route path="/product/:id" element={<ProductDetail onBack={() => window.history.back()} />} />
+          <Route path="/about" element={<AboutMe />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/shipping" element={<ShippingPolicy />} />
+          <Route path="/returns" element={<Returns />} />
+          <Route path="/suggestions" element={<SuggestionBox />} />
           <Route
             path="/"
             element={

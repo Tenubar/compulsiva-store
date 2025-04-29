@@ -8,6 +8,8 @@ import cookieParser from "cookie-parser"
 import multer from "multer"
 import { GridFSBucket } from "mongodb"
 import { Readable } from "stream"
+import https from "https"
+import querystring from "querystring"
 
 dotenv.config()
 
@@ -54,6 +56,7 @@ const userSchema = new mongoose.Schema(
     name: { type: String, required: true },
     password: { type: String, required: true },
     email: { type: String, required: true, unique: true },
+    avatar: { type: String, default: "" },
   },
   { timestamps: true },
 )
@@ -122,6 +125,67 @@ const imageSchema = new mongoose.Schema({
 })
 
 const ImageModel = mongoose.model("Image", imageSchema)
+
+// Wishlist Schema
+const wishlistItemSchema = new mongoose.Schema(
+  {
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    productId: { type: String, required: true },
+    title: { type: String, required: true },
+    type: { type: String, required: true },
+    price: { type: Number, required: true },
+    image: { type: String, required: true },
+    description: { type: String },
+  },
+  { timestamps: true },
+)
+
+const WishlistItem = mongoose.model("WishlistItem", wishlistItemSchema)
+
+// Order Schema
+const orderSchema = new mongoose.Schema(
+  {
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    productId: { type: String, required: true },
+    title: { type: String, required: true },
+    price: { type: Number, required: true },
+    quantity: { type: Number, required: true, default: 1 },
+    paypalTransactionId: { type: String, required: true },
+    paypalOrderId: { type: String },
+    payerEmail: { type: String },
+    payerName: { type: String },
+    shippingAddress: {
+      name: { type: String },
+      addressLine1: { type: String },
+      addressLine2: { type: String },
+      city: { type: String },
+      state: { type: String },
+      postalCode: { type: String },
+      country: { type: String },
+    },
+    status: { type: String, default: "completed" },
+    paymentDetails: { type: Object },
+  },
+  { timestamps: true },
+)
+
+const Order = mongoose.model("Order", orderSchema)
+
+
+// PayPal IPN Log Schema - New schema to log all IPN messages
+const ipnLogSchema = new mongoose.Schema(
+  {
+    ipnMessage: { type: Object, required: true },
+    verified: { type: Boolean, required: true },
+    processed: { type: Boolean, default: false },
+    error: { type: String },
+    orderCreated: { type: Boolean, default: false },
+    orderId: { type: mongoose.Schema.Types.ObjectId, ref: "Order" },
+  },
+  { timestamps: true },
+)
+
+const IPNLog = mongoose.model("IPNLog", ipnLogSchema)
 
 // Route for uploading image to GridFS
 app.post("/api/upload/productImage", upload.single("image"), async (req, res) => {
@@ -250,7 +314,7 @@ const isAdmin = async (req, res, next) => {
 // Auth Routes
 app.post("/register", async (req, res) => {
   try {
-    const { name, password, email } = req.body
+    const { name, password, email, avatar } = req.body
 
     const existingUser = await User.findOne({ email })
     if (existingUser) {
@@ -262,6 +326,7 @@ app.post("/register", async (req, res) => {
       name,
       password: hashedPassword,
       email,
+      avatar: avatar || "",
     })
 
     await user.save()
@@ -404,10 +469,11 @@ app.post("/post-user", authenticateToken, async (req, res) => {
   }
 })
 
+// Update the update-user route to handle avatar updates
 app.put("/update-user", authenticateToken, async (req, res) => {
   try {
-    const { name, email } = req.body
-    const updatedUser = await User.findByIdAndUpdate(req.user.userId, { name, email }, { new: true }).select(
+    const { name, email, avatar } = req.body
+    const updatedUser = await User.findByIdAndUpdate(req.user.userId, { name, email, avatar }, { new: true }).select(
       "-password",
     )
 
@@ -417,9 +483,39 @@ app.put("/update-user", authenticateToken, async (req, res) => {
   }
 })
 
+// Update the delete-user route to handle avatar deletion
 app.delete("/delete-user", authenticateToken, async (req, res) => {
   try {
+    const user = await User.findById(req.user.userId)
+
+    // Delete user's avatar if it exists
+    if (user && user.avatar) {
+      try {
+        // Find the image in the database
+        const image = await ImageModel.findOne({ filename: user.avatar })
+
+        if (image) {
+          // Delete from GridFS
+          await bucket.delete(image.fileId)
+
+          // Delete from database
+          await ImageModel.findByIdAndDelete(image._id)
+        }
+      } catch (err) {
+        console.error("Error deleting user avatar:", err)
+        // Continue with user deletion even if avatar deletion fails
+      }
+    }
+
+    // Delete user's cart items
+    await CartItem.deleteMany({ userId: req.user.userId })
+
+    // Delete user's wishlist items
+    await WishlistItem.deleteMany({ userId: req.user.userId })
+
+    // Delete user
     await User.findByIdAndDelete(req.user.userId)
+
     res.clearCookie("token")
     res.json({ message: "User deleted successfully" })
   } catch (error) {
@@ -514,7 +610,8 @@ app.delete("/api/images/:id", authenticateToken, isAdmin, async (req, res) => {
     await bucket.delete(image.fileId)
 
     // Delete from database
-    await ImageModel.findByIdAndDelete(req.params.id)
+    // await ImageModel.findByIdAndDelete(req.params.id)
+    await ImageModel.findByIdAndDelete(image._id)
 
     res.json({ message: "Image deleted successfully" })
   } catch (error) {
@@ -1130,6 +1227,80 @@ const cartItemSchema = new mongoose.Schema(
 
 const CartItem = mongoose.model("CartItem", cartItemSchema)
 
+// Wishlist Routes
+app.get("/api/wishlist", authenticateToken, async (req, res) => {
+  try {
+    const items = await WishlistItem.find({ userId: req.user.userId })
+    res.json({ items })
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching wishlist items", error: error.message })
+  }
+})
+
+app.post("/api/wishlist", authenticateToken, async (req, res) => {
+  try {
+    const { productId, title, type, price, image, description } = req.body
+
+    // Check if item already exists in wishlist
+    const existingItem = await WishlistItem.findOne({
+      userId: req.user.userId,
+      productId: productId,
+    })
+
+    if (existingItem) {
+      return res.status(400).json({ message: "Item already in wishlist" })
+    }
+
+    // Create new wishlist item
+    const wishlistItem = new WishlistItem({
+      userId: req.user.userId,
+      productId,
+      title,
+      type,
+      price,
+      image,
+      description,
+    })
+
+    await wishlistItem.save()
+    res.status(201).json({ message: "Item added to wishlist", item: wishlistItem })
+  } catch (error) {
+    res.status(500).json({ message: "Error adding to wishlist", error: error.message })
+  }
+})
+
+app.delete("/api/wishlist/:id", authenticateToken, async (req, res) => {
+  try {
+    const result = await WishlistItem.findOneAndDelete({
+      _id: req.params.id,
+      userId: req.user.userId,
+    })
+
+    if (!result) {
+      return res.status(404).json({ message: "Wishlist item not found" })
+    }
+
+    res.json({ message: "Item removed from wishlist" })
+  } catch (error) {
+    res.status(500).json({ message: "Error removing from wishlist", error: error.message })
+  }
+})
+
+// Check if product is in wishlist
+app.get("/api/wishlist/check/:productId", authenticateToken, async (req, res) => {
+  try {
+    const productId = req.params.productId
+    const item = await WishlistItem.findOne({
+      userId: req.user.userId,
+      productId: productId,
+    })
+
+    res.json({ inWishlist: !!item, itemId: item ? item._id : null })
+  } catch (error) {
+    res.status(500).json({ message: "Error checking wishlist", error: error.message })
+  }
+})
+
 // Cart Routes
 app.get("/api/cart", authenticateToken, async (req, res) => {
   try {
@@ -1240,6 +1411,78 @@ app.delete("/api/cart/:id", authenticateToken, async (req, res) => {
   }
 })
 
+// Order Routes
+app.get("/api/orders", authenticateToken, async (req, res) => {
+  try {
+    const orders = await Order.find({ userId: req.user.userId }).sort({ createdAt: -1 })
+    res.json({ orders })
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching orders", error: error.message })
+  }
+})
+
+app.get("/api/orders/:id", authenticateToken, async (req, res) => {
+  try {
+    const order = await Order.findOne({ _id: req.params.id, userId: req.user.userId })
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" })
+    }
+    res.json({ order })
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching order", error: error.message })
+  }
+})
+
+  
+
+app.post("/api/orders", authenticateToken, async (req, res) => {
+  try {
+    const {
+      productId,
+      title,
+      price,
+      quantity,
+      paypalTransactionId,
+      paypalOrderId,
+      payerEmail,
+      payerName,
+      shippingAddress,
+      paymentDetails,
+    } = req.body
+
+    // Check if an order with this transaction ID already exists
+    if (paypalTransactionId) {
+      const existingOrder = await Order.findOne({ paypalTransactionId })
+      if (existingOrder) {
+        return res.status(200).json({
+          message: "Order already exists",
+          order: existingOrder,
+          duplicate: true,
+        })
+      }
+    }
+
+    const order = new Order({
+      userId: req.user.userId,
+      productId,
+      title,
+      price,
+      quantity,
+      paypalTransactionId,
+      paypalOrderId,
+      payerEmail,
+      payerName,
+      shippingAddress,
+      paymentDetails,
+    })
+
+    await order.save()
+    res.status(201).json({ message: "Order created successfully", order })
+  } catch (error) {
+    res.status(500).json({ message: "Error creating order", error: error.message })
+  }
+})
+
 // Update the delete product route to also delete associated images
 app.delete("/api/product/:id", authenticateToken, isAdmin, async (req, res) => {
   try {
@@ -1280,6 +1523,9 @@ app.delete("/api/product/:id", authenticateToken, isAdmin, async (req, res) => {
     // Also delete any cart items with this product
     await CartItem.deleteMany({ productId: req.params.id })
 
+    // Also delete any wishlist items with this product
+    await WishlistItem.deleteMany({ productId: req.params.id })
+
     // Also delete any ratings and comments for this product
     await Rating.deleteMany({ productId: req.params.id })
     await Comment.deleteMany({ productId: req.params.id })
@@ -1290,6 +1536,187 @@ app.delete("/api/product/:id", authenticateToken, isAdmin, async (req, res) => {
     res.status(500).json({ message: "Error deleting product", error })
   }
 })
+
+
+// PayPal IPN Webhook
+app.post("/api/paypal/ipn", express.raw({ type: "application/x-www-form-urlencoded" }), async (req, res) => {
+  // Convert the raw body to a string
+  const body = req.body.toString("utf8")
+
+  // Log the received IPN message
+  console.log("Received PayPal IPN:", body)
+
+  // Prepare the verification message by adding 'cmd=_notify-validate'
+  const verificationBody = `cmd=_notify-validate&${body}`
+
+  // Parse the original IPN message for our use
+  const ipnData = querystring.parse(body)
+
+  // Create a new IPN log entry
+  const ipnLog = new IPNLog({
+    ipnMessage: ipnData,
+    verified: false,
+  })
+
+  try {
+    // Verify with PayPal that this is a legitimate IPN message
+    const verificationResult = await verifyIPN(verificationBody)
+
+    // Update the IPN log with verification result
+    ipnLog.verified = verificationResult === "VERIFIED"
+
+    if (ipnLog.verified) {
+      console.log("PayPal IPN verified successfully")
+
+      // Process the payment if it's completed
+      if (ipnData.payment_status === "Completed") {
+        try {
+          // Create a new order from the IPN data
+          const order = await createOrderFromIPN(ipnData)
+
+          if (order) {
+            ipnLog.orderCreated = true
+            ipnLog.orderId = order._id
+            ipnLog.processed = true
+            console.log(`Order created successfully: ${order._id}`)
+          }
+        } catch (orderError) {
+          console.error("Error creating order from IPN:", orderError)
+          ipnLog.error = orderError.message
+        }
+      } else {
+        console.log(`Payment not completed. Status: ${ipnData.payment_status}`)
+        ipnLog.processed = true
+      }
+    } else {
+      console.error("PayPal IPN verification failed")
+      ipnLog.error = "IPN verification failed"
+    }
+  } catch (error) {
+    console.error("Error processing PayPal IPN:", error)
+    ipnLog.error = error.message
+  }
+
+  // Save the IPN log regardless of the outcome
+  await ipnLog.save()
+
+  // Always respond with 200 OK to PayPal
+  res.status(200).send("OK")
+})
+
+// Function to verify IPN with PayPal
+function verifyIPN(verificationBody) {
+  return new Promise((resolve, reject) => {
+    // Use sandbox URL for testing, production URL for live
+    const paypalHost = process.env.VITE_NODE_ENV === "production" ? "www.paypal.com" : "www.sandbox.paypal.com"
+
+    const options = {
+      host: paypalHost,
+      path: "/cgi-bin/webscr",
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Content-Length": verificationBody.length,
+      },
+    }
+
+    const req = https.request(options, (res) => {
+      let data = ""
+
+      res.on("data", (chunk) => {
+        data += chunk
+      })
+
+      res.on("end", () => {
+        if (data === "VERIFIED") {
+          resolve("VERIFIED")
+        } else {
+          resolve("INVALID")
+        }
+      })
+    })
+
+    req.on("error", (error) => {
+      reject(error)
+    })
+
+    req.write(verificationBody)
+    req.end()
+  })
+}
+
+// Function to create an order from IPN data
+async function createOrderFromIPN(ipnData) {
+  try {
+
+    // Check if an order with this transaction ID already exists
+    const existingOrder = await Order.findOne({ paypalTransactionId: ipnData.txn_id })
+    if (existingOrder) {
+      console.log(`Order already exists for transaction ID: ${ipnData.txn_id}`)
+      return existingOrder
+    }
+
+    // Extract the user ID from the custom field
+    const userId = ipnData.custom
+
+    // Check if user exists
+    const user = await User.findById(userId)
+    if (!user) {
+      throw new Error(`User not found with ID: ${userId}`)
+    }
+
+    // Extract product ID from item_number
+    const productId = ipnData.item_number
+
+    // Check if product exists
+    const product = await Product.findById(productId)
+    if (!product) {
+      throw new Error(`Product not found with ID: ${productId}`)
+    }
+
+    // Create the order
+    const order = new Order({
+      userId: userId,
+      productId: productId,
+      title: ipnData.item_name || product.title,
+      price: Number.parseFloat(ipnData.mc_gross) / Number.parseInt(ipnData.quantity || 1),
+      quantity: Number.parseInt(ipnData.quantity || 1),
+      paypalTransactionId: ipnData.txn_id,
+      paypalOrderId: ipnData.parent_txn_id || ipnData.txn_id,
+      payerEmail: ipnData.payer_email,
+      payerName: `${ipnData.first_name || ""} ${ipnData.last_name || ""}`.trim(),
+      shippingAddress: {
+        name: ipnData.address_name,
+        addressLine1: ipnData.address_street,
+        city: ipnData.address_city,
+        state: ipnData.address_state,
+        postalCode: ipnData.address_zip,
+        country: ipnData.address_country,
+      },
+      status: "completed",
+      paymentDetails: ipnData,
+    })
+
+    await order.save()
+
+    // If the order was successful, we might want to update inventory
+    await Product.findByIdAndUpdate(productId, {
+      $inc: { productQuantity: -Number.parseInt(ipnData.quantity || 1) },
+    })
+
+    // Remove the item from the user's cart if it exists
+    await CartItem.deleteMany({
+      userId: userId,
+      productId: productId,
+    })
+
+    return order
+  } catch (error) {
+    console.error("Error creating order from IPN:", error)
+    throw error
+  }
+}
+
 
 // Make sure this route is accessible without authentication for testing
 app.get("/api/test-route", (req, res) => {

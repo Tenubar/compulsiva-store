@@ -3,7 +3,7 @@
 import type React from "react"
 import { useState, useEffect, useRef, useContext } from "react"
 import axios from "axios"
-import { ArrowLeft, Star, X, ChevronLeft, ChevronRight, MessageSquare, Trash2, Reply } from "lucide-react"
+import { ArrowLeft, Star, X, ChevronLeft, ChevronRight, MessageSquare, Trash2, Reply, Heart } from "lucide-react"
 import Header from "./Header"
 import { useNavigate, useParams } from "react-router-dom"
 import Footer from "./Footer"
@@ -86,6 +86,10 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
   const [loadingComments, setLoadingComments] = useState(false)
   const [submittingComment, setSubmittingComment] = useState(false)
   const [userData, setUserData] = useState<{ _id: string; name: string; email: string } | null>(null)
+  const [inWishlist, setInWishlist] = useState(false)
+  const [wishlistItemId, setWishlistItemId] = useState<string | null>(null)
+  const [wishlistLoading, setWishlistLoading] = useState(false)
+  const [wishlistMessage, setWishlistMessage] = useState("")
 
   const navigate = useNavigate()
   const [addingToCart, setAddingToCart] = useState(false)
@@ -142,6 +146,8 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
 
           // If user is logged in, fetch their rating for this product
           fetchUserRating(id)
+          // Check if product is in wishlist
+          checkWishlist(id)
         } else {
           setIsLoggedIn(false)
         }
@@ -178,6 +184,79 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
       }
     } catch (error) {
       console.error("Error fetching user rating:", error)
+    }
+  }
+
+  
+  const checkWishlist = async (productId: string) => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_SITE_URL}/api/wishlist/check/${productId}`, {
+        credentials: "include",
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setInWishlist(data.inWishlist)
+        setWishlistItemId(data.itemId)
+      }
+    } catch (error) {
+      console.error("Error checking wishlist:", error)
+    }
+  }
+
+  const toggleWishlist = async () => {
+    if (!isLoggedIn) {
+      navigate("/login")
+      return
+    }
+
+    if (!product) return
+
+    setWishlistLoading(true)
+    try {
+      if (inWishlist && wishlistItemId) {
+        // Remove from wishlist
+        const response = await fetch(`${import.meta.env.VITE_SITE_URL}/api/wishlist/${wishlistItemId}`, {
+          method: "DELETE",
+          credentials: "include",
+        })
+
+        if (response.ok) {
+          setInWishlist(false)
+          setWishlistItemId(null)
+          setWishlistMessage(t("removedFromWishlist"))
+          setTimeout(() => setWishlistMessage(""), 3000)
+        }
+      } else {
+        // Add to wishlist
+        const response = await fetch(`${import.meta.env.VITE_SITE_URL}/api/wishlist`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify({
+            productId: product._id,
+            title: product.title,
+            type: product.type || "Product",
+            price: product.price,
+            image: product.image,
+            description: product.description,
+          }),
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          setInWishlist(true)
+          setWishlistItemId(data.item._id)
+          setWishlistMessage(t("addedToWishlist"))
+          setTimeout(() => setWishlistMessage(""), 3000)
+        }
+      }
+    } catch (error) {
+      console.error("Error toggling wishlist:", error)
+    } finally {
+      setWishlistLoading(false)
     }
   }
 
@@ -462,53 +541,13 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
   // Get all available images
   const images = product.images || [product.image, product.hoverImage].filter(Boolean)
 
-  const handlePayPalCheckout = async () => {
-    try {
-      // Get user details
-      const userResponse = await fetch(`${import.meta.env.VITE_SITE_URL}/get-user-details`, {
-        credentials: "include",
-      })
-
-      if (userResponse.status === 401) {
-        navigate("/login")
-        return
-      }
-
-      const userData = await userResponse.json()
-
-      // Create invoice data
-      const invoice = {
-        product: {
-          name: product.title,
-          price: product.price,
-          selectedQuantity: quantity,
-          description: description,
-          material: materials,
-          selectedSize: selectedSize,
-          shipping: shipping,
-        },
-        customer: {
-          username: userData.name,
-          email: userData.email,
-        },
-        purchase: {
-          date: new Date().toISOString(),
-          id: `INV-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-        },
-      }
-
-      // For now, just log the invoice
-      console.log("PayPal Invoice:", invoice)
-
-      // Show a message to the user
-      setCartMessage(t("paypalInitiated"))
-      setTimeout(() => setCartMessage(""), 5000)
-    } catch (error) {
-      console.error("Error creating invoice:", error)
-      setCartMessage(t("errorProcessingPaypal"))
+  const handlePayPalCheckout = () => {
+    // Find the PayPal form and submit it programmatically
+    const form = document.getElementById("paypal-form") as HTMLFormElement
+    if (form) {
+      form.submit()
     }
   }
-
   // Update the onBack function to use the stored scroll position
   const handleBackToProducts = () => {
     // Store the current product ID in session storage before navigating back
@@ -653,6 +692,23 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
                 </button>
               </div>
             </div>
+            
+            
+            {/* Wishlist button */}
+            <button
+              onClick={toggleWishlist}
+              disabled={wishlistLoading}
+              className="w-full flex items-center justify-center gap-2 bg-white border border-gray-300 text-gray-800 py-3 rounded-md hover:bg-gray-50 mb-4"
+            >
+              <Heart size={20} className={inWishlist ? "text-red-500 fill-red-500" : "text-gray-500"} />
+              {inWishlist ? t("removeFromWishlist") : t("addToWishlist")}
+            </button>
+
+            {wishlistMessage && (
+              <div className="mt-2 mb-4 p-2 bg-green-50 text-green-700 rounded-md text-center font-body">
+                {wishlistMessage}
+              </div>
+            )}
 
             <div className="flex gap-4 mb-8">
               <button
@@ -662,12 +718,55 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
               >
                 {addingToCart ? t("adding") : t("addToCart")}
               </button>
+
               <button
                 className="flex-1 bg-primary-dark text-primary-light py-3 rounded-md hover:bg-secondary-light hover:text-gray-800 disabled:opacity-70"
                 onClick={handlePayPalCheckout}
               >
                 {t("buyWithPayPal")}
               </button>
+
+              <form
+              id="paypal-form"
+              action="https://www.sandbox.paypal.com/cgi-bin/webscr"
+              method="post"
+              target="_top"
+              style={{ display: "none" }} // Hide the form
+            >
+              <input type="hidden" name="cmd" value="_xclick" />
+              <input type="hidden" name="business" value={import.meta.env.VITE_ADMIN_USER_EMAIL_PP} />
+              <input type="hidden" name="item_name" value={product.title} />
+              <input type="hidden" name="item_number" value={product._id} />
+                <input type="hidden" name="amount" value={product.price} />
+                <input type="hidden" name="quantity" value={quantity} />
+                <input type="hidden" name="currency_code" value="USD" />
+                <input type="hidden" name="custom" value={userData ? userData._id : ""} />
+                <input type="hidden" name="no_shipping" value="1" />
+                <input type="hidden" name="no_note" value="1" />
+                <input type="hidden" name="tax" value="0" />
+                <input type="hidden" name="lc" value="US" />
+                <input type="hidden" name="bn" value="PP-BuyNowBF" />
+                <input type="hidden" name="notify_url" value={`${import.meta.env.VITE_SITE_URL}/api/paypal/ipn`}/>
+                <input
+                  type="hidden"
+                  name="return"
+                  value={`${window.location.origin}/orders?success=true&productId=${product._id}&title=${encodeURIComponent(product.title)}&price=${product.price}&quantity=${quantity}&txn_id=IPN_HANDLED`}
+                />
+                <input type="hidden" name="cancel_return" value={`${window.location.origin}/product/${product._id}`} />
+                <input
+                  type="image"
+                  src="https://www.paypalobjects.com/en_US/i/btn/btn_buynow_LG.gif"
+                  name="submit"
+                  title="Buy with PayPal"
+                  alt="Buy now with PayPal"
+                  style={{ border: 0 }}
+                />
+              </form>
+
+
+            
+
+            
             </div>
             <p className="text-center text-gray-500 text-sm mb-8">{t("otherPaymentMethods")}</p>
 

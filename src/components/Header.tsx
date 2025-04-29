@@ -18,6 +18,9 @@ import {
   DollarSign,
   Settings,
   User,
+  UserCircle,
+  Heart,
+  ShoppingBag,
 } from "lucide-react"
 import type { Currency, Language } from "../App"
 import { useNavigate } from "react-router-dom"
@@ -50,6 +53,8 @@ const Header: React.FC<HeaderProps> = ({ currency, setCurrency, language, setLan
   const [showCartDropdown, setShowCartDropdown] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [userEmail, setUserEmail] = useState("")
+  const [userName, setUserName] = useState("")
+  const [userAvatar, setUserAvatar] = useState("")
   const [cartItems, setCartItems] = useState<CartItem[]>([])
   const [cartCount, setCartCount] = useState(0)
   const [visibleCartItems, setVisibleCartItems] = useState(3)
@@ -91,6 +96,8 @@ const Header: React.FC<HeaderProps> = ({ currency, setCurrency, language, setLan
           const userData = await response.json()
           setIsLoggedIn(true)
           setUserEmail(userData.email)
+          setUserName(userData.name)
+          setUserAvatar(userData.avatar)
 
           // Check if user is admin
           const adminEmail = import.meta.env.VITE_ADMIN_USER_EMAIL
@@ -189,7 +196,6 @@ const Header: React.FC<HeaderProps> = ({ currency, setCurrency, language, setLan
       setIsLoggedIn(false)
       setUserEmail("")
       setIsAdmin(false)
-      setShowUserMenu(false)
       navigate("/")
     } catch (error) {
       console.error("Logout failed:", error)
@@ -242,7 +248,7 @@ const Header: React.FC<HeaderProps> = ({ currency, setCurrency, language, setLan
   // Flag URLs
   const flagUrls = {
     English: "https://flagcdn.com/w40/us.png",
-    Spanish: "https://flagcdn.com/w40/ve.png",
+    Español: "https://flagcdn.com/w40/ve.png",
   }
 
   return (
@@ -300,7 +306,7 @@ const Header: React.FC<HeaderProps> = ({ currency, setCurrency, language, setLan
                   </button>
                   {showLanguage && (
                     <div className="absolute top-full mt-2 w-32 bg-white shadow-lg rounded-md py-2 z-50">
-                      {(["English", "Spanish"] as Language[]).map((lang) => (
+                      {(["English", "Español"] as Language[]).map((lang) => (
                         <button
                           key={lang}
                           onClick={() => {
@@ -422,7 +428,7 @@ const Header: React.FC<HeaderProps> = ({ currency, setCurrency, language, setLan
                   </button>
                   {showLanguage && (
                     <div className="absolute top-full mt-2 w-32 bg-white shadow-lg rounded-md py-2 z-50">
-                      {(["English", "Spanish"] as Language[]).map((lang) => (
+                      {(["English", "Español"] as Language[]).map((lang) => (
                         <button
                           key={lang}
                           onClick={() => {
@@ -550,7 +556,7 @@ const Header: React.FC<HeaderProps> = ({ currency, setCurrency, language, setLan
                               className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-md border border-gray-200"
                             >
                               <img
-                                src={`/${item.image}` || "/placeholder.svg?height=100&width=100"}
+                                src={`${item.image}` || "/placeholder.svg?height=100&width=100"}
                                 alt={item.title}
                                 className="h-full w-full object-cover object-center"
                                 onError={(e) => {
@@ -614,7 +620,18 @@ const Header: React.FC<HeaderProps> = ({ currency, setCurrency, language, setLan
                 onClick={() => setShowUserMenu((prev) => !prev)}
                 className="text-textBanner group relative transform transition-transform hover:scale-[1.001]"
               >
-                <User size={20} />
+                {userAvatar ? (
+                  <img
+                    src={getApiUrl(`api/images/${userAvatar || "/placeholder.svg"}`)}
+                    alt="Avatar"
+                    className="w-6 h-6 rounded-full"
+                    onError={(e) => {
+                      ;(e.target as HTMLImageElement).src = "/placeholder.svg?height=24&width=24"
+                    }}
+                  />
+                ) : (
+                  <User size={20} />
+                )}
                 <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary-light transition-all duration-300 group-hover:w-full"></span>
               </button>
             ) : (
@@ -622,16 +639,71 @@ const Header: React.FC<HeaderProps> = ({ currency, setCurrency, language, setLan
                 onClick={() => setShowUserMenu((prev) => !prev)}
                 className="flex items-center text-textBanner group relative transform transition-transform hover:scale-[1.001]"
               >
-                {isLoggedIn ? userEmail : t("login")} <ChevronDown size={16} className="ml-1" />
+                {userAvatar ? (
+                  <img
+                    src={getApiUrl(`api/images/${userAvatar || "/placeholder.svg"}`)}
+                    alt="Avatar"
+                    className="w-6 h-6 mr-2 rounded-full"
+                    onError={(e) => {
+                      ;(e.target as HTMLImageElement).src = "/placeholder.svg?height=32&width=32"
+                    }}
+                  />
+                ) : (
+                  <UserCircle size={16} className="mr-2" />
+                )}
+                {isLoggedIn ? userName || userEmail : t("login")} <ChevronDown size={16} className="ml-1" />
                 <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary-light transition-all duration-300 group-hover:w-full"></span>
               </button>
             )}
             {showUserMenu && (
               <div className="absolute right-0 mt-2 w-48 bg-white shadow-lg rounded-md py-2 z-50">
                 {isLoggedIn ? (
-                  <button onClick={handleLogout} className="flex items-center w-full px-4 py-2 hover:bg-gray-100">
-                    {t("logout")}
-                  </button>
+                  <>
+                    <button
+                      onClick={() => {
+                        navigate("/profile")
+                        setShowUserMenu(false)
+                      }}
+                      className="flex items-center w-full px-4 py-2 hover:bg-gray-100"
+                    >
+                      {userAvatar ? (
+                        <img
+                          src={getApiUrl(`api/images/${userAvatar || "/placeholder.svg"}`)}
+                          alt="Avatar"
+                          className="w-12 h-12 mr-2 rounded-full"
+                          onError={(e) => {
+                            ;(e.target as HTMLImageElement).src = "/placeholder.svg?height=64&width=64"
+                          }}
+                        />
+                      ) : (
+                        <UserCircle size={24} className="mr-2" />
+                      )}
+                      {t("profile")}
+                    </button>
+                    <button
+                      onClick={() => {
+                        navigate("/orders")
+                        setShowUserMenu(false)
+                      }}
+                      className="flex items-center w-full px-4 py-2 hover:bg-gray-100"
+                    >
+                      <ShoppingBag size={20} className="mr-2" />
+                      {t("orders")}
+                    </button>
+                    <button
+                      onClick={() => {
+                        navigate("/wishlist")
+                        setShowUserMenu(false)
+                      }}
+                      className="flex items-center w-full px-4 py-2 hover:bg-gray-100"
+                    >
+                      <Heart size={20} className="mr-2" />
+                      {t("wishlist")}
+                    </button>
+                    <button onClick={handleLogout} className="flex items-center w-full px-4 py-2 hover:bg-gray-100">
+                      {t("logout")}
+                    </button>
+                  </>
                 ) : (
                   <>
                     <button

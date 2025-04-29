@@ -1,18 +1,20 @@
-import React, { useContext } from 'react';
-import { Facebook, Twitter, Instagram, CreditCard } from 'lucide-react';
-import { LanguageContext } from "../App";
+"use client"
+
+import type React from "react"
+import { useContext } from "react"
+import { Facebook, Instagram } from "lucide-react"
+import { TwitterIcon as TikTok } from "lucide-react"
+import { LanguageContext } from "../App"
 
 const Footer: React.FC = () => {
-  const { t } = useContext(LanguageContext);
+  const { t } = useContext(LanguageContext)
   return (
     <footer className="bg-primary-dark text-white pt-12 pb-6">
       <div className="container mx-auto px-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
           <div>
-            <h3 className="text-xl font-semibold mb-4">{t("aboutUs")}</h3>
-            <p className="text-primary-light">
-            {t("aboutUsText")}
-            </p>
+            <h3 className="text-xl font-semibold mb-4">{t("aboutUs")}</h3>  
+            <p className="text-primary-light">{t("aboutUsText")}</p>
           </div>
 
           <div>
@@ -22,7 +24,7 @@ const Footer: React.FC = () => {
                 <Facebook size={24} />
               </a>
               <a href="#" className="text-primary-light hover:text-gray-600">
-                <Twitter size={24} />
+                <TikTok size={24} />
               </a>
               <a href="#" className="text-primary-light hover:text-gray-600">
                 <Instagram size={24} />
@@ -31,19 +33,32 @@ const Footer: React.FC = () => {
           </div>
 
           <div>
-            <h3 className="text-xl font-semibold mb-4">{t("quickLinks")}</h3>
+            <h3 className="text-xl font-semibold mb-4">{t("footerQuickLinks")}</h3>
             <ul className="space-y-2">
               <li>
-                <a href="#" className="text-primary-light hover:text-gray-600">{t("quickLinksAbout")}</a>
+                <a href="/about" className="text-primary-light hover:text-gray-600">
+                  {t("footerAboutUs")}
+                </a>
               </li>
               <li>
-                <a href="#" className="text-primary-light hover:text-gray-600">{t("quickLinksContact")}</a>
+                <a href="/contact" className="text-primary-light hover:text-gray-600">
+                  {t("footerContact")}
+                </a>
               </li>
               <li>
-                <a href="#" className="text-primary-light hover:text-gray-600">{t("quickLinksShipping")}</a>
+                <a href="/shipping" className="text-primary-light hover:text-gray-600">
+                  {t("footerShippingPolicy")}
+                </a>
               </li>
               <li>
-                <a href="#" className="text-primary-light hover:text-gray-600">{t("quickLinksSuggestion")}</a>
+                <a href="/returns" className="text-primary-light hover:text-gray-600">
+                  {t("footerReturns")}
+                </a>
+              </li>
+              <li>
+                <a href="/suggestions" className="text-primary-light hover:text-gray-600">
+                  {t("footerSuggestionBox")}
+                </a>
               </li>
             </ul>
           </div>
@@ -61,16 +76,14 @@ const Footer: React.FC = () => {
                 />
               </div>
             </div>
-            <p className="text-primary-light">
-              Copyright © 2025 Compulsiva Store
-            </p>
+            <p className="text-primary-light">Copyright © 2025 Compulsiva Store</p>
           </div>
         </div>
       </div>
     </footer>
-  );
-};
+  )
+}
 
-export default Footer;
+export default Footer
 
 // Removed the unused custom useContext function.
