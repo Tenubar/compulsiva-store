@@ -1543,9 +1543,6 @@ app.post("/api/paypal/ipn", express.raw({ type: "application/x-www-form-urlencod
   // Convert the raw body to a string
   const body = req.body.toString("utf8")
 
-  // Log the received IPN message
-  console.log("Received PayPal IPN:", body)
-
   // Prepare the verification message by adding 'cmd=_notify-validate'
   const verificationBody = `cmd=_notify-validate&${body}`
 
@@ -1566,7 +1563,6 @@ app.post("/api/paypal/ipn", express.raw({ type: "application/x-www-form-urlencod
     ipnLog.verified = verificationResult === "VERIFIED"
 
     if (ipnLog.verified) {
-      console.log("PayPal IPN verified successfully")
 
       // Process the payment if it's completed
       if (ipnData.payment_status === "Completed") {
@@ -1578,14 +1574,12 @@ app.post("/api/paypal/ipn", express.raw({ type: "application/x-www-form-urlencod
             ipnLog.orderCreated = true
             ipnLog.orderId = order._id
             ipnLog.processed = true
-            console.log(`Order created successfully: ${order._id}`)
           }
         } catch (orderError) {
           console.error("Error creating order from IPN:", orderError)
           ipnLog.error = orderError.message
         }
       } else {
-        console.log(`Payment not completed. Status: ${ipnData.payment_status}`)
         ipnLog.processed = true
       }
     } else {
@@ -1653,7 +1647,6 @@ async function createOrderFromIPN(ipnData) {
     // Check if an order with this transaction ID already exists
     const existingOrder = await Order.findOne({ paypalTransactionId: ipnData.txn_id })
     if (existingOrder) {
-      console.log(`Order already exists for transaction ID: ${ipnData.txn_id}`)
       return existingOrder
     }
 
