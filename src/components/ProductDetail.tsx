@@ -3,9 +3,20 @@
 import type React from "react"
 import { useState, useEffect, useRef, useContext } from "react"
 import axios from "axios"
-import { ArrowLeft, Star, X, ChevronLeft, ChevronRight, MessageSquare, Trash2, Reply, Heart } from "lucide-react"
+import {
+  ArrowLeft,
+  Star,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  MessageSquare,
+  Trash2,
+  Reply,
+  Heart,
+  RefreshCw,
+} from "lucide-react"
 import Header from "./Header"
-import { useNavigate, useParams } from "react-router-dom"
+import { useNavigate, useParams, useLocation } from "react-router-dom"
 import Footer from "./Footer"
 import { LanguageContext } from "../App"
 import { getImageUrl, getPlaceholder } from "../utils/imageUtils"
@@ -66,6 +77,7 @@ let lastScrollPosition = 0
 
 const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
   const { id } = useParams<{ id: string }>()
+  const location = useLocation()
   const { t, language, setLanguage } = useContext(LanguageContext)
   const [quantity, setQuantity] = useState(1)
   const [currency, setCurrency] = useState<"USD" | "EUR" | "VES">("USD")
@@ -87,54 +99,83 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
   const [submittingComment, setSubmittingComment] = useState(false)
   const [userData, setUserData] = useState<{ _id: string; name: string; email: string } | null>(null)
   const [inWishlist, setInWishlist] = useState(false)
-  const [hasPurchased, setHasPurchased] = useState(false)
   const [wishlistItemId, setWishlistItemId] = useState<string | null>(null)
   const [wishlistLoading, setWishlistLoading] = useState(false)
   const [wishlistMessage, setWishlistMessage] = useState("")
+  const [hasPurchased, setHasPurchased] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
 
   const navigate = useNavigate()
   const [addingToCart, setAddingToCart] = useState(false)
   const [cartMessage, setCartMessage] = useState("")
 
   const visitIncremented = useRef(false)
+  const lastFetchTime = useRef<number>(0)
+
+  // Check if we're returning from a purchase
+  const isReturningFromPurchase = useRef(false)
 
   useEffect(() => {
+    // Check if we're returning from a successful purchase
+    const urlParams = new URLSearchParams(location.search)
+    if (urlParams.get("success") === "true") {
+      isReturningFromPurchase.current = true
+    }
+  }, [location])
+
+  const fetchProduct = async (forceRefresh = false) => {
     if (!id) {
       setError("Product ID is missing")
       setLoading(false)
       return
     }
 
-    const fetchProduct = async () => {
-      try {
+    try {
+      // If we're forcing a refresh or returning from purchase, don't use cache
+      const now = Date.now()
+      const useCache = !forceRefresh && !isReturningFromPurchase.current && now - lastFetchTime.current < 30000
+
+      if (forceRefresh) {
+        setRefreshing(true)
+      } else if (!useCache) {
         setLoading(true)
-        // Use the utility function to get the correct API URL
-        const response = await axios.get(getProductApiUrl(id))
-        setProduct(response.data)
-        // Set the first image as selected by default
-        if (response.data.images && response.data.images.length > 0) {
-          setSelectedImage(response.data.images[0])
-        } else if (response.data.image) {
-          setSelectedImage(response.data.image)
-        }
-        // Initialize selected size when product loads
-        if (response.data && response.data.sizes && response.data.sizes.length > 0) {
-          setSelectedSize(response.data.sizes[0])
-        }
-
-        // Increment visit count only once per page load
-        if (!visitIncremented.current) {
-          incrementVisits(id)
-          visitIncremented.current = true
-        }
-      } catch (error) {
-        console.error("Error fetching product:", error)
-        setError("Failed to load product details")
-      } finally {
-        setLoading(false)
       }
-    }
 
+      // Add a cache-busting parameter if forcing refresh
+      const cacheBuster = forceRefresh || isReturningFromPurchase.current ? `?t=${now}` : ""
+      const response = await axios.get(`${getProductApiUrl(id)}${cacheBuster}`)
+
+      setProduct(response.data)
+      lastFetchTime.current = now
+      isReturningFromPurchase.current = false
+
+      // Set the first image as selected by default
+      if (response.data.images && response.data.images.length > 0) {
+        setSelectedImage(response.data.images[0])
+      } else if (response.data.image) {
+        setSelectedImage(response.data.image)
+      }
+
+      // Initialize selected size when product loads
+      if (response.data && response.data.sizes && response.data.sizes.length > 0) {
+        setSelectedSize(response.data.sizes[0])
+      }
+
+      // Increment visit count only once per page load
+      if (!visitIncremented.current) {
+        incrementVisits(id)
+        visitIncremented.current = true
+      }
+    } catch (error) {
+      console.error("Error fetching product:", error)
+      setError("Failed to load product details")
+    } finally {
+      setLoading(false)
+      setRefreshing(false)
+    }
+  }
+
+  useEffect(() => {
     const checkAuth = async () => {
       try {
         const response = await fetch(`${import.meta.env.VITE_SITE_URL}/get-user-details`, {
@@ -146,14 +187,14 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
           setUserData(userData)
 
           // If user is logged in, fetch their rating for this product
-          fetchUserRating(id)
+          fetchUserRating(id || "")
           // Check if product is in wishlist
-          checkWishlist(id)
+          checkWishlist(id || "")
           // Check if user has purchased this product
-          checkPurchaseHistory(id)
+          checkPurchaseHistory(id || "")
         } else {
           setIsLoggedIn(false)
-          setHasPurchased(false) 
+          setHasPurchased(false) // Reset purchase status when logged out
         }
       } catch (error) {
         console.error("Auth check failed:", error)
@@ -163,8 +204,23 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
 
     fetchProduct()
     checkAuth()
-    fetchComments(id)
-  }, [id, isLoggedIn])
+    fetchComments(id || "")
+
+    // Reset the component state when the ID changes
+    return () => {
+      visitIncremented.current = false
+      lastFetchTime.current = 0
+    }
+  }, [id]) // Only depend on id to prevent unnecessary refetches
+
+  // Add effect for login status changes
+  useEffect(() => {
+    if (isLoggedIn && id) {
+      fetchUserRating(id)
+      checkWishlist(id)
+      checkPurchaseHistory(id)
+    }
+  }, [isLoggedIn, id])
 
   const incrementVisits = async (id: string) => {
     try {
@@ -177,6 +233,8 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
   }
 
   const fetchUserRating = async (id: string) => {
+    if (!isLoggedIn) return
+
     try {
       const response = await fetch(`${import.meta.env.VITE_SITE_URL}/api/products/${id}/user-rating`, {
         credentials: "include",
@@ -192,6 +250,8 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
   }
 
   const checkWishlist = async (productId: string) => {
+    if (!isLoggedIn) return
+
     try {
       const response = await fetch(`${import.meta.env.VITE_SITE_URL}/api/wishlist/check/${productId}`, {
         credentials: "include",
@@ -279,18 +339,23 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
     }
   }
 
-   const checkPurchaseHistory = async (productId: string) => {
+  // Enhance the checkPurchaseHistory function to be more robust
+  // and add better logging for debugging
+  const checkPurchaseHistory = async (productId: string) => {
     if (!isLoggedIn) return
 
     try {
+      console.log(`Checking purchase history for product ${productId}`)
       const response = await fetch(`${import.meta.env.VITE_SITE_URL}/api/user/has-purchased/${productId}`, {
         credentials: "include",
       })
 
       if (response.ok) {
         const data = await response.json()
+        console.log(`Purchase check result:`, data)
         setHasPurchased(data.hasPurchased)
-         // If the user has purchased the product, log it for clarity
+
+        // If the user has purchased the product, log it for clarity
         if (data.hasPurchased) {
           console.log(`User has purchased product ${productId}, enabling ratings`)
         }
@@ -300,6 +365,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
     }
   }
 
+  // Remove the stock check from the handleRatingSubmit function
   const handleRatingSubmit = async (rating: number) => {
     if (!isLoggedIn) {
       navigate("/login")
@@ -308,18 +374,11 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
 
     if (!id) return
 
-    
     // Check if user has purchased the product
     if (!hasPurchased) {
       alert(t("purchaseRequiredForRating"))
       return
     }
-
-    // Check if product is out of stock
-    // if (product && (product.productQuantity ?? 0) < 1) {
-    //   alert(t("cannotRateOutOfStock"))
-    //   return
-    // }
 
     try {
       const response = await fetch(`${import.meta.env.VITE_SITE_URL}/api/products/${id}/rate`, {
@@ -485,6 +544,11 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
     }
   }
 
+  // Add a manual refresh function
+  const handleRefresh = () => {
+    fetchProduct(true)
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-primary-light flex items-center justify-center">
@@ -547,6 +611,9 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
       if (response.ok) {
         setCartMessage(t("productAdded"))
         setTimeout(() => setCartMessage(""), 3000)
+
+        // Refresh product data to get updated stock
+        fetchProduct(true)
       } else {
         // Check if the error is due to maximum stock reached
         if (data.message === "Maximum stock reached!") {
@@ -615,9 +682,22 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
 
       <main className="container mx-auto px-4 py-8 mt-16">
         {/* Replace the onBack prop with our new function */}
-        <button onClick={handleBackToProducts} className="flex items-center text-gray-700 hover:text-primary-dark mb-8">
-          <ArrowLeft size={20} className="mr-2" /> {t("backToProducts")}
-        </button>
+        <div className="flex justify-between items-center mb-8">
+          <button onClick={handleBackToProducts} className="flex items-center text-gray-700 hover:text-primary-dark">
+            <ArrowLeft size={20} className="mr-2" /> {t("backToProducts")}
+          </button>
+
+          {/* Add refresh button */}
+          <button
+            onClick={handleRefresh}
+            className="flex items-center text-gray-700 hover:text-primary-dark"
+            disabled={refreshing}
+            title={t("refreshProductData")}
+          >
+            <RefreshCw size={20} className={`mr-1 ${refreshing ? "animate-spin" : ""}`} />
+            {refreshing ? t("refreshing") : t("refresh")}
+          </button>
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
           <div className="flex flex-col md:flex-row gap-4">
@@ -665,8 +745,8 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
             <h1 className="text-3xl font-title font-bold mb-4">{product.title}</h1>
             <p className="text-2xl font-title font-[800] text-pricetxt text-[1.8rem] mb-6">${product.price} USD</p>
 
-           {/* Product Rating */}
-           <div className="mb-4">
+            {/* Update the star rating component to allow rating if purchased, regardless of stock */}
+            <div className="mb-4">
               <div className="flex items-center">
                 <div className="flex mr-2">
                   {[1, 2, 3, 4, 5].map((star) => (
@@ -693,7 +773,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
                 </span>
               </div>
 
-               {isLoggedIn && !hasPurchased && (
+              {isLoggedIn && !hasPurchased && (
                 <div className="mt-2 flex items-center">
                   <p className="text-sm text-amber-600 mr-2">{t("purchaseRequiredForRating")}</p>
                   <button
@@ -705,10 +785,6 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
                   </button>
                 </div>
               )}
-
-              {/* {isLoggedIn && hasPurchased && (product.productQuantity ?? 0) < 1 && (
-                <p className="text-sm text-amber-600 mt-1">{t("cannotRateOutOfStock")}</p>
-              )} */}
 
               {!isLoggedIn && (
                 <p className="text-sm text-primary mt-1">
@@ -723,15 +799,15 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
               <div className="flex items-center justify-between">
                 <label className="block font-subtitle text-gray-700 mb-2">{t("quantity")}</label>
                 <span
-                  className={`text-sm font-body ${(product?.productQuantity ?? 0) < 1 ? "text-red-600 font-bold" : "text-gray-500"}`}
+                  className={`text-sm font-body ${(product.productQuantity ?? 0) < 1 ? "text-red-600 font-bold" : "text-gray-500"}`}
                 >
-                  {(product?.productQuantity ?? 0) < 1 ? t("outOfStock") : `${t("available")}: ${productQuantity}`}
+                  {(product.productQuantity ?? 0) < 1 ? t("outOfStock") : `${t("available")}: ${productQuantity ?? 0}`}
                 </span>
               </div>
               <div className="flex items-center">
                 <button
                   onClick={() => handleQuantityChange(quantity - 1)}
-                  disabled={quantity <= 1 || (product?.productQuantity ?? 0) < 1}
+                  disabled={quantity <= 1 || (product.productQuantity ?? 0) < 1}
                   className="px-3 py-1 border rounded-l-md disabled:opacity-50"
                 >
                   -
@@ -742,12 +818,12 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
                   max={productQuantity}
                   value={quantity}
                   onChange={(e) => handleQuantityChange(Number.parseInt(e.target.value) || 1)}
-                  disabled={(product?.productQuantity ?? 0) < 1}
+                  disabled={(product.productQuantity ?? 0) < 1}
                   className="w-16 px-3 py-1 border-t border-b text-center font-body disabled:bg-gray-100"
                 />
                 <button
                   onClick={() => handleQuantityChange(quantity + 1)}
-                  disabled={quantity >= productQuantity || (product?.productQuantity ?? 0) < 1}
+                  disabled={quantity >= productQuantity || (product.productQuantity ?? 0) < 1}
                   className="px-3 py-1 border rounded-r-md disabled:opacity-50"
                 >
                   +
@@ -785,7 +861,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
                 onClick={handlePayPalCheckout}
                 disabled={(product?.productQuantity ?? 0) < 1}
               >
-                {(product?.productQuantity ?? 0) < 1 ? t("outOfStock") : t("buyWithPayPal")}
+                {(product.productQuantity ?? 0) < 1 ? t("outOfStock") : t("buyWithPayPal")}
               </button>
 
               {/* PayPal form with return URL that redirects to orders page */}
