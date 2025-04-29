@@ -1712,6 +1712,26 @@ async function createOrderFromIPN(ipnData) {
 }
 
 
+// Check if user has purchased a specific product
+app.get("/api/user/has-purchased/:productId", authenticateToken, async (req, res) => {
+  try {
+    const productId = req.params.productId
+    const userId = req.user.userId
+
+    // Check if there's an order with this product for this user
+    const order = await Order.findOne({
+      userId,
+      productId,
+    })
+
+    res.json({ hasPurchased: !!order })
+  } catch (error) {
+    console.error("Error checking purchase history:", error)
+    res.status(500).json({ message: "Error checking purchase history", error: error.message })
+  }
+})
+
+
 // Make sure this route is accessible without authentication for testing
 app.get("/api/test-route", (req, res) => {
   res.json({ message: "API is working" })

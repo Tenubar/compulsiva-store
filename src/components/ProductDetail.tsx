@@ -87,6 +87,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
   const [submittingComment, setSubmittingComment] = useState(false)
   const [userData, setUserData] = useState<{ _id: string; name: string; email: string } | null>(null)
   const [inWishlist, setInWishlist] = useState(false)
+  const [hasPurchased, setHasPurchased] = useState(false)
   const [wishlistItemId, setWishlistItemId] = useState<string | null>(null)
   const [wishlistLoading, setWishlistLoading] = useState(false)
   const [wishlistMessage, setWishlistMessage] = useState("")
@@ -148,6 +149,8 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
           fetchUserRating(id)
           // Check if product is in wishlist
           checkWishlist(id)
+          // Check if user has purchased this product
+          checkPurchaseHistory(id)
         } else {
           setIsLoggedIn(false)
         }
@@ -275,6 +278,23 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
     }
   }
 
+   const checkPurchaseHistory = async (productId: string) => {
+    if (!isLoggedIn) return
+
+    try {
+      const response = await fetch(`${import.meta.env.VITE_SITE_URL}/api/user/has-purchased/${productId}`, {
+        credentials: "include",
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setHasPurchased(data.hasPurchased)
+      }
+    } catch (error) {
+      console.error("Error checking purchase history:", error)
+    }
+  }
+
   const handleRatingSubmit = async (rating: number) => {
     if (!isLoggedIn) {
       navigate("/login")
@@ -282,6 +302,19 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
     }
 
     if (!id) return
+
+    
+    // Check if user has purchased the product
+    if (!hasPurchased) {
+      alert(t("purchaseRequiredForRating"))
+      return
+    }
+
+    // Check if product is out of stock
+    if (product && (product.productQuantity ?? 0) < 1) {
+      alert(t("cannotRateOutOfStock"))
+      return
+    }
 
     try {
       const response = await fetch(`${import.meta.env.VITE_SITE_URL}/api/products/${id}/rate`, {
@@ -627,49 +660,68 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
             <h1 className="text-3xl font-title font-bold mb-4">{product.title}</h1>
             <p className="text-2xl font-title font-[800] text-pricetxt text-[1.8rem] mb-6">${product.price} USD</p>
 
-            {/* Product Rating */}
-            <div className="mb-4 flex items-center">
-              <div className="flex mr-2">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <Star
-                    key={star}
-                    size={20}
-                    className={`cursor-pointer ${
-                      (hoverRating || userRating) >= star
-                        ? "text-primary-dark fill-primary-dark"
-                        : averageRating >= star
+           {/* Product Rating */}
+           <div className="mb-4">
+              <div className="flex items-center">
+                <div className="flex mr-2">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <Star
+                      key={star}
+                      size={20}
+                      className={`${!isLoggedIn || !hasPurchased || ((product.productQuantity ?? 0) < 1) ? "cursor-not-allowed opacity-70" : "cursor-pointer"} ${
+                        (hoverRating || userRating) >= star
                           ? "text-primary-dark fill-primary-dark"
-                          : averageRating >= star - 0.5
+                          : averageRating >= star
                             ? "text-primary-dark fill-primary-dark"
-                            : "text-gray-300"
-                    }`}
-                    onClick={() => handleRatingSubmit(star)}
-                    onMouseEnter={() => setHoverRating(star)}
-                    onMouseLeave={() => setHoverRating(0)}
-                  />
-                ))}
-              </div>
-              <span className="font-body text-gray-700">
-                {averageRating.toFixed(1)} ({ratingCount} {ratingCount === 1 ? "rating" : "ratings"})
-              </span>
-              {!isLoggedIn && (
-                <span className="ml-2 text-sm font-body text-primary cursor-pointer" onClick={() => navigate("/login")}>
-                  {t("login")}
+                            : averageRating >= star - 0.5
+                              ? "text-primary-dark fill-primary-dark"
+                              : "text-gray-300"
+                      }`}
+                      onClick={() => handleRatingSubmit(star)}
+                      onMouseEnter={() =>
+                        isLoggedIn && hasPurchased && (product?.productQuantity ?? 0) >= 1 ? setHoverRating(star) : null
+                      }
+                      onMouseLeave={() =>
+                        isLoggedIn && hasPurchased && (product?.productQuantity ?? 0) >= 1 ? setHoverRating(0) : null
+                      }
+                    />
+                  ))}
+                </div>
+                <span className="font-body text-gray-700">
+                  {averageRating.toFixed(1)} ({ratingCount} {ratingCount === 1 ? "rating" : "ratings"})
                 </span>
+              </div>
+
+              {isLoggedIn && !hasPurchased && (
+                <p className="text-sm text-amber-600 mt-1">{t("purchaseRequiredForRating")}</p>
+              )}
+
+              {isLoggedIn && hasPurchased && (product.productQuantity ?? 0) < 1 && (
+                <p className="text-sm text-amber-600 mt-1">{t("cannotRateOutOfStock")}</p>
+              )}
+
+              {!isLoggedIn && (
+                <p className="text-sm text-primary mt-1">
+                  <span className="cursor-pointer" onClick={() => navigate("/login")}>
+                    {t("loginToRate")}
+                  </span>
+                </p>
               )}
             </div>
 
             <div className="mb-6">
               <div className="flex items-center justify-between">
                 <label className="block font-subtitle text-gray-700 mb-2">{t("quantity")}</label>
-                <span className="text-sm font-body text-gray-500">
-                  {t("available")}: {productQuantity}
+                <span
+                  className={`text-sm font-body ${(product?.productQuantity ?? 0) < 1 ? "text-red-600 font-bold" : "text-gray-500"}`}
+                >
+                  {(product?.productQuantity ?? 0) < 1 ? t("outOfStock") : `${t("available")}: ${productQuantity}`}
                 </span>
               </div>
               <div className="flex items-center">
                 <button
                   onClick={() => handleQuantityChange(quantity - 1)}
-                  disabled={quantity <= 1}
+                  disabled={quantity <= 1 || (product?.productQuantity ?? 0) < 1}
                   className="px-3 py-1 border rounded-l-md disabled:opacity-50"
                 >
                   -
@@ -680,11 +732,12 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
                   max={productQuantity}
                   value={quantity}
                   onChange={(e) => handleQuantityChange(Number.parseInt(e.target.value) || 1)}
-                  className="w-16 px-3 py-1 border-t border-b text-center font-body"
+                  disabled={(product?.productQuantity ?? 0) < 1}
+                  className="w-16 px-3 py-1 border-t border-b text-center font-body disabled:bg-gray-100"
                 />
                 <button
                   onClick={() => handleQuantityChange(quantity + 1)}
-                  disabled={quantity >= productQuantity}
+                  disabled={quantity >= productQuantity || (product?.productQuantity ?? 0) < 1}
                   className="px-3 py-1 border rounded-r-md disabled:opacity-50"
                 >
                   +
@@ -718,10 +771,11 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
               </button>
 
               <button
-                className="flex-1 bg-primary-dark text-primary-light py-3 rounded-md hover:bg-secondary-light hover:text-gray-800 disabled:opacity-70"
+                className="flex-1 bg-primary-dark text-primary-light py-3 rounded-md hover:bg-secondary-light hover:text-gray-800 disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:bg-primary-dark disabled:hover:text-primary-light"
                 onClick={handlePayPalCheckout}
+                disabled={(product?.productQuantity ?? 0) < 1}
               >
-                {t("buyWithPayPal")}
+                {(product?.productQuantity ?? 0) < 1 ? t("outOfStock") : t("buyWithPayPal")}
               </button>
 
               {/* PayPal form with return URL that redirects to orders page */}

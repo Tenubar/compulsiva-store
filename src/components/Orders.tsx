@@ -3,7 +3,7 @@
 import type React from "react"
 import { useState, useEffect, useContext } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
-import { ArrowLeft, ShoppingBag, ExternalLink, AlertTriangle, CheckCircle } from "lucide-react"
+import { ArrowLeft, ShoppingBag, ExternalLink, AlertTriangle, CheckCircle, RefreshCw } from "lucide-react"
 import { LanguageContext } from "../App"
 import Header from "./Header"
 import Footer from "./Footer"
@@ -129,9 +129,18 @@ const Orders: React.FC = () => {
 
           <div className="bg-white shadow rounded-lg overflow-hidden">
             <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
-              <div className="flex items-center">
-                <ShoppingBag className="h-6 w-6 text-gray-500 mr-2" />
-                <h1 className="text-2xl font-bold text-gray-900">{t("myOrders")}</h1>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <ShoppingBag className="h-6 w-6 text-gray-500 mr-2" />
+                  <h1 className="text-2xl font-bold text-gray-900">{t("myOrders")}</h1>
+                </div>
+                <button
+                  onClick={() => fetchOrders()}
+                  className="flex items-center text-blue-600 hover:text-blue-800"
+                  title={t("refreshOrders")}
+                >
+                  <RefreshCw size={20} className={loading ? "animate-spin" : ""} />
+                </button>
               </div>
               <p className="mt-1 text-sm text-gray-500">{t("viewYourOrderHistory")}</p>
             </div>
