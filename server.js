@@ -1718,19 +1718,22 @@ app.get("/api/user/has-purchased/:productId", authenticateToken, async (req, res
     const productId = req.params.productId
     const userId = req.user.userId
 
-    // Check if there's an order with this product for this user
+    // Check if there's a completed order with this product for this user
     const order = await Order.findOne({
       userId,
       productId,
+      status: "completed", // Ensure the order is completed
     })
 
-    res.json({ hasPurchased: !!order })
+    res.json({
+      hasPurchased: !!order,
+      orderId: order ? order._id : null,
+    })
   } catch (error) {
     console.error("Error checking purchase history:", error)
     res.status(500).json({ message: "Error checking purchase history", error: error.message })
   }
 })
-
 
 // Make sure this route is accessible without authentication for testing
 app.get("/api/test-route", (req, res) => {

@@ -153,6 +153,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
           checkPurchaseHistory(id)
         } else {
           setIsLoggedIn(false)
+          setHasPurchased(false) 
         }
       } catch (error) {
         console.error("Auth check failed:", error)
@@ -163,7 +164,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
     fetchProduct()
     checkAuth()
     fetchComments(id)
-  }, [id])
+  }, [id, isLoggedIn])
 
   const incrementVisits = async (id: string) => {
     try {
@@ -289,6 +290,10 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
       if (response.ok) {
         const data = await response.json()
         setHasPurchased(data.hasPurchased)
+         // If the user has purchased the product, log it for clarity
+        if (data.hasPurchased) {
+          console.log(`User has purchased product ${productId}, enabling ratings`)
+        }
       }
     } catch (error) {
       console.error("Error checking purchase history:", error)
@@ -311,10 +316,10 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
     }
 
     // Check if product is out of stock
-    if (product && (product.productQuantity ?? 0) < 1) {
-      alert(t("cannotRateOutOfStock"))
-      return
-    }
+    // if (product && (product.productQuantity ?? 0) < 1) {
+    //   alert(t("cannotRateOutOfStock"))
+    //   return
+    // }
 
     try {
       const response = await fetch(`${import.meta.env.VITE_SITE_URL}/api/products/${id}/rate`, {
@@ -668,7 +673,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
                     <Star
                       key={star}
                       size={20}
-                      className={`${!isLoggedIn || !hasPurchased || ((product.productQuantity ?? 0) < 1) ? "cursor-not-allowed opacity-70" : "cursor-pointer"} ${
+                      className={`${!isLoggedIn || !hasPurchased ? "cursor-not-allowed opacity-70" : "cursor-pointer"} ${
                         (hoverRating || userRating) >= star
                           ? "text-primary-dark fill-primary-dark"
                           : averageRating >= star
@@ -678,12 +683,8 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
                               : "text-gray-300"
                       }`}
                       onClick={() => handleRatingSubmit(star)}
-                      onMouseEnter={() =>
-                        isLoggedIn && hasPurchased && (product?.productQuantity ?? 0) >= 1 ? setHoverRating(star) : null
-                      }
-                      onMouseLeave={() =>
-                        isLoggedIn && hasPurchased && (product?.productQuantity ?? 0) >= 1 ? setHoverRating(0) : null
-                      }
+                      onMouseEnter={() => (isLoggedIn && hasPurchased ? setHoverRating(star) : null)}
+                      onMouseLeave={() => (isLoggedIn && hasPurchased ? setHoverRating(0) : null)}
                     />
                   ))}
                 </div>
@@ -692,13 +693,22 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
                 </span>
               </div>
 
-              {isLoggedIn && !hasPurchased && (
-                <p className="text-sm text-amber-600 mt-1">{t("purchaseRequiredForRating")}</p>
+               {isLoggedIn && !hasPurchased && (
+                <div className="mt-2 flex items-center">
+                  <p className="text-sm text-amber-600 mr-2">{t("purchaseRequiredForRating")}</p>
+                  <button
+                    onClick={() => checkPurchaseHistory(id || "")}
+                    className="text-xs bg-gray-200 hover:bg-gray-300 px-2 py-1 rounded"
+                    title="Refresh purchase status"
+                  >
+                    {t("refresh")}
+                  </button>
+                </div>
               )}
 
-              {isLoggedIn && hasPurchased && (product.productQuantity ?? 0) < 1 && (
+              {/* {isLoggedIn && hasPurchased && (product.productQuantity ?? 0) < 1 && (
                 <p className="text-sm text-amber-600 mt-1">{t("cannotRateOutOfStock")}</p>
-              )}
+              )} */}
 
               {!isLoggedIn && (
                 <p className="text-sm text-primary mt-1">
