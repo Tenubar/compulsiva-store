@@ -13,7 +13,8 @@ import {
   Trash2,
   Reply,
   Heart,
-  RefreshCw,
+  LogIn,
+  UserPlus,
 } from "lucide-react"
 import Header from "./Header"
 import { useNavigate, useParams, useLocation } from "react-router-dom"
@@ -104,6 +105,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
   const [wishlistMessage, setWishlistMessage] = useState("")
   const [hasPurchased, setHasPurchased] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false)
 
   const navigate = useNavigate()
   const [addingToCart, setAddingToCart] = useState(false)
@@ -564,9 +566,9 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
   }
 
   // Add a manual refresh function
-  const handleRefresh = () => {
-    fetchProduct(true)
-  }
+  // const handleRefresh = () => {
+  //   fetchProduct(true)
+  // }
 
   if (loading) {
     return (
@@ -665,6 +667,13 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
   const images = product.images || [product.image, product.hoverImage].filter(Boolean)
 
   const handlePayPalCheckout = () => {
+
+    // Check if user is logged in
+    if (!isLoggedIn) {
+      setShowLoginPrompt(true)
+      return
+    }
+
     // Find the PayPal form and submit it programmatically
     const form = document.getElementById("paypal-form") as HTMLFormElement
     if (form) {
@@ -700,24 +709,12 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
       <Header currency={currency} setCurrency={setCurrency} language={language} setLanguage={setLanguage} />
 
       <main className="container mx-auto px-4 py-8 mt-16">
-        {/* Replace the onBack prop with our new function */}
-        <div className="flex justify-between items-center mb-8">
+          {/* Back button */}
+          <div className="mb-8">
           <button onClick={handleBackToProducts} className="flex items-center text-gray-700 hover:text-primary-dark">
             <ArrowLeft size={20} className="mr-2" /> {t("backToProducts")}
           </button>
-
-          {/* Add refresh button */}
-          <button
-            onClick={handleRefresh}
-            className="flex items-center text-gray-700 hover:text-primary-dark"
-            disabled={refreshing}
-            title={t("refreshProductData")}
-          >
-            <RefreshCw size={20} className={`mr-1 ${refreshing ? "animate-spin" : ""}`} />
-            {refreshing ? t("refreshing") : t("refresh")}
-          </button>
         </div>
-
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
           <div className="flex flex-col md:flex-row gap-4">
             {/* Thumbnails */}
@@ -793,16 +790,9 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
               </div>
 
               {isLoggedIn && !hasPurchased && (
-                <div className="mt-2 flex items-center">
-                  <p className="text-sm text-amber-600 mr-2">{t("purchaseRequiredForRating")}</p>
-                  <button
-                    onClick={() => checkPurchaseHistory(id || "")}
-                    className="text-xs bg-gray-200 hover:bg-gray-300 px-2 py-1 rounded"
-                    title="Refresh purchase status"
-                  >
-                    {t("refresh")}
-                  </button>
-                </div>
+                <div className="mt-2">
+                <p className="text-sm text-amber-600">{t("purchaseRequiredForRating")}</p>
+              </div>
               )}
 
               {!isLoggedIn && (
@@ -1198,6 +1188,52 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
           </div>
         </div>
       )}
+
+       {/* Login prompt modal */}
+       {showLoginPrompt && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full">
+            <div className="flex justify-end">
+              <button onClick={() => setShowLoginPrompt(false)} className="text-gray-500 hover:text-gray-700">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="text-center mb-6">
+              <h3 className="text-xl font-semibold mb-2">{t("loginRequired")}</h3>
+              <p className="text-gray-600">{t("loginRequiredForPurchase")}</p>
+            </div>
+
+            <div className="space-y-4">
+              <button
+                onClick={() => {
+                  setShowLoginPrompt(false)
+                  navigate("/login")
+                }}
+                className="w-full flex items-center justify-center gap-2 bg-primary-dark text-white py-3 rounded-md hover:bg-primary"
+              >
+                <LogIn size={20} />
+                {t("login")}
+              </button>
+
+              <div className="text-center">
+                <p className="text-sm text-gray-600 mb-2">{t("dontHaveAccount")}</p>
+                <button
+                  onClick={() => {
+                    setShowLoginPrompt(false)
+                    navigate("/register")
+                  }}
+                  className="flex items-center justify-center gap-2 w-full border border-gray-300 text-gray-700 py-2 rounded-md hover:bg-gray-50"
+                >
+                  <UserPlus size={18} />
+                  {t("signUp")}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }
