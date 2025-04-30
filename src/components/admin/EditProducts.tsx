@@ -17,7 +17,7 @@ interface Product {
   description?: string
   materials?: string
   sizes?: string[]
-  shipping?: string
+  shipping?: Array<{ name: string; price: number }>
   productQuantity?: number
   additionalImages?: string[]
 }
@@ -38,6 +38,9 @@ const EditProducts: React.FC = () => {
   const [startIndex, setStartIndex] = useState(0)
   const imagesPerView = 4
   const imageContainerRef = useRef<HTMLDivElement>(null)
+
+  const [shippingName, setShippingName] = useState("")
+  const [shippingPrice, setShippingPrice] = useState("")
 
   // Updated fetch function with AbortController
   const fetchProducts = useCallback(async () => {
@@ -254,6 +257,31 @@ const EditProducts: React.FC = () => {
       }
     }
     fileInput.click()
+  }
+
+  const handleAddShipping = () => {
+    if (!selectedProduct) return
+    if (shippingName.trim() && shippingPrice.trim()) {
+      const newShipping = {
+        name: shippingName.trim(),
+        price: Number(shippingPrice)
+      }
+      setSelectedProduct({
+        ...selectedProduct,
+        shipping: [...(selectedProduct.shipping || []), newShipping]
+      })
+      setShippingName("")
+      setShippingPrice("")
+    }
+  }
+
+  const handleRemoveShipping = (index: number) => {
+    if (!selectedProduct) return
+    const newShippingOptions = (selectedProduct.shipping || []).filter((_, i) => i !== index)
+    setSelectedProduct({
+      ...selectedProduct,
+      shipping: newShippingOptions
+    })
   }
 
   const handleUpdate = async (e: React.FormEvent) => {
@@ -570,13 +598,47 @@ const EditProducts: React.FC = () => {
               )}
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Shipping</label>
-              <input
-                type="text"
-                value={selectedProduct.shipping || ""}
-                onChange={(e) => setSelectedProduct({ ...selectedProduct, shipping: e.target.value })}
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3"
-              />
+              <label className="block text-sm font-medium text-gray-700">Shipping Options</label>
+              <div className="flex items-center mt-1">
+                <input
+                  type="text"
+                  placeholder="Shipping name"
+                  value={shippingName}
+                  onChange={(e) => setShippingName(e.target.value)}
+                  className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                />
+                <input
+                  type="number"
+                  placeholder="Price"
+                  value={shippingPrice}
+                  onChange={(e) => setShippingPrice(e.target.value)}
+                  className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 ml-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                />
+                <button
+                  type="button"
+                  onClick={handleAddShipping}
+                  className="ml-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  Add
+                </button>
+              </div>
+              <ul className="mt-2">
+                {(selectedProduct?.shipping || []).map((option, index) => (
+                  <li
+                    key={index}
+                    className="inline-flex items-center justify-between bg-gray-100 rounded-md text-gray-700 px-3 py-1 mr-2 mt-2"
+                  >
+                    <span>{option.name} - ${option.price}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveShipping(index)}
+                      className="ml-2 text-red-500 hover:text-red-700 focus:outline-none"
+                    >
+                      <X size={16} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Image</label>

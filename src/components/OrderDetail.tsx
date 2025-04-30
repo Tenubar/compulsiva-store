@@ -28,6 +28,10 @@ interface OrderDetail {
     postalCode?: string
     country?: string
   }
+  shippingMethod?: {
+    name: string
+    price: number
+  }
   status: string
   createdAt: string
 }
@@ -226,32 +230,40 @@ const OrderDetail: React.FC = () => {
                 </div>
 
                 {/* Shipping Information */}
-                <div>
+                <div className="mb-8">
                   <h2 className="text-lg font-medium text-gray-900 mb-4">{t("shippingInformation")}</h2>
                   <div className="bg-gray-50 p-4 rounded-lg">
-                    <div className="flex items-start mb-4">
-                      <MapPin className="h-5 w-5 text-gray-400 mr-2" />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <span className="text-sm font-medium text-gray-900">{t("shippingAddress")}</span>
-                        <p className="text-sm text-gray-500">
-                          {order.shippingAddress?.name || "John Doe"}
-                          <br />
-                          {order.shippingAddress?.addressLine1 || "123 Main St"}
-                          <br />
-                          {order.shippingAddress?.addressLine2 && `${order.shippingAddress.addressLine2}<br />`}
-                          {order.shippingAddress?.city || "Anytown"}, {order.shippingAddress?.state || "CA"}{" "}
-                          {order.shippingAddress?.postalCode || "12345"}
-                          <br />
-                          {order.shippingAddress?.country || "US"}
-                        </p>
+                        <div className="flex items-center mb-2">
+                          <Truck className="h-5 w-5 text-gray-400 mr-2" />
+                          <span className="text-sm font-medium text-gray-900">{t("shippingMethod")}</span>
+                        </div>
+                        {order.shippingMethod ? (
+                          <p className="text-sm text-gray-500 ml-7">
+                            {order.shippingMethod.name} (${order.shippingMethod.price.toFixed(2)})
+                          </p>
+                        ) : (
+                          <p className="text-sm text-gray-500 ml-7">{t("standardShipping")}</p>
+                        )}
                       </div>
-                    </div>
-                    <div className="flex items-start">
-                      <Truck className="h-5 w-5 text-gray-400 mr-2" />
-                      <div>
-                        <span className="text-sm font-medium text-gray-900">{t("shippingMethod")}</span>
-                        <p className="text-sm text-gray-500">{t("standardShipping")}</p>
-                      </div>
+                      {order.shippingAddress && (
+                        <div>
+                          <div className="flex items-center mb-2">
+                            <MapPin className="h-5 w-5 text-gray-400 mr-2" />
+                            <span className="text-sm font-medium text-gray-900">{t("shippingAddress")}</span>
+                          </div>
+                          <div className="text-sm text-gray-500 ml-7">
+                            {order.shippingAddress.name && <p>{order.shippingAddress.name}</p>}
+                            {order.shippingAddress.addressLine1 && <p>{order.shippingAddress.addressLine1}</p>}
+                            {order.shippingAddress.addressLine2 && <p>{order.shippingAddress.addressLine2}</p>}
+                            <p>
+                              {order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.postalCode}
+                            </p>
+                            <p>{order.shippingAddress.country}</p>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

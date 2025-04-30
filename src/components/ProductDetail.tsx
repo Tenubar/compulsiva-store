@@ -15,13 +15,15 @@ import {
   Heart,
   LogIn,
   UserPlus,
+  FileText,
+  Edit,
 } from "lucide-react"
 import Header from "./Header"
 import { useNavigate, useParams, useLocation } from "react-router-dom"
 import Footer from "./Footer"
 import { LanguageContext } from "../App"
 import { getImageUrl, getPlaceholder } from "../utils/imageUtils"
-import { getProductApiUrl } from "../utils/apiUtils"
+import { getProductApiUrl, getApiUrl } from "../utils/apiUtils"
 
 interface ProductDetailProps {
   onBack: () => void
@@ -34,7 +36,7 @@ interface Product {
   description?: string
   materials?: string
   sizes?: string[]
-  shipping?: string
+  shipping?: Array<{ name: string; price: number }>
   image: string
   hoverImage?: string
   type?: string
@@ -73,10 +75,28 @@ interface Comment {
   replies?: Comment[]
 }
 
+interface UserData {
+  _id: string
+  name: string
+  email: string
+  firstName: string
+  lastName: string
+  phone: string
+  id: string
+  avatar?: string
+  address: {
+    street: string
+    city: string
+    state: string
+    postalCode: string
+    country: string
+  }
+}
+
 // Add a global variable to store scroll position
 let lastScrollPosition = 0
 
-const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
+const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element => {
   const { id } = useParams<{ id: string }>()
   const location = useLocation()
   const { t, language, setLanguage } = useContext(LanguageContext)
@@ -98,7 +118,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
   const [replyingTo, setReplyingTo] = useState<string | null>(null)
   const [loadingComments, setLoadingComments] = useState(false)
   const [submittingComment, setSubmittingComment] = useState(false)
-  const [userData, setUserData] = useState<{ _id: string; name: string; email: string } | null>(null)
+  const [userData, setUserData] = useState<UserData | null>(null)
   const [inWishlist, setInWishlist] = useState(false)
   const [wishlistItemId, setWishlistItemId] = useState<string | null>(null)
   const [wishlistLoading, setWishlistLoading] = useState(false)
@@ -106,6 +126,18 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
   const [hasPurchased, setHasPurchased] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [showLoginPrompt, setShowLoginPrompt] = useState(false)
+  const [showPayPalPreview, setShowPayPalPreview] = useState(false)
+  const [previewAddress, setPreviewAddress] = useState({
+    street: "",
+    city: "",
+    state: "",
+    postalCode: "",
+    country: ""
+  })
+  const [previewPhone, setPreviewPhone] = useState("")
+  const [previewId, setPreviewId] = useState("")
+  const [previewFirstName, setPreviewFirstName] = useState("")
+  const [previewLastName, setPreviewLastName] = useState("")
 
   const navigate = useNavigate()
   const [addingToCart, setAddingToCart] = useState(false)
@@ -116,6 +148,8 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
 
   // Check if we're returning from a purchase
   const isReturningFromPurchase = useRef(false)
+
+  const [selectedShipping, setSelectedShipping] = useState<{ name: string; price: number } | null>(null)
 
   useEffect(() => {
     // Check if we're returning from a successful purchase
@@ -168,6 +202,11 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
         setSelectedImage(productData.images[0])
       } else if (productData.image) {
         setSelectedImage(productData.image)
+      }
+
+      // Set the first shipping option as selected by default
+      if (productData.shipping && productData.shipping.length > 0) {
+        setSelectedShipping(productData.shipping[0])
       }
 
       // Initialize selected size when product loads
@@ -656,7 +695,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
   const description = product.description || "No description available."
   const materials = product.materials || "Information not available."
   const sizes = product.sizes || ["S", "M", "L"]
-  const shipping = product.shipping || "Standard shipping: 3-5 business days."
+  const shipping = product.shipping || []
   const reviews = product.reviews || []
   const recommended = product.recommended || []
   const productQuantity = product.productQuantity || 1
@@ -666,20 +705,81 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
   // Get all available images
   const images = product.images || [product.image, product.hoverImage].filter(Boolean)
 
-  const handlePayPalCheckout = () => {
+  // Add this function to check if all required fields are filled
+  const isFormValid = () => {
+    return (
+      previewFirstName.trim() !== "" &&
+      previewLastName.trim() !== "" &&
+      previewPhone.trim() !== "" &&
+      previewId.trim() !== "" &&
+      previewAddress.street.trim() !== "" &&
+      previewAddress.city.trim() !== "" &&
+      previewAddress.state.trim() !== "" &&
+      previewAddress.postalCode.trim() !== "" &&
+      previewAddress.country.trim() !== ""
+    )
+  }
 
-    // Check if user is logged in
+  // Add this function to handle preview form submission
+  const handlePreviewSubmit = async () => {
+    try {
+      const response = await fetch(getApiUrl("update-user"), {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          name: userData?.name,
+          email: userData?.email,
+          avatar: userData?.avatar,
+          phone: previewPhone,
+          id: previewId,
+          firstName: previewFirstName,
+          lastName: previewLastName,
+          address: previewAddress
+        }),
+      })
+
+      if (response.ok) {
+        const updatedUser = await response.json()
+        setUserData(updatedUser)
+        // Submit the PayPal form
+        const form = document.getElementById("paypal-form") as HTMLFormElement
+        if (form) {
+          form.submit()
+        }
+      }
+    } catch (error) {
+      console.error("Error updating user data:", error)
+    }
+  }
+
+  // Update the handlePayPalCheckout function
+  const handlePayPalCheckout = () => {
     if (!isLoggedIn) {
       setShowLoginPrompt(true)
       return
     }
 
-    // Find the PayPal form and submit it programmatically
-    const form = document.getElementById("paypal-form") as HTMLFormElement
-    if (form) {
-      form.submit()
+    // Initialize preview form with current user data
+    if (userData) {
+      setPreviewFirstName(userData.firstName || "")
+      setPreviewLastName(userData.lastName || "")
+      setPreviewPhone(userData.phone || "")
+      setPreviewId(userData.id || "")
+      setPreviewAddress(userData.address || {
+        street: "",
+        city: "",
+        state: "",
+        postalCode: "",
+        country: ""
+      })
     }
+
+    setShowPayPalPreview(true)
   }
+
   // Update the onBack function to use the stored scroll position
   const handleBackToProducts = () => {
     // Store the current product ID in session storage before navigating back
@@ -687,9 +787,6 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
       sessionStorage.setItem("lastViewedProduct", id)
     }
     navigate("/")
-
-    // The scroll position will be restored in the App.tsx component
-    // when the home page loads
   }
 
   // Format date for comments
@@ -885,7 +982,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
                 <input type="hidden" name="business" value={import.meta.env.VITE_ADMIN_USER_EMAIL_PP} />
                 <input type="hidden" name="item_name" value={product.title} />
                 <input type="hidden" name="item_number" value={product._id} />
-                <input type="hidden" name="amount" value={product.price} />
+                <input type="hidden" name="amount" value={selectedShipping && selectedShipping.price > 0 ? (product.price + selectedShipping.price).toFixed(2) : product.price} />
                 <input type="hidden" name="quantity" value={quantity} />
                 <input type="hidden" name="currency_code" value="USD" />
                 <input type="hidden" name="custom" value={userData ? userData._id : ""} />
@@ -895,11 +992,10 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
                 <input type="hidden" name="lc" value="US" />
                 <input type="hidden" name="bn" value="PP-BuyNowBF" />
                 <input type="hidden" name="notify_url" value={`${import.meta.env.VITE_SITE_URL}/api/paypal/ipn`} />
-                {/* Return URL now just redirects to orders page with success flag and product info */}
                 <input
                   type="hidden"
                   name="return"
-                  value={`${window.location.origin}/orders?success=true&productId=${product._id}&title=${encodeURIComponent(product.title)}&price=${product.price}&quantity=${quantity}`}
+                  value={`${window.location.origin}/orders?success=true&productId=${product._id}&title=${encodeURIComponent(product.title)}&price=${product.price}&quantity=${quantity}&shipping=${selectedShipping ? selectedShipping.price : 0}`}
                 />
                 <input type="hidden" name="cancel_return" value={`${window.location.origin}/product/${product._id}`} />
                 <input
@@ -945,7 +1041,29 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
 
               <div>
                 <h2 className="text-xl font-title font-semibold mb-2">{t("shipping")}</h2>
-                <p className="font-body text-gray-700">{shipping}</p>
+                <div className="mb-4">
+                  <select
+                    value={selectedShipping ? JSON.stringify(selectedShipping) : ""}
+                    onChange={(e) => setSelectedShipping(e.target.value ? JSON.parse(e.target.value) : null)}
+                    className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary font-body"
+                  >
+                    {product.shipping?.map((option, index) => (
+                      <option key={index} value={JSON.stringify(option)}>
+                        {option.name} (${option.price})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {selectedShipping && (
+                  <div className="flex items-center justify-between bg-gray-50 p-3 rounded-md">
+                    <span className="font-body text-gray-700">{selectedShipping.name}</span>
+                    <div className={`px-3 py-1 rounded-md ${selectedShipping.price === 0 ? 'bg-green-500' : 'bg-orange-500'}`}>
+                      <span className="text-white font-medium">
+                        {selectedShipping.price === 0 ? t("free") : `$${selectedShipping.price}`}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div>
@@ -1227,6 +1345,201 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }) => {
                 >
                   <UserPlus size={18} />
                   {t("signUp")}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PayPal Preview Form */}
+      {showPayPalPreview && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 transition-opacity duration-300">
+          <div className="bg-white rounded-lg shadow-xl w-[90%] max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <FileText className="h-6 w-6 text-primary-dark mr-2" />
+                  <h2 className="text-2xl font-bold text-gray-900">{t("invoicePreview")}</h2>
+                </div>
+                <div className="flex items-center space-x-4">
+                  <button
+                    onClick={() => navigate("/profile")}
+                    className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
+                    {t("modify")}
+                  </button>
+                  <button
+                    onClick={() => setShowPayPalPreview(false)}
+                    className="flex items-center px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
+                  >
+                    <X className="h-4 w-4 mr-2" />
+                    {t("cancel")}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Shipping Information */}
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">{t("shippingInformation")}</h3>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">{t("firstName")}</label>
+                        <input
+                          type="text"
+                          value={previewFirstName}
+                          onChange={(e) => setPreviewFirstName(e.target.value)}
+                          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">{t("lastName")}</label>
+                        <input
+                          type="text"
+                          value={previewLastName}
+                          onChange={(e) => setPreviewLastName(e.target.value)}
+                          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">{t("phone")}</label>
+                      <input
+                        type="tel"
+                        value={previewPhone}
+                        onChange={(e) => setPreviewPhone(e.target.value)}
+                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">{t("id")}</label>
+                      <input
+                        type="text"
+                        value={previewId}
+                        onChange={(e) => setPreviewId(e.target.value)}
+                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">{t("street")}</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={previewAddress.street}
+                          onChange={(e) => setPreviewAddress({ ...previewAddress, street: e.target.value })}
+                          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                          required
+                        />
+                        {selectedShipping && (
+                          <div className="mt-1 text-sm text-gray-600">
+                            {t(`placeShippingAddress.${selectedShipping.name}`)}, {t("shippingCost")}: {selectedShipping.price === 0 ? t("free") : `$${selectedShipping.price}`}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">{t("city")}</label>
+                        <input
+                          type="text"
+                          value={previewAddress.city}
+                          onChange={(e) => setPreviewAddress({ ...previewAddress, city: e.target.value })}
+                          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">{t("state")}</label>
+                        <input
+                          type="text"
+                          value={previewAddress.state}
+                          onChange={(e) => setPreviewAddress({ ...previewAddress, state: e.target.value })}
+                          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">{t("postalCode")}</label>
+                        <input
+                          type="text"
+                          value={previewAddress.postalCode}
+                          onChange={(e) => setPreviewAddress({ ...previewAddress, postalCode: e.target.value })}
+                          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">{t("country")}</label>
+                        <input
+                          type="text"
+                          value={previewAddress.country}
+                          onChange={(e) => setPreviewAddress({ ...previewAddress, country: e.target.value })}
+                          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                          required
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Order Summary */}
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">{t("orderSummary")}</h3>
+                  <div className="space-y-4">
+                    <div className="flex justify-between">
+                      <p className="text-gray-600">{product?.title}</p>
+                      <p className="text-gray-900">${product?.price}</p>
+                    </div>
+                    <div className="flex justify-between">
+                      <p className="text-gray-600">{t("quantity")}</p>
+                      <p className="text-gray-900">{quantity}</p>
+                    </div>
+                    {selectedShipping && (
+                      <div className="flex justify-between">
+                        <p className="text-gray-600">{selectedShipping.name}</p>
+                        <p className="text-gray-900">${selectedShipping.price}</p>
+                      </div>
+                    )}
+                    <div className="border-t border-gray-200 pt-4">
+                      <div className="flex justify-between">
+                        <p className="text-lg font-medium text-gray-900">{t("total")}</p>
+                        <p className="text-lg font-medium text-gray-900">
+                          ${selectedShipping ? (product?.price * quantity + selectedShipping.price).toFixed(2) : (product?.price * quantity).toFixed(2)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* PayPal Button */}
+              <div className="mt-8 flex justify-end">
+                <button
+                  onClick={handlePreviewSubmit}
+                  disabled={!isFormValid()}
+                  className={`px-6 py-3 rounded-md ${
+                    isFormValid()
+                      ? "bg-blue-600 text-white hover:bg-blue-700"
+                      : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                  }`}
+                >
+                  {t("proceedToPayPal")}
                 </button>
               </div>
             </div>

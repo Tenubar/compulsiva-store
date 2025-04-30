@@ -19,6 +19,10 @@ interface Order {
   paypalOrderId?: string
   payerEmail?: string
   payerName?: string
+  shippingMethod?: {
+    name: string
+    price: number
+  }
   status: string
   createdAt: string
 }
@@ -256,6 +260,11 @@ const Orders: React.FC = () => {
                                   {t("quantity")}: {order.quantity}
                                 </div>
                                 <div className="text-sm text-gray-500">ID: {order.paypalTransactionId}</div>
+                                {order.shippingMethod && (
+                                  <div className="text-sm text-gray-500">
+                                    {t("shipping")}: {order.shippingMethod.name} (${order.shippingMethod.price.toFixed(2)})
+                                  </div>
+                                )}
                               </div>
                             </div>
                           </td>

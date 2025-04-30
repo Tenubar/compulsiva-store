@@ -6,20 +6,44 @@ import { useNavigate } from "react-router-dom"
 import { ArrowLeft, Upload, UserCircle, AlertTriangle } from "lucide-react"
 import { LanguageContext } from "../App"
 import { getApiUrl } from "../utils/apiUtils"
+import Header from "./Header"
 
 const Profile: React.FC = () => {
-  const { t } = useContext(LanguageContext)
+  const { t, language, setLanguage } = useContext(LanguageContext)
   const navigate = useNavigate()
+  const [currency, setCurrency] = useState<"USD" | "EUR" | "VES">("USD")
 
   const [user, setUser] = useState<{
     _id: string
     name: string
     email: string
     avatar: string
+    phone: string
+    id: string
+    firstName: string
+    lastName: string
+    address: {
+      street: string
+      city: string
+      state: string
+      postalCode: string
+      country: string
+    }
   } | null>(null)
 
   const [loading, setLoading] = useState(true)
   const [newName, setNewName] = useState("")
+  const [newPhone, setNewPhone] = useState("")
+  const [newId, setNewId] = useState("")
+  const [newFirstName, setNewFirstName] = useState("")
+  const [newLastName, setNewLastName] = useState("")
+  const [newAddress, setNewAddress] = useState({
+    street: "",
+    city: "",
+    state: "",
+    postalCode: "",
+    country: ""
+  })
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
   const [avatarPreview, setAvatarPreview] = useState<string>("")
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -39,9 +63,20 @@ const Profile: React.FC = () => {
           const userData = await response.json()
           setUser(userData)
           setNewName(userData.name)
-            // Check if user is admin
-            const adminEmail = import.meta.env.VITE_ADMIN_USER_EMAIL
-            setIsAdmin(userData.email === adminEmail)
+          setNewPhone(userData.phone || "")
+          setNewId(userData.id || "")
+          setNewFirstName(userData.firstName || "")
+          setNewLastName(userData.lastName || "")
+          setNewAddress(userData.address || {
+            street: "",
+            city: "",
+            state: "",
+            postalCode: "",
+            country: ""
+          })
+          // Check if user is admin
+          const adminEmail = import.meta.env.VITE_ADMIN_USER_EMAIL
+          setIsAdmin(userData.email === adminEmail)
         } else {
           // If not logged in, redirect to login
           navigate("/login")
@@ -152,10 +187,12 @@ const Profile: React.FC = () => {
     }
   }
 
-  // Handle name change
-  const handleNameChange = async () => {
-    if (!newName.trim()) {
-      setError(t("nameCannotBeEmpty"))
+  // Handle profile update
+  const handleProfileUpdate = async () => {
+    if (!newName.trim() || !newPhone.trim() || !newId.trim() || !newFirstName.trim() || !newLastName.trim() ||
+        !newAddress.street.trim() || !newAddress.city.trim() || !newAddress.state.trim() || 
+        !newAddress.postalCode.trim() || !newAddress.country.trim()) {
+      setError(t("allFieldsRequired"))
       return
     }
 
@@ -172,19 +209,24 @@ const Profile: React.FC = () => {
           name: newName,
           email: user?.email,
           avatar: user?.avatar,
+          phone: newPhone,
+          id: newId,
+          firstName: newFirstName,
+          lastName: newLastName,
+          address: newAddress
         }),
       })
 
       if (response.ok) {
         const updatedUser = await response.json()
         setUser(updatedUser)
-        setSuccess(t("nameUpdated"))
+        setSuccess(t("profileUpdated"))
       } else {
-        setError(t("failedToUpdateName"))
+        setError(t("failedToUpdateProfile"))
       }
     } catch (error) {
-      console.error("Name update error:", error)
-      setError(t("nameUpdateError"))
+      console.error("Profile update error:", error)
+      setError(t("profileUpdateError"))
     } finally {
       setLoading(false)
     }
@@ -216,16 +258,6 @@ const Profile: React.FC = () => {
     }
   }
 
-    // Handle name input change with character limit
-    const handleNameInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value
-    // Limit to 24 characters
-    if (value.length <= 24) {
-        setNewName(value)
-    }
-    }
-
-
   if (loading && !user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -235,8 +267,10 @@ const Profile: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-20 pb-12">
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50">
+      <Header currency={currency} setCurrency={setCurrency} language={language} setLanguage={setLanguage} />
+      
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pt-24">
         <div className="mb-8 flex items-center">
           <button onClick={() => navigate("/")} className="flex items-center text-gray-600 hover:text-blue-600">
             <ArrowLeft size={20} className="mr-2" /> {t("backToHome")}
@@ -324,39 +358,162 @@ const Profile: React.FC = () => {
               </div>
             </div>
 
-            {/* Name Change Section */}
+            {/* Profile Information Section */}
             <div className="border-b border-gray-200 pb-6">
-              <h2 className="text-lg font-medium text-gray-900 mb-4">{t("changeName")}</h2>
-              <div className="max-w-lg">
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-                  {t("currentName")}: {user?.name}
-                </label>
-                <div className="relative">
-                <input
-                  type="text"
-                  id="name"
-                  value={newName}
-                  onChange={handleNameInputChange}
-                  maxLength={24}
-
-                  className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                  placeholder={t("enterNewName")}
-                />
-                <div className="absolute right-2 bottom-2 text-xs text-gray-400">{newName.length}/24</div>
+              <h2 className="text-lg font-medium text-gray-900 mb-4">{t("profileInformation")}</h2>
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                <div>
+                  <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">
+                    {t("firstName")}
+                  </label>
+                  <input
+                    type="text"
+                    id="firstName"
+                    value={newFirstName}
+                    onChange={(e) => setNewFirstName(e.target.value)}
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    required
+                  />
                 </div>
-                <button
-                  onClick={handleNameChange}
-                  disabled={loading || newName === user?.name || !newName.trim()}
-                  className="mt-3 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-                >
-                  {loading ? t("saving") : t("saveChanges")}
-                </button>
+
+                <div>
+                  <label htmlFor="lastName" className="block text-sm font-medium text-gray-700">
+                    {t("lastName")}
+                  </label>
+                  <input
+                    type="text"
+                    id="lastName"
+                    value={newLastName}
+                    onChange={(e) => setNewLastName(e.target.value)}
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
+                    {t("phone")}
+                  </label>
+                  <input
+                    type="tel"
+                    id="phone"
+                    value={newPhone}
+                    onChange={(e) => setNewPhone(e.target.value)}
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="id" className="block text-sm font-medium text-gray-700">
+                    {t("id")}
+                  </label>
+                  <input
+                    type="text"
+                    id="id"
+                    value={newId}
+                    onChange={(e) => setNewId(e.target.value)}
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    required
+                  />
+                </div>
               </div>
             </div>
 
-             {/* Delete Account Section - Only show if not admin */}
-             {!isAdmin && (
-              <div>
+            {/* Address Section */}
+            <div className="border-b border-gray-200 pb-6">
+              <h2 className="text-lg font-medium text-gray-900 mb-4">{t("address")}</h2>
+              <div className="grid grid-cols-1 gap-6">
+                <div>
+                  <label htmlFor="street" className="block text-sm font-medium text-gray-700">
+                    {t("street")}
+                  </label>
+                  <input
+                    type="text"
+                    id="street"
+                    value={newAddress.street}
+                    onChange={(e) => setNewAddress({ ...newAddress, street: e.target.value })}
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                  <div>
+                    <label htmlFor="city" className="block text-sm font-medium text-gray-700">
+                      {t("city")}
+                    </label>
+                    <input
+                      type="text"
+                      id="city"
+                      value={newAddress.city}
+                      onChange={(e) => setNewAddress({ ...newAddress, city: e.target.value })}
+                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="state" className="block text-sm font-medium text-gray-700">
+                      {t("state")}
+                    </label>
+                    <input
+                      type="text"
+                      id="state"
+                      value={newAddress.state}
+                      onChange={(e) => setNewAddress({ ...newAddress, state: e.target.value })}
+                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                  <div>
+                    <label htmlFor="postalCode" className="block text-sm font-medium text-gray-700">
+                      {t("postalCode")}
+                    </label>
+                    <input
+                      type="text"
+                      id="postalCode"
+                      value={newAddress.postalCode}
+                      onChange={(e) => setNewAddress({ ...newAddress, postalCode: e.target.value })}
+                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="country" className="block text-sm font-medium text-gray-700">
+                      {t("country")}
+                    </label>
+                    <input
+                      type="text"
+                      id="country"
+                      value={newAddress.country}
+                      onChange={(e) => setNewAddress({ ...newAddress, country: e.target.value })}
+                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Save Changes Button */}
+            <div className="flex justify-end">
+              <button
+                onClick={handleProfileUpdate}
+                disabled={loading}
+                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+              >
+                {loading ? t("saving") : t("saveChanges")}
+              </button>
+            </div>
+
+            {/* Delete Account Section - Only show if not admin */}
+            {!isAdmin && (
+              <div className="mt-8">
                 <h2 className="text-lg font-medium text-gray-900 mb-4">{t("deleteAccount")}</h2>
                 <p className="text-sm text-gray-500 mb-4">{t("deleteAccountDescription")}</p>
                 <button

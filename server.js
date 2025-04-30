@@ -57,6 +57,17 @@ const userSchema = new mongoose.Schema(
     password: { type: String, required: true },
     email: { type: String, required: true, unique: true },
     avatar: { type: String, default: "" },
+    phone: { type: String, default: "" },
+    id: { type: String, default: "" },
+    firstName: { type: String, default: "" },
+    lastName: { type: String, default: "" },
+    address: {
+      street: { type: String, default: "" },
+      city: { type: String, default: "" },
+      state: { type: String, default: "" },
+      postalCode: { type: String, default: "" },
+      country: { type: String, default: "" }
+    }
   },
   { timestamps: true },
 )
@@ -101,7 +112,7 @@ const productSchema = new mongoose.Schema(
     description: { type: String },
     materials: { type: String },
     sizes: { type: [String], default: [] },
-    shipping: { type: String },
+    shipping: { type: [{ name: String, price: Number }], default: [] },
     productQuantity: { type: Number, default: 1, min: 1 },
     additionalImages: { type: [String], default: [] },
     // New fields
@@ -162,6 +173,10 @@ const orderSchema = new mongoose.Schema(
       state: { type: String },
       postalCode: { type: String },
       country: { type: String },
+    },
+    shippingMethod: {
+      name: { type: String },
+      price: { type: Number, default: 0 }
     },
     status: { type: String, default: "completed" },
     paymentDetails: { type: Object },
@@ -472,10 +487,21 @@ app.post("/post-user", authenticateToken, async (req, res) => {
 // Update the update-user route to handle avatar updates
 app.put("/update-user", authenticateToken, async (req, res) => {
   try {
-    const { name, email, avatar } = req.body
-    const updatedUser = await User.findByIdAndUpdate(req.user.userId, { name, email, avatar }, { new: true }).select(
-      "-password",
-    )
+    const { name, email, avatar, phone, id, firstName, lastName, address } = req.body
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user.userId,
+      { 
+        name, 
+        email, 
+        avatar,
+        phone,
+        id,
+        firstName,
+        lastName,
+        address
+      },
+      { new: true }
+    ).select("-password")
 
     res.json(updatedUser)
   } catch (error) {
@@ -1088,7 +1114,7 @@ const draftSchema = new mongoose.Schema(
       description: { type: String, default: "" },
       materials: { type: String, default: "" },
       sizes: { type: [String], default: [] },
-      shipping: { type: String, default: "Standard Shipping: 3-5 Days" },
+      shipping: { type: [{ name: String, price: Number }], default: [] },
       productQuantity: { type: Number, default: 1 },
       additionalImages: { type: [String], default: [] },
     },
@@ -1689,6 +1715,12 @@ async function createOrderFromIPN(ipnData) {
       throw new Error(`Product not found with ID: ${productId}`)
     }
 
+    // Extract shipping method from payment details
+    const shippingMethod = {
+      name: ipnData.shipping_method || "Standard",
+      price: Number(ipnData.mc_shipping || 0)
+    }
+
     // Create the order
     const order = new Order({
       userId: userId,
@@ -1708,6 +1740,7 @@ async function createOrderFromIPN(ipnData) {
         postalCode: ipnData.address_zip,
         country: ipnData.address_country,
       },
+      shippingMethod: shippingMethod,
       status: "completed",
       paymentDetails: ipnData,
     })

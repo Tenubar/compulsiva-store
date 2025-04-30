@@ -75,6 +75,7 @@ export const translations = {
     shipping: "Shipping",
     productStats: "Product Stats",
     views: "Views",
+    addToWishList: "Add to wish list",
 
     // Recommended Products
     recommendedProducts: "Recommended Products",
@@ -415,6 +416,7 @@ export const translations = {
     shipping: "Envío",
     productStats: "Estadísticas del Producto",
     views: "Vistas",
+    addToWishList: "Añadir a la Lista de Deseos",
 
     // Recommended Products
     recommendedProducts: "Productos Recomendados",
