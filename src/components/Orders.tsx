@@ -252,16 +252,16 @@ const Orders: React.FC = () => {
                     <tbody className="bg-white divide-y divide-gray-200">
                       {orders.map((order) => (
                         <tr key={order._id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          <td className="px-6 py-4">
                             <div className="flex items-center">
-                              <div>
-                                <div className="text-sm font-medium text-gray-900">{order.title}</div>
+                              <div className="min-w-0 flex-1">
+                                <div className="text-sm font-medium text-gray-900 truncate">{order.title}</div>
                                 <div className="text-sm text-gray-500">
                                   {t("quantity")}: {order.quantity}
                                 </div>
-                                <div className="text-sm text-gray-500">ID: {order.paypalTransactionId}</div>
+                                <div className="text-sm text-gray-500 truncate">ID: {order.paypalTransactionId}</div>
                                 {order.shippingMethod && (
-                                  <div className="text-sm text-gray-500">
+                                  <div className="text-sm text-gray-500 truncate">
                                     {t("shipping")}: {order.shippingMethod.name} (${order.shippingMethod.price.toFixed(2)})
                                   </div>
                                 )}
