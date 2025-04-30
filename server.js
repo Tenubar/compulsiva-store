@@ -1700,7 +1700,7 @@ async function createOrderFromIPN(ipnData) {
     // Extract the user ID from the custom field
     const userId = ipnData.custom
 
-    // Check if user exists
+    // Check if user exists and get their address
     const user = await User.findById(userId)
     if (!user) {
       throw new Error(`User not found with ID: ${userId}`)
@@ -1715,11 +1715,20 @@ async function createOrderFromIPN(ipnData) {
       throw new Error(`Product not found with ID: ${productId}`)
     }
 
-    // Extract shipping method from payment details
-    const shippingMethod = {
-      name: ipnData.shipping_method || "Standard",
-      price: Number(ipnData.mc_shipping || 0)
-    }
+    // Get shipping method from product
+    const shippingMethod = product.shipping && product.shipping.length > 0 
+      ? product.shipping[0]  // Get the first shipping method
+      : { name: "Standard", price: 0 }
+
+    // Create address string from user's address
+    const addressParts = []
+    if (user.address.street) addressParts.push(user.address.street)
+    if (user.address.city) addressParts.push(user.address.city)
+    if (user.address.state) addressParts.push(user.address.state)
+    if (user.address.postalCode) addressParts.push(user.address.postalCode)
+    if (user.address.country) addressParts.push(user.address.country)
+    
+    const addressString = addressParts.join(", ")
 
     // Create the order
     const order = new Order({
@@ -1733,14 +1742,17 @@ async function createOrderFromIPN(ipnData) {
       payerEmail: ipnData.payer_email,
       payerName: `${ipnData.first_name || ""} ${ipnData.last_name || ""}`.trim(),
       shippingAddress: {
-        name: ipnData.address_name,
-        addressLine1: ipnData.address_street,
-        city: ipnData.address_city,
-        state: ipnData.address_state,
-        postalCode: ipnData.address_zip,
-        country: ipnData.address_country,
+        name: user.name,
+        addressLine1: user.address.street,
+        city: user.address.city,
+        state: user.address.state,
+        postalCode: user.address.postalCode,
+        country: user.address.country,
       },
-      shippingMethod: shippingMethod,
+      shippingMethod: {
+        name: `${addressString} (${shippingMethod.name})`,
+        price: shippingMethod.price
+      },
       status: "completed",
       paymentDetails: ipnData,
     })
