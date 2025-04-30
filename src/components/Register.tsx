@@ -55,7 +55,7 @@ const Register: React.FC = () => {
         const formData = new FormData()
         formData.append("image", avatarFile)
 
-        const uploadResponse = await fetch("http://localhost:3000/api/upload/productImage", {
+        const uploadResponse = await fetch(`${import.meta.env.VITE_SITE_URL}/api/upload/productImage`, {
           method: "POST",
           body: formData,
         })
@@ -70,7 +70,7 @@ const Register: React.FC = () => {
       }
 
       // Register user with avatar
-      const response = await fetch("http://localhost:3000/register", {
+      const response = await fetch(`${import.meta.env.VITE_SITE_URL}/register`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
