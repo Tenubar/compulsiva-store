@@ -67,31 +67,16 @@ const Returns: React.FC = () => {
             </ol>
           </div>
 
-          <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-            <h2 className="text-2xl font-semibold mb-4 text-primary-dark">{t("returnsRefunds")}</h2>
-            <p className="mb-4 text-gray-700">{t("returnsRefundsText")}</p>
-
-            <div className="border-t border-b border-gray-200 py-4 my-4">
-              <h3 className="font-semibold text-lg mb-2 text-primary-dark">{t("returnsOriginalPayment")}</h3>
-              <p className="text-gray-700">{t("returnsOriginalPaymentText")}</p>
-            </div>
-
-            <div className="border-b border-gray-200 py-4 mb-4">
-              <h3 className="font-semibold text-lg mb-2 text-primary-dark">{t("returnsStoreCredit")}</h3>
-              <p className="text-gray-700">{t("returnsStoreCreditText")}</p>
-            </div>
-          </div>
-
           <div className="bg-white rounded-lg shadow-md p-6">
             <h2 className="text-2xl font-semibold mb-4 text-primary-dark">{t("returnsContact")}</h2>
             <p className="mb-4 text-gray-700">{t("returnsContactText")}</p>
 
             <div className="bg-gray-50 p-4 rounded-lg">
               <p className="text-gray-700">
-                <span className="font-medium">{t("returnsEmail")}:</span> returns@fashionstore.com
+                <span className="font-medium">{t("returnsEmail")}:</span> -
               </p>
               <p className="text-gray-700">
-                <span className="font-medium">{t("returnsPhone")}:</span> +1 (555) 123-4567
+                <span className="font-medium">{t("returnsPhone")}:</span> -
               </p>
             </div>
           </div>

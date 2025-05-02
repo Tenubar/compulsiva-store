@@ -264,7 +264,7 @@ const AdminGallery: React.FC = () => {
         {/* Replace the image details modal section with this updated version */}
         {selectedImage && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-hidden">
+            <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
               <div className="flex justify-between items-center p-4 border-b">
                 <h3 className="text-lg font-semibold">Image Details</h3>
                 <button onClick={() => setSelectedImage(null)} className="text-gray-500 hover:text-gray-700">
@@ -272,7 +272,7 @@ const AdminGallery: React.FC = () => {
                 </button>
               </div>
 
-              <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-6 overflow-y-auto">
                 <div className="flex items-center justify-center bg-gray-100 rounded-lg p-2">
                   <img
                     src={selectedImage.path || "/placeholder.svg"}
@@ -353,60 +353,62 @@ const AdminGallery: React.FC = () => {
                     </div>
                   )}
 
-                  {isChangingImage ? (
-                    <div className="space-y-2">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleChangeImage}
-                        className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                      />
-                      {uploadingNewImage && (
-                        <div className="flex items-center justify-center">
-                          <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mr-2"></div>
-                          <span className="text-sm text-gray-600">Uploading...</span>
+                  <div className="space-y-2">
+                    {isChangingImage ? (
+                      <div className="space-y-2">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleChangeImage}
+                          className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                        />
+                        {uploadingNewImage && (
+                          <div className="flex items-center justify-center">
+                            <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mr-2"></div>
+                            <span className="text-sm text-gray-600">Uploading...</span>
+                          </div>
+                        )}
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => setIsChangingImage(false)}
+                            className="flex-1 py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                          >
+                            Cancel
+                          </button>
                         </div>
-                      )}
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => setIsChangingImage(false)}
-                          className="flex-1 py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                        >
-                          Cancel
-                        </button>
                       </div>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => setIsChangingImage(true)}
-                      className="mt-4 flex items-center justify-center w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                    >
-                      <Upload size={16} className="mr-2" /> Change Image
-                    </button>
-                  )}
-
-                  {deleteError && (
-                    <div className="bg-red-50 border border-red-400 text-red-700 px-3 py-2 rounded text-sm">
-                      {deleteError}
-                    </div>
-                  )}
-
-                  <button
-                    onClick={() => handleDeleteImage(selectedImage._id)}
-                    disabled={isDeleting}
-                    className="mt-2 flex items-center justify-center w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
-                  >
-                    {isDeleting ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                        Deleting...
-                      </>
                     ) : (
-                      <>
-                        <Trash2 size={16} className="mr-2" /> Delete Image
-                      </>
+                      <button
+                        onClick={() => setIsChangingImage(true)}
+                        className="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 flex items-center justify-center"
+                      >
+                        <Upload size={18} className="mr-2" /> Change Image
+                      </button>
                     )}
-                  </button>
+
+                    {deleteError && (
+                      <div className="bg-red-50 border border-red-400 text-red-700 px-3 py-2 rounded text-sm">
+                        {deleteError}
+                      </div>
+                    )}
+
+                    <button
+                      onClick={() => handleDeleteImage(selectedImage._id)}
+                      disabled={isDeleting}
+                      className="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 flex items-center justify-center"
+                    >
+                      {isDeleting ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                          Deleting...
+                        </>
+                      ) : (
+                        <>
+                          <Trash2 size={18} className="mr-2" /> Delete Image
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

@@ -26,37 +26,37 @@ const ShippingPolicy: React.FC = () => {
             <h2 className="text-2xl font-semibold mb-4 text-primary-dark">{t("shippingDomesticShipping")}</h2>
             <p className="mb-4 text-gray-700">{t("shippingDomesticShippingText")}</p>
 
-            <div className="border-t border-b border-gray-200 py-4 my-4">
-              <h3 className="font-semibold text-lg mb-2 text-primary-dark">{t("shippingStandardShipping")}</h3>
-              <p className="text-gray-700">{t("shippingStandardShippingText")}</p>
-              <p className="font-medium mt-2">{t("shippingStandardShippingCost")}</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="border border-gray-200 rounded-lg p-4">
+                <h3 className="font-semibold text-lg mb-2 text-primary-dark">Zoom</h3>
+                <p className="text-gray-700">https://zoom.red/</p>
+                <p className="font-medium mt-2">{t("deliveryTime")} 2-3 {t("businessDays")}</p>
+              </div>
+
+              <div className="border border-gray-200 rounded-lg p-4">
+                <h3 className="font-semibold text-lg mb-2 text-primary-dark">MRW</h3>
+                <p className="text-gray-700">https://mrwve.com/</p>
+                <p className="font-medium mt-2">{t("deliveryTime")} 2-4 {t("businessDays")}</p>
+              </div>
+
+              <div className="border border-gray-200 rounded-lg p-4">
+                <h3 className="font-semibold text-lg mb-2 text-primary-dark">Domesa</h3>
+                <p className="text-gray-700">https://www.portal.domesa.com.ve/</p>
+                <p className="font-medium mt-2">{t("deliveryTime")} 5-7 {t("businessDays")}</p>
             </div>
 
-            <div className="border-b border-gray-200 py-4 mb-4">
-              <h3 className="font-semibold text-lg mb-2 text-primary-dark">{t("shippingExpressShipping")}</h3>
-              <p className="text-gray-700">{t("shippingExpressShippingText")}</p>
-              <p className="font-medium mt-2">{t("shippingExpressShippingCost")}</p>
+              <div className="border border-gray-200 rounded-lg p-4">
+                <h3 className="font-semibold text-lg mb-2 text-primary-dark">Tealca</h3>
+                <p className="text-gray-700">https://www.tealca.com/</p>
+                <p className="font-medium mt-2">{t("deliveryTime")} 1-3 {t("businessDays")}</p>
+              </div>
             </div>
           </div>
 
           <div className="bg-white rounded-lg shadow-md p-6 mb-8">
             <h2 className="text-2xl font-semibold mb-4 text-primary-dark">{t("shippingInternationalShipping")}</h2>
-            <p className="mb-4 text-gray-700">{t("shippingInternationalShippingText")}</p>
-
-            <div className="border-t border-b border-gray-200 py-4 my-4">
-              <h3 className="font-semibold text-lg mb-2 text-primary-dark">{t("shippingInternationalStandard")}</h3>
-              <p className="text-gray-700">{t("shippingInternationalStandardText")}</p>
-              <p className="font-medium mt-2">{t("shippingInternationalStandardCost")}</p>
-            </div>
-
-            <div className="border-b border-gray-200 py-4 mb-4">
-              <h3 className="font-semibold text-lg mb-2 text-primary-dark">{t("shippingInternationalExpress")}</h3>
-              <p className="text-gray-700">{t("shippingInternationalExpressText")}</p>
-              <p className="font-medium mt-2">{t("shippingInternationalExpressCost")}</p>
-            </div>
-
-            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mt-4">
-              <p className="text-yellow-700">{t("shippingInternationalNote")}</p>
+            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+              <p className="text-yellow-700 font-medium">{t("shippingInternationalShippingText")}</p>
             </div>
           </div>
 

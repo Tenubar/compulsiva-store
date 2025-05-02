@@ -73,7 +73,7 @@ const Contact: React.FC = () => {
                   </div>
                   <div>
                     <h3 className="font-medium text-primary-dark">{t("contactAddress")}</h3>
-                    <p className="text-gray-700">123 Fashion Street, Design District, City, Country</p>
+                    <p className="text-gray-700">-</p>
                   </div>
                 </div>
 
@@ -85,7 +85,7 @@ const Contact: React.FC = () => {
                   </div>
                   <div>
                     <h3 className="font-medium text-primary-dark">{t("contactPhone")}</h3>
-                    <p className="text-gray-700">+1 (555) 123-4567</p>
+                    <p className="text-gray-700">-</p>
                   </div>
                 </div>
 
@@ -98,7 +98,7 @@ const Contact: React.FC = () => {
                   </div>
                   <div>
                     <h3 className="font-medium text-primary-dark">{t("contactEmail")}</h3>
-                    <p className="text-gray-700">info@fashionstore.com</p>
+                    <p className="text-gray-700">-</p>
                   </div>
                 </div>
 
@@ -120,7 +120,7 @@ const Contact: React.FC = () => {
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow-md p-6">
+            {/* <div className="bg-white rounded-lg shadow-md p-6">
               <h2 className="text-xl font-semibold mb-4 text-primary-dark">{t("contactSendMessage")}</h2>
 
               {submitSuccess && (
@@ -209,7 +209,9 @@ const Contact: React.FC = () => {
                   {isSubmitting ? t("contactSending") : t("contactSend")}
                 </button>
               </form>
-            </div>
+            </div> */}
+
+
           </div>
         </div>
       </main>

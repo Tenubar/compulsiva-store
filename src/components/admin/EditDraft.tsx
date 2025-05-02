@@ -16,7 +16,7 @@ interface DraftData {
   description: string
   materials: string
   sizes: string[]
-  shipping: string
+  shipping: Array<{ name: string; price: number }>
   productQuantity: number
   additionalImages: string[]
 }
@@ -32,7 +32,9 @@ const EditDraft: React.FC = () => {
   const [materials, setMaterials] = useState("")
   const [sizeInput, setSizeInput] = useState("")
   const [sizes, setSizes] = useState<string[]>([])
-  const [shipping, setShipping] = useState("Standard Shipping: 3-5 Days")
+  const [shippingName, setShippingName] = useState("")
+  const [shippingPrice, setShippingPrice] = useState("")
+  const [shippingOptions, setShippingOptions] = useState<Array<{ name: string; price: number }>>([])
   const [productQuantity, setProductQuantity] = useState(1)
   const [additionalImages, setAdditionalImages] = useState<string[]>([])
   const [error, setError] = useState("")
@@ -88,7 +90,7 @@ const EditDraft: React.FC = () => {
     description,
     materials,
     sizes,
-    shipping,
+    shippingOptions,
     productQuantity,
     additionalImages,
   ])
@@ -114,7 +116,7 @@ const EditDraft: React.FC = () => {
         setDescription(productData.description || "")
         setMaterials(productData.materials || "")
         setSizes(productData.sizes || [])
-        setShipping(productData.shipping || "Standard Shipping: 3-5 Days")
+        setShippingOptions(productData.shipping || [])
         setProductQuantity(productData.productQuantity || 1)
         setAdditionalImages(productData.additionalImages || [])
       } else {
@@ -147,7 +149,7 @@ const EditDraft: React.FC = () => {
         description,
         materials,
         sizes,
-        shipping,
+        shipping: shippingOptions,
         productQuantity,
         additionalImages,
       }
@@ -191,7 +193,7 @@ const EditDraft: React.FC = () => {
         description,
         materials,
         sizes,
-        shipping,
+        shipping: shippingOptions,
         productQuantity,
         additionalImages,
       }
@@ -235,7 +237,7 @@ const EditDraft: React.FC = () => {
         description,
         materials,
         sizes,
-        shipping,
+        shipping: shippingOptions,
         productQuantity,
         additionalImages: newAdditionalImages,
       }
@@ -458,6 +460,25 @@ const EditDraft: React.FC = () => {
     }
   }
 
+  const handleAddShipping = () => {
+    if (shippingName.trim() && shippingPrice.trim()) {
+      const newShipping = {
+        name: shippingName.trim(),
+        price: Number(shippingPrice)
+      }
+      setShippingOptions([...shippingOptions, newShipping])
+      setShippingName("")
+      setShippingPrice("")
+      formChangedRef.current = true
+    }
+  }
+
+  const handleRemoveShipping = (index: number) => {
+    const newShippingOptions = shippingOptions.filter((_, i) => i !== index)
+    setShippingOptions(newShippingOptions)
+    formChangedRef.current = true
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -470,10 +491,10 @@ const EditDraft: React.FC = () => {
       !description.trim() ||
       !materials.trim() ||
       sizes.length === 0 ||
-      !shipping.trim() ||
+      shippingOptions.length === 0 ||
       productQuantity < 1
     ) {
-      setError("Please fill all the required inputs and add at least one size")
+      setError("Please fill all the required inputs and add at least one size and shipping option")
       return
     }
 
@@ -497,7 +518,7 @@ const EditDraft: React.FC = () => {
           description,
           materials,
           sizes,
-          shipping,
+          shipping: shippingOptions,
           productQuantity,
           additionalImages,
         }),
@@ -527,7 +548,7 @@ const EditDraft: React.FC = () => {
                   description,
                   materials,
                   sizes,
-                  shipping,
+                  shipping: [],
                   productQuantity,
                   additionalImages: [],
                 },
@@ -953,26 +974,47 @@ const EditDraft: React.FC = () => {
           </div>
 
           <div>
-            <label htmlFor="shipping" className="block text-sm font-medium text-gray-700">
-              Shipping
-            </label>
-            <input
-              type="text"
-              id="shipping"
-              required
-              value={shipping}
-              onChange={(e) => {
-                setShipping(e.target.value)
-                formChangedRef.current = true
-              }}
-              onBlur={() => {
-                if (draftId && formChangedRef) {
-                  saveDraft()
-                  formChangedRef.current = false
-                }
-              }}
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-            />
+            <label className="block text-sm font-medium text-gray-700">Shipping Options</label>
+            <div className="flex items-center mt-1">
+              <input
+                type="text"
+                placeholder="Shipping name"
+                value={shippingName}
+                onChange={(e) => setShippingName(e.target.value)}
+                className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              />
+              <input
+                type="number"
+                placeholder="Price"
+                value={shippingPrice}
+                onChange={(e) => setShippingPrice(e.target.value)}
+                className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 ml-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              />
+              <button
+                type="button"
+                onClick={handleAddShipping}
+                className="ml-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                Add
+              </button>
+            </div>
+            <ul className="mt-2">
+              {shippingOptions.map((option, index) => (
+                <li
+                  key={index}
+                  className="inline-flex items-center justify-between bg-gray-100 rounded-md text-gray-700 px-3 py-1 mr-2 mt-2"
+                >
+                  <span>{option.name} - ${option.price}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveShipping(index)}
+                    className="ml-2 text-red-500 hover:text-red-700 focus:outline-none"
+                  >
+                    <X size={16} />
+                  </button>
+                </li>
+              ))}
+            </ul>
           </div>
 
           <div>

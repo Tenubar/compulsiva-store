@@ -223,7 +223,7 @@ function App() {
                   </div>
 
                   <div className="flex flex-wrap gap-4 mb-6">
-                    {(["Shirt", "Pants", "Shoes", "Bracelet", "Collar"] as ProductType[]).map((type) => (
+                    {(["Shirt", "Pants", "Shoes", "Bracelet", "Collar"] as const).map((type) => (
                       <button
                         key={type}
                         onClick={() => toggleProductType(type)}
@@ -231,12 +231,12 @@ function App() {
                           selectedTypes.includes(type) ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-700"
                         }`}
                       >
-                        {type}
+                        {t(type)}
                       </button>
                     ))}
                     {selectedTypes.length > 0 && (
                       <button onClick={clearFilters} className="px-4 py-2 rounded-full bg-red-600 text-white">
-                        Clear All
+                        {t("clearAll")}
                       </button>
                     )}
                   </div>

@@ -47,13 +47,21 @@ const AboutMe: React.FC = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="flex flex-col items-center">
-                <div className="w-32 h-32 bg-gray-200 rounded-full mb-4"></div>
+                <img 
+                  src="/carol_profile.jpg" 
+                  alt="Carol" 
+                  className="w-32 h-32 object-cover rounded-full mb-4"
+                />
                 <h3 className="font-semibold text-lg text-primary-dark">{t("aboutMeFounderName")}</h3>
                 <p className="text-gray-600">{t("aboutMeFounderTitle")}</p>
                 <p className="text-center mt-2 text-gray-700">{t("aboutMeFounderBio")}</p>
               </div>
               <div className="flex flex-col items-center">
-                <div className="w-32 h-32 bg-gray-200 rounded-full mb-4"></div>
+                <img 
+                  src="/tenubar_profile.png" 
+                  alt="Tenubar" 
+                  className="w-32 h-32 object-cover rounded-full mb-4"
+                />
                 <h3 className="font-semibold text-lg text-primary-dark">{t("aboutMeDesignerName")}</h3>
                 <p className="text-gray-600">{t("aboutMeDesignerTitle")}</p>
                 <p className="text-center mt-2 text-gray-700">{t("aboutMeDesignerBio")}</p>

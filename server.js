@@ -89,6 +89,18 @@ const commentSchema = new mongoose.Schema(
 
 const Comment = mongoose.model("Comment", commentSchema)
 
+// Suggestion Schema
+const suggestionSchema = new mongoose.Schema(
+  {
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    userName: { type: String, required: true },
+    message: { type: String, required: true },
+  },
+  { timestamps: true },
+)
+
+const Suggestion = mongoose.model("Suggestion", suggestionSchema)
+
 // Rating Schema
 const ratingSchema = new mongoose.Schema(
   {
@@ -1808,6 +1820,76 @@ app.get("/api/user/has-purchased/:productId", authenticateToken, async (req, res
   } catch (error) {
     console.error("Error checking purchase history:", error)
     res.status(500).json({ message: "Error checking purchase history", error: error.message })
+  }
+})
+
+// Suggestion Routes
+app.post("/api/suggestions", authenticateToken, async (req, res) => {
+  try {
+    const { message } = req.body
+    const user = await User.findById(req.user.userId)
+
+    if (!message || message.trim() === "") {
+      return res.status(400).json({ message: "Message is required" })
+    }
+
+    const suggestion = new Suggestion({
+      userId: req.user.userId,
+      userName: user.name,
+      message: message.trim(),
+    })
+
+    await suggestion.save()
+    res.status(201).json(suggestion)
+  } catch (error) {
+    console.error("Error creating suggestion:", error)
+    res.status(500).json({ message: "Error creating suggestion", error: error.message })
+  }
+})
+
+app.get("/api/suggestions", async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1
+    const limit = parseInt(req.query.limit) || 5
+    const skip = (page - 1) * limit
+
+    const suggestions = await Suggestion.find()
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+
+    const total = await Suggestion.countDocuments()
+
+    res.json({
+      suggestions,
+      currentPage: page,
+      totalPages: Math.ceil(total / limit),
+      hasMore: skip + suggestions.length < total,
+    })
+  } catch (error) {
+    console.error("Error fetching suggestions:", error)
+    res.status(500).json({ message: "Error fetching suggestions", error: error.message })
+  }
+})
+
+app.delete("/api/suggestions/:id", authenticateToken, async (req, res) => {
+  try {
+    const suggestion = await Suggestion.findById(req.params.id)
+
+    if (!suggestion) {
+      return res.status(404).json({ message: "Suggestion not found" })
+    }
+
+    // Check if the user is the owner of the suggestion
+    if (suggestion.userId.toString() !== req.user.userId) {
+      return res.status(403).json({ message: "Not authorized to delete this suggestion" })
+    }
+
+    await suggestion.deleteOne()
+    res.json({ message: "Suggestion deleted successfully" })
+  } catch (error) {
+    console.error("Error deleting suggestion:", error)
+    res.status(500).json({ message: "Error deleting suggestion", error: error.message })
   }
 })
 
