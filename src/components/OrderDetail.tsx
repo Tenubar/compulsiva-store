@@ -3,11 +3,12 @@
 import type React from "react"
 import { useState, useEffect, useContext } from "react"
 import { useNavigate, useParams } from "react-router-dom"
-import { ArrowLeft, ShoppingBag, Package, Truck, MapPin, CreditCard, User, Mail } from "lucide-react"
+import { ArrowLeft, ShoppingBag, Package, Truck, MapPin, CreditCard, User, Mail, ExternalLink, AlertTriangle } from "lucide-react"
 import { LanguageContext } from "../App"
 import Header from "./Header"
 import Footer from "./Footer"
 import { getApiUrl } from "../utils/apiUtils"
+import { useCurrencyConversion } from "../utils/currencyUtils"
 
 interface OrderDetail {
   _id: string
@@ -38,8 +39,8 @@ interface OrderDetail {
 
 const OrderDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>()
-  const { t, language, setLanguage } = useContext(LanguageContext)
-  const [currency, setCurrency] = useState<"USD" | "EUR" | "VES">("USD")
+  const { t, language, setLanguage, currency, setCurrency } = useContext(LanguageContext)
+  const { formatPrice } = useCurrencyConversion()
   const [order, setOrder] = useState<OrderDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
@@ -178,7 +179,7 @@ const OrderDetail: React.FC = () => {
                         </div>
                       </div>
                       <div className="text-sm font-medium text-gray-900">
-                        ${(order.price * order.quantity).toFixed(2)}
+                        {formatPrice(order.price * order.quantity)}
                       </div>
                     </div>
                   </div>
@@ -241,7 +242,7 @@ const OrderDetail: React.FC = () => {
                         </div>
                         {order.shippingMethod ? (
                           <p className="text-sm text-gray-500 ml-7">
-                            {order.shippingMethod.name} (${order.shippingMethod.price.toFixed(2)})
+                            {order.shippingMethod.name} ({formatPrice(order.shippingMethod.price)})
                           </p>
                         ) : (
                           <p className="text-sm text-gray-500 ml-7">{t("standardShipping")}</p>

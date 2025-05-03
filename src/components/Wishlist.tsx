@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom"
 import { ArrowLeft, Heart } from "lucide-react"
 import { LanguageContext } from "../App"
 import { getApiUrl } from "../utils/apiUtils"
+import { useCurrencyConversion } from "../utils/currencyUtils"
 import Header from "./Header"
 
 interface WishlistItem {
@@ -19,7 +20,8 @@ interface WishlistItem {
 }
 
 const Wishlist: React.FC = () => {
-  const { t, language, setLanguage } = useContext(LanguageContext)
+  const { t, language, setLanguage, currency, setCurrency } = useContext(LanguageContext)
+  const { formatPrice } = useCurrencyConversion()
   const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
@@ -75,7 +77,7 @@ const Wishlist: React.FC = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Header currency="USD" setCurrency={() => {}} language={language} setLanguage={setLanguage} />
+        <Header currency={currency} setCurrency={setCurrency} language={language} setLanguage={setLanguage} />
         <div className="flex justify-center items-center h-[calc(100vh-64px)]">
           <div className="text-center">
             <Heart className="mx-auto h-12 w-12 text-gray-400 animate-pulse" />
@@ -88,7 +90,7 @@ const Wishlist: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header currency="USD" setCurrency={() => {}} language={language} setLanguage={setLanguage} />
+      <Header currency={currency} setCurrency={setCurrency} language={language} setLanguage={setLanguage} />
       <div className="py-32 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto">
           <h1 className="text-3xl font-bold text-center mb-8">{t("yourWishlist")}</h1>
@@ -131,7 +133,7 @@ const Wishlist: React.FC = () => {
                       <div className="ml-4 flex-1">
                         <div className="flex justify-between">
                           <h3 className="text-base font-medium text-gray-900">{item.title}</h3>
-                          <p className="text-base font-medium text-gray-900">${item.price.toFixed(2)}</p>
+                          <p className="text-base font-medium text-gray-900">{formatPrice(item.price, currency)}</p>
                         </div>
                         <p className="mt-1 text-sm text-gray-500">{item.type}</p>
                         {item.description && (

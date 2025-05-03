@@ -354,6 +354,12 @@ export const translations = {
     cannotRateOutOfStock: "Cannot rate out-of-stock products",
     loginToRate: "Login to rate this product",
     outOfStock: "Out of Stock",
+    proceedToPayPal: "Proceed to PayPal",
+    shippingCost: "Shipping Cost",
+    processingPayment: "Processing Payment",
+    paymentDetails: "Payment Details",
+    paymentSuccessful: "Payment Successful",
+    placeShippingAddress: "Place your shipping address",
 
     // Main Page Categories
     "Shirt": "Shirts",
@@ -802,6 +808,12 @@ export const translations = {
     cannotRateOutOfStock: "No se pueden calificar productos agotados",
     loginToRate: "Inicia sesión para calificar este producto",
     outOfStock: "Agotado",
+    placeShippingAddress: "Coloca tu dirección de envío",
+    proceedToPayPal: "Proceder al Pago con PayPal",
+    shippingCost: "Costo de Envío",
+    processingPayment: "Procesando Pago",
+    paymentDetails: "Detalles del Pago",
+    paymentSuccessful: "Pago Exitoso",
 
     // Main Page Categories
     "Shirt": "Camisas",

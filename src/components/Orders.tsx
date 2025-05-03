@@ -8,6 +8,7 @@ import { LanguageContext } from "../App"
 import Header from "./Header"
 import Footer from "./Footer"
 import { getApiUrl } from "../utils/apiUtils"
+import { useCurrencyConversion } from "../utils/currencyUtils"
 
 interface Order {
   _id: string
@@ -28,8 +29,8 @@ interface Order {
 }
 
 const Orders: React.FC = () => {
-  const { t, language, setLanguage } = useContext(LanguageContext)
-  const [currency, setCurrency] = useState<"USD" | "EUR" | "VES">("USD")
+  const { t, language, setLanguage, currency, setCurrency } = useContext(LanguageContext)
+  const { formatPrice } = useCurrencyConversion()
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
@@ -277,7 +278,7 @@ const Orders: React.FC = () => {
                             {formatDate(order.createdAt)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            ${(order.price * order.quantity).toFixed(2)}
+                            {formatPrice(order.price * order.quantity, currency)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <button

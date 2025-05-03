@@ -1,12 +1,11 @@
 import type React from "react"
 import { LanguageContext } from "../App"
-import { useState, useContext } from "react"
+import { useContext } from "react"
 import Header from "./Header"
 import Footer from "./Footer"
 
 const AboutMe: React.FC = () => {
-  const { t, language, setLanguage } = useContext(LanguageContext)
-  const [currency, setCurrency] = useState<"USD" | "EUR" | "VES">("USD")
+  const { t, language, setLanguage, currency, setCurrency } = useContext(LanguageContext)
 
   return (
     <div className="flex flex-col min-h-screen">

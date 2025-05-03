@@ -16,8 +16,7 @@ interface Suggestion {
 }
 
 const SuggestionBox: React.FC = () => {
-  const { t, language, setLanguage } = useContext(LanguageContext)
-  const [currency, setCurrency] = useState<"USD" | "EUR" | "VES">("USD")
+  const { t, language, setLanguage, currency, setCurrency } = useContext(LanguageContext)
   const [message, setMessage] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitSuccess, setSubmitSuccess] = useState(false)

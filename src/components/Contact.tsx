@@ -7,8 +7,7 @@ import Header from "./Header"
 import Footer from "./Footer"
 
 const Contact: React.FC = () => {
-  const { t, language, setLanguage } = useContext(LanguageContext)
-  const [currency, setCurrency] = useState<"USD" | "EUR" | "VES">("USD")
+  const { t, language, setLanguage, currency, setCurrency } = useContext(LanguageContext)
   const [formData, setFormData] = useState({
     name: "",
     email: "",

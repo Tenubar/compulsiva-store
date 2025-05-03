@@ -8,7 +8,7 @@ import { LanguageContext } from "../App"
 import Header from "./Header"
 
 const Register: React.FC = () => {
-  const { t, language, setLanguage } = useContext(LanguageContext)
+  const { t, language, setLanguage, currency, setCurrency } = useContext(LanguageContext)
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -92,7 +92,7 @@ const Register: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header currency="USD" setCurrency={() => {}} language={language} setLanguage={setLanguage} />
+      <Header currency={currency} setCurrency={setCurrency} language={language} setLanguage={setLanguage} />
       <div className="flex flex-col justify-center py-28 sm:px-6 lg:px-8">
         <button
           onClick={() => navigate("/")}

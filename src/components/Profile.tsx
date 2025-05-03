@@ -9,28 +9,8 @@ import { getApiUrl } from "../utils/apiUtils"
 import Header from "./Header"
 
 const Profile: React.FC = () => {
-  const { t, language, setLanguage } = useContext(LanguageContext)
+  const { t, language, setLanguage, currency, setCurrency } = useContext(LanguageContext)
   const navigate = useNavigate()
-  const [currency, setCurrency] = useState<"USD" | "EUR" | "VES">("USD")
-
-  const [user, setUser] = useState<{
-    _id: string
-    name: string
-    email: string
-    avatar: string
-    phone: string
-    id: string
-    firstName: string
-    lastName: string
-    address: {
-      street: string
-      city: string
-      state: string
-      postalCode: string
-      country: string
-    }
-  } | null>(null)
-
   const [loading, setLoading] = useState(true)
   const [newName, setNewName] = useState("")
   const [newPhone, setNewPhone] = useState("")
@@ -50,6 +30,24 @@ const Profile: React.FC = () => {
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
   const [isAdmin, setIsAdmin] = useState(false)
+
+  const [user, setUser] = useState<{
+    _id: string
+    name: string
+    email: string
+    avatar: string
+    phone: string
+    id: string
+    firstName: string
+    lastName: string
+    address: {
+      street: string
+      city: string
+      state: string
+      postalCode: string
+      country: string
+    }
+  } | null>(null)
 
   // Fetch user data
   useEffect(() => {

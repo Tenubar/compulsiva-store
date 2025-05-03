@@ -100,9 +100,8 @@ let lastScrollPosition = 0
 const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element => {
   const { id } = useParams<{ id: string }>()
   const location = useLocation()
-  const { t, language, setLanguage } = useContext(LanguageContext)
+  const { t, language, setLanguage, currency, setCurrency } = useContext(LanguageContext)
   const [quantity, setQuantity] = useState(1)
-  const [currency, setCurrency] = useState<"USD" | "EUR" | "VES">("USD")
   const [product, setProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
@@ -1409,7 +1408,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
                         />
                         {selectedShipping && (
                           <div className="mt-1 text-sm text-gray-600">
-                            {t(`placeShippingAddress.${selectedShipping.name}`)}, {t("shippingCost")}: {selectedShipping.price === 0 ? t("free") : `$${selectedShipping.price}`}
+                            {t(`placeShippingAddress`)}
                           </div>
                         )}
                       </div>
@@ -1549,7 +1548,6 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
           style={{ border: 0 }}
         />
       </form>
-
     </div>
   )
 }

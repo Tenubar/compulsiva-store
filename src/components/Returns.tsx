@@ -1,15 +1,13 @@
 "use client"
 
 import type React from "react"
-import { useState, useContext } from "react"
+import { useContext } from "react"
 import { LanguageContext } from "../App"
-import type { Currency } from "../App"
 import Header from "./Header"
 import Footer from "./Footer"
 
 const Returns: React.FC = () => {
-  const { t, language, setLanguage } = useContext(LanguageContext)
-  const [currency, setCurrency] = useState<Currency>("USD")
+  const { t, language, setLanguage, currency, setCurrency } = useContext(LanguageContext)
 
   return (
     <div className="flex flex-col min-h-screen">

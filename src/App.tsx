@@ -68,10 +68,14 @@ export const LanguageContext = React.createContext<{
   language: Language
   setLanguage: (lang: Language) => void
   t: (key: string) => string
+  currency: Currency
+  setCurrency: (currency: Currency) => void
 }>({
-  language: "Español", // Default language
+  language: "English",
   setLanguage: () => {},
-  t: (key) => key,
+  t: (key: string) => key,
+  currency: "USD",
+  setCurrency: () => {},
 })
 
 // Create exchange rate context
@@ -165,7 +169,7 @@ function App() {
   }
 
   return (
-    <LanguageContext.Provider value={{ language, setLanguage, t }}>
+    <LanguageContext.Provider value={{ language, setLanguage, t, currency, setCurrency }}>
       <ExchangeRateContext.Provider value={{ exchangeRate }}>
         <Router>
           <ScrollToTop />
