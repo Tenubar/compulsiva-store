@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useContext } from "react"
 import axios from "axios"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import type { ProductType } from "../App"
@@ -9,6 +9,9 @@ import { getImageUrl, getPlaceholder } from "../utils/imageUtils"
 // Add import for the API utility functions
 import { getApiUrl } from "../utils/apiUtils"
 import { useNavigate } from "react-router-dom"
+import { LanguageContext } from "../App"
+import { useCurrencyConversion } from "../utils/currencyUtils"
+import type { Currency } from "../App"
 
 interface Product {
   _id: string
@@ -22,16 +25,19 @@ interface Product {
 interface ProductListProps {
   onProductClick: (productId: string) => void
   selectedTypes: ProductType[]
+  currency: Currency
 }
 
 const PRODUCTS_PER_PAGE = 12
 
-const ProductList: React.FC<ProductListProps> = ({ onProductClick, selectedTypes }) => {
+const ProductList: React.FC<ProductListProps> = ({ onProductClick, selectedTypes, currency }) => {
   const [products, setProducts] = useState<Product[]>([])
   const [hoveredProduct, setHoveredProduct] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
+  const { t } = useContext(LanguageContext)
+  const { formatPrice } = useCurrencyConversion()
 
   useEffect(() => {
     // Update the fetchProducts function
@@ -110,7 +116,7 @@ const ProductList: React.FC<ProductListProps> = ({ onProductClick, selectedTypes
             </div>
             <div className="p-6 flex flex-col justify-center">
               <h3 className="text-xl font-semibold mb-2">{product.title}</h3>
-              <p className="text-gray-600 mb-4">${product.price} USD</p>
+              <p className="text-gray-600 mb-4">{formatPrice(product.price, currency)}</p>
               <p className="text-sm text-gray-500">Type: {product.type}</p>
             </div>
           </div>

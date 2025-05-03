@@ -354,60 +354,60 @@ const AdminGallery: React.FC = () => {
                   )}
 
                   <div className="space-y-2">
-                    {isChangingImage ? (
-                      <div className="space-y-2">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleChangeImage}
-                          className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                        />
-                        {uploadingNewImage && (
-                          <div className="flex items-center justify-center">
-                            <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mr-2"></div>
-                            <span className="text-sm text-gray-600">Uploading...</span>
-                          </div>
-                        )}
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() => setIsChangingImage(false)}
-                            className="flex-1 py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                          >
-                            Cancel
-                          </button>
+                  {isChangingImage ? (
+                    <div className="space-y-2">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleChangeImage}
+                        className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                      />
+                      {uploadingNewImage && (
+                        <div className="flex items-center justify-center">
+                          <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mr-2"></div>
+                          <span className="text-sm text-gray-600">Uploading...</span>
                         </div>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => setIsChangingImage(true)}
-                        className="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 flex items-center justify-center"
-                      >
-                        <Upload size={18} className="mr-2" /> Change Image
-                      </button>
-                    )}
-
-                    {deleteError && (
-                      <div className="bg-red-50 border border-red-400 text-red-700 px-3 py-2 rounded text-sm">
-                        {deleteError}
-                      </div>
-                    )}
-
-                    <button
-                      onClick={() => handleDeleteImage(selectedImage._id)}
-                      disabled={isDeleting}
-                      className="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 flex items-center justify-center"
-                    >
-                      {isDeleting ? (
-                        <>
-                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                          Deleting...
-                        </>
-                      ) : (
-                        <>
-                          <Trash2 size={18} className="mr-2" /> Delete Image
-                        </>
                       )}
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => setIsChangingImage(false)}
+                          className="flex-1 py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setIsChangingImage(true)}
+                        className="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 flex items-center justify-center"
+                    >
+                        <Upload size={18} className="mr-2" /> Change Image
                     </button>
+                  )}
+
+                  {deleteError && (
+                    <div className="bg-red-50 border border-red-400 text-red-700 px-3 py-2 rounded text-sm">
+                      {deleteError}
+                    </div>
+                  )}
+
+                  <button
+                    onClick={() => handleDeleteImage(selectedImage._id)}
+                    disabled={isDeleting}
+                      className="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 flex items-center justify-center"
+                  >
+                    {isDeleting ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                        Deleting...
+                      </>
+                    ) : (
+                      <>
+                          <Trash2 size={18} className="mr-2" /> Delete Image
+                      </>
+                    )}
+                  </button>
                   </div>
                 </div>
               </div>

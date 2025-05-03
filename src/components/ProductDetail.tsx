@@ -24,6 +24,7 @@ import Footer from "./Footer"
 import { LanguageContext } from "../App"
 import { getImageUrl, getPlaceholder } from "../utils/imageUtils"
 import { getProductApiUrl, getApiUrl } from "../utils/apiUtils"
+import { useCurrencyConversion } from "../utils/currencyUtils"
 
 interface ProductDetailProps {
   onBack: () => void
@@ -150,6 +151,8 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
   const isReturningFromPurchase = useRef(false)
 
   const [selectedShipping, setSelectedShipping] = useState<{ name: string; price: number } | null>(null)
+
+  const { formatPrice } = useCurrencyConversion()
 
   useEffect(() => {
     // Check if we're returning from a successful purchase
@@ -856,7 +859,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
 
           <div>
             <h1 className="text-3xl font-title font-bold mb-4">{product.title}</h1>
-            <p className="text-2xl font-title font-[800] text-pricetxt text-[1.8rem] mb-6">${product.price} USD</p>
+            <p className="text-2xl font-title font-[800] text-pricetxt text-[1.8rem] mb-6">{formatPrice(product.price, currency)}</p>
 
             {/* Update the star rating component to allow rating if purchased, regardless of stock */}
             <div className="mb-4">
@@ -1101,7 +1104,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
                   />
                   <div className="p-4">
                     <h3 className="font-title font-semibold mb-2">{item.title}</h3>
-                    <p className="font-body text-gray-700">${item.price} USD</p>
+                    <p className="font-body text-gray-700">{formatPrice(item.price, currency)}</p>
                   </div>
                 </div>
               ))}
@@ -1504,7 +1507,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
                   <div className="space-y-4">
                     <div className="flex justify-between">
                       <p className="text-gray-600">{product?.title}</p>
-                      <p className="text-gray-900">${product?.price}</p>
+                      <p className="text-gray-900">{formatPrice(product?.price, currency)}</p>
                     </div>
                     <div className="flex justify-between">
                       <p className="text-gray-600">{t("quantity")}</p>
@@ -1513,14 +1516,14 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
                     {selectedShipping && (
                       <div className="flex justify-between">
                         <p className="text-gray-600">{selectedShipping.name}</p>
-                        <p className="text-gray-900">${selectedShipping.price}</p>
+                        <p className="text-gray-900">{formatPrice(selectedShipping.price, currency)}</p>
                       </div>
                     )}
                     <div className="border-t border-gray-200 pt-4">
                       <div className="flex justify-between">
                         <p className="text-lg font-medium text-gray-900">{t("total")}</p>
                         <p className="text-lg font-medium text-gray-900">
-                          ${selectedShipping ? (product?.price * quantity + selectedShipping.price).toFixed(2) : (product?.price * quantity).toFixed(2)}
+                          {formatPrice(selectedShipping ? (product?.price * quantity + selectedShipping.price) : (product?.price * quantity), currency)}
                         </p>
                       </div>
                     </div>

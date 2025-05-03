@@ -74,11 +74,40 @@ export const LanguageContext = React.createContext<{
   t: (key) => key,
 })
 
+// Create exchange rate context
+export const ExchangeRateContext = React.createContext<{
+  exchangeRate: number
+}>({
+  exchangeRate: 1,
+})
+
 function App() {
   const [viewMode, setViewMode] = useState<ViewMode>("grid")
   const [currency, setCurrency] = useState<Currency>("USD")
-  const [language, setLanguage] = useState<Language>("Español") // Default to Spanish
+  const [language, setLanguage] = useState<Language>("Español")
   const [selectedTypes, setSelectedTypes] = useState<ProductType[]>([])
+  const [exchangeRate, setExchangeRate] = useState(1)
+
+  // Connect to exchange rate event source
+  useEffect(() => {
+    const eventSource = new EventSource("https://solartech.onrender.com/info1")
+    
+    eventSource.onmessage = (event) => {
+      const rate = parseFloat(event.data)
+      if (!isNaN(rate)) {
+        setExchangeRate(rate)
+      }
+    }
+
+    eventSource.onerror = (error) => {
+      console.error("EventSource failed:", error)
+      eventSource.close()
+    }
+
+    return () => {
+      eventSource.close()
+    }
+  }, [])
 
   // Translation function
   const t = (key: string): string => {
@@ -122,143 +151,147 @@ function App() {
 
   return (
     <LanguageContext.Provider value={{ language, setLanguage, t }}>
-      <Router>
-        <ScrollToTop />
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/cart" element={<Cart />} />
-          <Route path="/wishlist" element={<Wishlist />} />
-          <Route path="/unauthorized" element={<Unauthorized />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/orders" element={<Orders />} />
-          <Route path="/orders/:id" element={<OrderDetail />} />
+      <ExchangeRateContext.Provider value={{ exchangeRate }}>
+        <Router>
+          <ScrollToTop />
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/cart" element={<Cart />} />
+            <Route path="/wishlist" element={<Wishlist />} />
+            <Route path="/unauthorized" element={<Unauthorized />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/orders" element={<Orders />} />
+            <Route path="/orders/:id" element={<OrderDetail />} />
 
 
-          {/* Admin Routes */}
-          <Route
-            path="/admin/gallery"
-            element={
-              <AdminRoute>
-                <AdminGallery />
-              </AdminRoute>
-            }
-          />
-          <Route
-            path="/admin/users"
-            element={
-              <AdminRoute>
-                <AdminUsers />
-              </AdminRoute>
-            }
-          />
-          <Route
-            path="/admin/create-product"
-            element={
-              <AdminRoute>
-                <CreateProduct />
-              </AdminRoute>
-            }
-          />
-          <Route
-            path="/admin/edit-products"
-            element={
-              <AdminRoute>
-                <EditProducts />
-              </AdminRoute>
-            }
-          />
-          <Route
-            path="/admin/delete-products"
-            element={
-              <AdminRoute>
-                <DeleteProducts />
-              </AdminRoute>
-            }
-          />
-          <Route
-            path="/admin/drafts"
-            element={
-              <AdminRoute>
-                <Drafts />
-              </AdminRoute>
-            }
-          />
-          <Route
-            path="/admin/edit-draft/:id"
-            element={
-              <AdminRoute>
-                <EditDraft />
-              </AdminRoute>
-            }
-          />
+            {/* Admin Routes */}
+            <Route
+              path="/admin/gallery"
+              element={
+                <AdminRoute>
+                  <AdminGallery />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/users"
+              element={
+                <AdminRoute>
+                  <AdminUsers />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/create-product"
+              element={
+                <AdminRoute>
+                  <CreateProduct />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/edit-products"
+              element={
+                <AdminRoute>
+                  <EditProducts />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/delete-products"
+              element={
+                <AdminRoute>
+                  <DeleteProducts />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/drafts"
+              element={
+                <AdminRoute>
+                  <Drafts />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/edit-draft/:id"
+              element={
+                <AdminRoute>
+                  <EditDraft />
+                </AdminRoute>
+              }
+            />
 
-          <Route path="/product/:id" element={<ProductDetail onBack={() => window.history.back()} />} />
-          <Route path="/about" element={<AboutMe />} />
-          <Route path="/contact" element={<Contact />} />
-          <Route path="/shipping" element={<ShippingPolicy />} />
-          <Route path="/returns" element={<Returns />} />
-          <Route path="/suggestions" element={<SuggestionBox />} />
-          <Route
-            path="/"
-            element={
-              <div className="min-h-screen bg-gray-50">
-                <Header currency={currency} setCurrency={setCurrency} language={language} setLanguage={setLanguage} />
-                <main className="container mx-auto px-4 py-8 mt-20">
-                  <div className="flex justify-between items-center mb-6">
-                    <div className="flex gap-4">
-                      <button
-                        onClick={() => setViewMode("grid")}
-                        className={`p-2 ${viewMode === "grid" ? "text-blue-600" : "text-gray-600"}`}
-                      >
-                        <Grid size={20} />
-                      </button>
-                      <button
-                        onClick={() => setViewMode("list")}
-                        className={`p-2 ${viewMode === "list" ? "text-blue-600" : "text-gray-600"}`}
-                      >
-                        <List size={20} />
-                      </button>
+            <Route path="/product/:id" element={<ProductDetail onBack={() => window.history.back()} />} />
+            <Route path="/about" element={<AboutMe />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/shipping" element={<ShippingPolicy />} />
+            <Route path="/returns" element={<Returns />} />
+            <Route path="/suggestions" element={<SuggestionBox />} />
+            <Route
+              path="/"
+              element={
+                <div className="min-h-screen bg-gray-50">
+                  <Header currency={currency} setCurrency={setCurrency} language={language} setLanguage={setLanguage} />
+                  <main className="container mx-auto px-4 py-8 mt-20">
+                    <div className="flex justify-between items-center mb-6">
+                      <div className="flex gap-4">
+                        <button
+                          onClick={() => setViewMode("grid")}
+                          className={`p-2 ${viewMode === "grid" ? "text-blue-600" : "text-gray-600"}`}
+                        >
+                          <Grid size={20} />
+                        </button>
+                        <button
+                          onClick={() => setViewMode("list")}
+                          className={`p-2 ${viewMode === "list" ? "text-blue-600" : "text-gray-600"}`}
+                        >
+                          <List size={20} />
+                        </button>
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="flex flex-wrap gap-4 mb-6">
-                    {(["Shirt", "Pants", "Shoes", "Bracelet", "Collar"] as const).map((type) => (
-                      <button
-                        key={type}
-                        onClick={() => toggleProductType(type)}
-                        className={`px-4 py-2 rounded-full ${
-                          selectedTypes.includes(type) ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-700"
-                        }`}
-                      >
-                        {t(type)}
-                      </button>
-                    ))}
-                    {selectedTypes.length > 0 && (
-                      <button onClick={clearFilters} className="px-4 py-2 rounded-full bg-red-600 text-white">
-                        {t("clearAll")}
-                      </button>
+                    <div className="flex flex-wrap gap-4 mb-6">
+                      {(["Shirt", "Pants", "Shoes", "Bracelet", "Collar"] as const).map((type) => (
+                        <button
+                          key={type}
+                          onClick={() => toggleProductType(type)}
+                          className={`px-4 py-2 rounded-full ${
+                            selectedTypes.includes(type) ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-700"
+                          }`}
+                        >
+                          {t(type)}
+                        </button>
+                      ))}
+                      {selectedTypes.length > 0 && (
+                        <button onClick={clearFilters} className="px-4 py-2 rounded-full bg-red-600 text-white">
+                          {t("clearAll")}
+                        </button>
+                      )}
+                    </div>
+
+                    {viewMode === "grid" ? (
+                      <ProductGrid
+                        selectedTypes={selectedTypes}
+                        onProductClick={(productId) => console.log("Product clicked:", productId)}
+                        currency={currency}
+                      />
+                    ) : (
+                      <ProductList
+                        selectedTypes={selectedTypes}
+                        onProductClick={(productId) => console.log("Product clicked:", productId)}
+                        currency={currency}
+                      />
                     )}
-                  </div>
-
-                  {viewMode === "grid" ? (
-                    <ProductGrid
-                      selectedTypes={selectedTypes}
-                      onProductClick={(productId) => console.log("Product clicked:", productId)}
-                    />
-                  ) : (
-                    <ProductList
-                      selectedTypes={selectedTypes}
-                      onProductClick={(productId) => console.log("Product clicked:", productId)}
-                    />
-                  )}
-                </main>
-                <Footer />
-              </div>
-            }
-          />
-        </Routes>
-      </Router>
+                  </main>
+                  <Footer />
+                </div>
+              }
+            />
+          </Routes>
+        </Router>
+      </ExchangeRateContext.Provider>
     </LanguageContext.Provider>
   )
 }

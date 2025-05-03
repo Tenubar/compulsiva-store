@@ -283,15 +283,20 @@ const Header: React.FC<HeaderProps> = ({ currency, setCurrency, language, setLan
                   </button>
                   {showCurrency && (
                     <div className="absolute top-full mt-2 w-24 bg-white shadow-lg rounded-md py-2 z-50">
-                      {(["USD", "EUR", "VES"] as Currency[]).map((curr) => (
+                      {(["USD", "VES"] as Currency[]).map((curr) => (
                         <button
                           key={curr}
                           onClick={() => {
                             setCurrency(curr)
                             setShowCurrency(false)
                           }}
-                          className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                          className="flex items-center w-full text-left px-4 py-2 hover:bg-gray-100"
                         >
+                          <img
+                            src={curr === "USD" ? "/usd.png" : "/bcv.png"}
+                            alt={`${curr} icon`}
+                            className="w-5 h-5 mr-2"
+                          />
                           {curr}
                         </button>
                       ))}
@@ -397,15 +402,20 @@ const Header: React.FC<HeaderProps> = ({ currency, setCurrency, language, setLan
                   </button>
                   {showCurrency && (
                     <div className="absolute top-full mt-2 w-24 bg-white shadow-lg rounded-md py-2 z-50">
-                      {(["USD", "EUR", "VES"] as Currency[]).map((curr) => (
+                      {(["USD", "VES"] as Currency[]).map((curr) => (
                         <button
                           key={curr}
                           onClick={() => {
                             setCurrency(curr)
                             setShowCurrency(false)
                           }}
-                          className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                          className="flex items-center w-full text-left px-4 py-2 hover:bg-gray-100"
                         >
+                          <img
+                            src={curr === "USD" ? "/usd.png" : "/bcv.png"}
+                            alt={`${curr} icon`}
+                            className="w-5 h-5 mr-2"
+                          />
                           {curr}
                         </button>
                       ))}

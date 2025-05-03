@@ -47,8 +47,19 @@ export const translations = {
     nameUpdatedError: "Name Update Error",
     avatarUpdated: "Avatar Updated",
     failedToUpdateProfile: "Failed to update profile",
-    failedToUploadAvatar: "Failed to upload avatar",
     avatarUploadError: "Avatar upload error",
+
+    // Profile Information
+    profileInformation: "Profile Information",
+    firstName: "First Name",
+    lastName: "Last Name",
+    phone: "Phone",
+    address: "Address",
+    city: "City",
+    state: "State",
+    postalCode: "Postal Code",
+    country: "Country",
+    street: "Street",
 
     // About Us
     aboutUs: "About Compulsiva Store",
@@ -300,8 +311,6 @@ export const translations = {
 
     // Admin
     nameCannotBeEmpty: "Name cannot be empty",
-    fileTooLarge: "File too large (max 2MB)",
-    invalidFileType: "Invalid file type",
     uploading: "Uploading...",
     saving: "Saving...",
 
@@ -374,17 +383,9 @@ export const translations = {
     viewAllOrders: "View All Orders",
     orderDate: "Order Date",
     orderTotal: "Total",
-    profileInformation: "Profile Information",
-    firstName: "First Name",
-    lastName: "Last Name",
     email: "Email",
-    phone: "Phone",
-    address: "Address",
-    city: "City",
-    state: "State",
-    postalCode: "Postal Code",
-    country: "Country",
-    street: "Street",
+
+
 
     
 
@@ -419,6 +420,26 @@ export const translations = {
     faqAnswer3: "International shipping is temporarily unavailable.",
     faqQuestion4: "What payment methods do you accept?",
     faqAnswer4: "We accept PayPal.",
+
+    // Login & Register
+    signInToAccount: "Sign in",
+    createAccount: "Create your account",
+    fullName: "Full Name",
+    password: "Password",
+    forgotPassword: "Forgot your password?",
+    signIn: "Sign in",
+    dontHaveAccount: "Don't have an account?",
+    alreadyHaveAccount: "Already have an account?",
+    profilePicture: "Profile Picture (optional)",
+    upload: "Upload",
+    fileTooLarge: "File too large (max 2MB)",
+    invalidFileType: "Invalid file type",
+    passwordTooShort: "Password must be at least 6 characters long",
+    failedToUploadAvatar: "Failed to upload avatar",
+    registrationFailed: "Registration failed",
+    registrationError: "An error occurred during registration",
+    loginFailed: "Login failed",
+    loginError: "An error occurred during login",
   },
   Español: {
     // Header
@@ -462,8 +483,19 @@ export const translations = {
     nameUpdatedError: "Error al actualizar el nombre",
     avatarUpdated: "Avatar actualizado",
     failedToUpdateProfile: "Error al actualizar el perfil",
-    failedToUploadAvatar: "Error al subir el avatar",
     avatarUploadError: "Error al subir el avatar",
+
+    // Profile Information
+    profileInformation: "Información del Perfil",
+    firstName: "Nombre",
+    lastName: "Apellido",
+    phone: "Teléfono",
+    address: "Dirección",
+    city: "Ciudad",
+    state: "Estado",
+    postalCode: "Código Postal",
+    country: "País",
+    street: "Dirección",  
 
     // About Us
     aboutUs: "Sobre Compulsiva Store",
@@ -780,18 +812,8 @@ export const translations = {
     viewAllOrders: "Ver Todos los Pedidos",
     orderDate: "Fecha del Pedido",
     orderTotal: "Total",
-    profileInformation: "Información del Perfil",
-    firstName: "Nombre",
-    lastName: "Apellido",
-    phone: "Teléfono",
-    address: "Dirección",
     id: "Cédula",
-    city: "Ciudad",
-    state: "Estado",
-    street: "Dirección",  
-    postalCode: "Código Postal",
-    country: "País",
-    
+
 
     // Shipping Policy
     shippingPolicy: "Política de Envío",
@@ -824,6 +846,27 @@ export const translations = {
     faqAnswer3: "El envío internacional no está disponible temporalmente.",
     faqQuestion4: "¿Qué métodos de pago aceptan?",
     faqAnswer4: "Aceptamos PayPal.",
+
+    // Login & Register
+    signInToAccount: "Inicia sesión",
+    createAccount: "Crea tu cuenta",
+    fullName: "Nombre completo",
+    email: "Correo electrónico",
+    password: "Contraseña",
+    forgotPassword: "¿Olvidaste tu contraseña?",
+    signIn: "Iniciar sesión",
+    dontHaveAccount: "¿No tienes una cuenta?",
+    alreadyHaveAccount: "¿Ya tienes una cuenta?",
+    profilePicture: "Foto de perfil (opcional)",
+    upload: "Subir",
+    fileTooLarge: "Archivo demasiado grande (máx. 2MB)",
+    invalidFileType: "Tipo de archivo inválido",
+    passwordTooShort: "La contraseña debe tener al menos 6 caracteres",
+    failedToUploadAvatar: "Error al subir la foto de perfil",
+    registrationFailed: "Error en el registro",
+    registrationError: "Ocurrió un error durante el registro",
+    loginFailed: "Error al iniciar sesión",
+    loginError: "Ocurrió un error durante el inicio de sesión",
   },
 }
 
