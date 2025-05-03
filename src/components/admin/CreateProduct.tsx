@@ -6,6 +6,8 @@ import { useNavigate } from "react-router-dom"
 import { ArrowLeft, Trash2, X, Upload, ChevronLeft, ChevronRight, RefreshCw } from "lucide-react"
 import type { ProductType } from "../../App"
 import { getImageUrl, getPlaceholder } from "../../utils/imageUtils"
+import GalleryModal from "./GalleryModal"
+import ConfirmationModal from "./ConfirmationModal"
 
 interface DraftData {
   title: string
@@ -52,6 +54,11 @@ const CreateProduct: React.FC = () => {
   // For auto-saving
   const formChangedRef = useRef(false)
   const draftCreatedRef = useRef(false)
+
+  const [isGalleryModalOpen, setIsGalleryModalOpen] = useState(false)
+  const [selectedImageField, setSelectedImageField] = useState<"image" | "hoverImage" | null>(null)
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+  const [imageToDelete, setImageToDelete] = useState<{ path: string; field: "image" | "hoverImage" } | null>(null)
 
   // Check if URL has a draft ID parameter
   useEffect(() => {
@@ -348,6 +355,13 @@ const CreateProduct: React.FC = () => {
       // Get the image path
       const imagePath = data.image.path
 
+      // Check for duplicates
+      const allImages = [...(image ? [image] : []), ...(hoverImage ? [hoverImage] : []), ...additionalImages]
+      if (allImages.includes(imagePath)) {
+        setError("Can't add duplicated images")
+        return
+      }
+
       // Update the state with the image path
       callback(imagePath)
 
@@ -370,7 +384,6 @@ const CreateProduct: React.FC = () => {
       setDeletingImage(imagePath)
       setError("")
 
-      // Find the image in the database by path and delete it
       const response = await fetch(`${import.meta.env.VITE_SITE_URL}/api/images/delete-by-path`, {
         method: "POST",
         headers: {
@@ -390,9 +403,7 @@ const CreateProduct: React.FC = () => {
 
         // Save draft immediately after image deletion
         if (draftId) {
-          console.log(`Auto-saving draft after ${fieldName} deletion...`)
           await saveDraftWithImage(fieldName, "")
-          console.log(`Draft auto-saved successfully after ${fieldName} deletion`)
         }
       } else {
         const data = await response.json()
@@ -468,6 +479,13 @@ const CreateProduct: React.FC = () => {
 
           // Get the image path
           const imagePath = data.image.path
+
+          // Check for duplicates
+          const allImages = [...(image ? [image] : []), ...(hoverImage ? [hoverImage] : []), ...additionalImages]
+          if (allImages.includes(imagePath)) {
+            setError("Can't add duplicated images")
+            return
+          }
 
           // Update state with the new image
           const newAdditionalImages = [...additionalImages, imagePath]
@@ -650,6 +668,27 @@ const CreateProduct: React.FC = () => {
 
   // All images for the carousel
   const allImages = [...(image ? [image] : []), ...(hoverImage ? [hoverImage] : []), ...additionalImages]
+
+  const handleGallerySelect = (imagePath: string) => {
+    // Check for duplicates
+    const allImages = [...(image ? [image] : []), ...(hoverImage ? [hoverImage] : []), ...additionalImages]
+    if (allImages.includes(imagePath)) {
+      setError("Can't add duplicated images")
+      return
+    }
+
+    if (selectedImageField === "image") {
+      setImage(imagePath)
+      if (draftId) {
+        saveDraftWithImage("image", imagePath)
+      }
+    } else if (selectedImageField === "hoverImage") {
+      setHoverImage(imagePath)
+      if (draftId) {
+        saveDraftWithImage("hoverImage", imagePath)
+      }
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -861,10 +900,26 @@ const CreateProduct: React.FC = () => {
                   "Upload"
                 )}
               </button>
+              <button
+                type="button"
+                className={`ml-2 px-4 py-2 text-sm font-medium text-white 
+                ${uploading ? "bg-gray-500 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"} 
+                rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500`}
+                onClick={() => {
+                  setSelectedImageField("image")
+                  setIsGalleryModalOpen(true)
+                }}
+                disabled={uploading}
+              >
+                Gallery
+              </button>
               {image && (
                 <button
                   type="button"
-                  onClick={() => handleDeleteImage(image, "image")}
+                  onClick={() => {
+                    setImageToDelete({ path: image, field: "image" })
+                    setIsDeleteModalOpen(true)
+                  }}
                   disabled={deletingImage === image}
                   className={`ml-2 p-2 text-white bg-red-600 hover:bg-red-700 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 ${
                     deletingImage === image ? "opacity-50 cursor-not-allowed" : ""
@@ -874,6 +929,20 @@ const CreateProduct: React.FC = () => {
                 </button>
               )}
             </div>
+            {image && (
+              <button
+                type="button"
+                onClick={() => {
+                  setImage("")
+                  if (draftId) {
+                    saveDraftWithImage("image", "")
+                  }
+                }}
+                className="mt-1 text-sm text-gray-500 hover:text-gray-700"
+              >
+                Clear
+              </button>
+            )}
           </div>
 
           <div>
@@ -918,10 +987,26 @@ const CreateProduct: React.FC = () => {
                   "Upload"
                 )}
               </button>
+              <button
+                type="button"
+                className={`ml-2 px-4 py-2 text-sm font-medium text-white 
+                ${uploading ? "bg-gray-500 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"} 
+                rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500`}
+                onClick={() => {
+                  setSelectedImageField("hoverImage")
+                  setIsGalleryModalOpen(true)
+                }}
+                disabled={uploading}
+              >
+                Gallery
+              </button>
               {hoverImage && (
                 <button
                   type="button"
-                  onClick={() => handleDeleteImage(hoverImage, "hoverImage")}
+                  onClick={() => {
+                    setImageToDelete({ path: hoverImage, field: "hoverImage" })
+                    setIsDeleteModalOpen(true)
+                  }}
                   disabled={deletingImage === hoverImage}
                   className={`ml-2 p-2 text-white bg-red-600 hover:bg-red-700 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 ${
                     deletingImage === hoverImage ? "opacity-50 cursor-not-allowed" : ""
@@ -931,6 +1016,20 @@ const CreateProduct: React.FC = () => {
                 </button>
               )}
             </div>
+            {hoverImage && (
+              <button
+                type="button"
+                onClick={() => {
+                  setHoverImage("")
+                  if (draftId) {
+                    saveDraftWithImage("hoverImage", "")
+                  }
+                }}
+                className="mt-1 text-sm text-gray-500 hover:text-gray-700"
+              >
+                Clear
+              </button>
+            )}
           </div>
 
           <div>
@@ -1112,6 +1211,30 @@ const CreateProduct: React.FC = () => {
           </div>
         </form>
       </div>
+
+      <GalleryModal
+        isOpen={isGalleryModalOpen}
+        onClose={() => {
+          setIsGalleryModalOpen(false)
+          setSelectedImageField(null)
+        }}
+        onSelect={handleGallerySelect}
+      />
+
+      <ConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => {
+          setIsDeleteModalOpen(false)
+          setImageToDelete(null)
+        }}
+        onConfirm={() => {
+          if (imageToDelete) {
+            handleDeleteImage(imageToDelete.path, imageToDelete.field)
+          }
+        }}
+        title="Delete Image"
+        message="This will remove the image from the whole page. Are you sure you want to continue?"
+      />
     </div>
   )
 }

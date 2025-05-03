@@ -246,7 +246,7 @@ const Header: React.FC<HeaderProps> = ({ currency, setCurrency, language, setLan
   }, [])
 
   // Flag URLs
-  const flagUrls = {
+  const flagUrls: Record<Language, string> = {
     English: "https://flagcdn.com/w40/us.png",
     Español: "https://flagcdn.com/w40/ve.png",
   }

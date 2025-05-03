@@ -3,9 +3,11 @@
 import type React from "react"
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useNavigate } from "react-router-dom"
-import { ArrowLeft, Edit2, X, Upload, ChevronLeft, ChevronRight, RefreshCw } from "lucide-react"
+import { ArrowLeft, Edit2, X, Upload, ChevronLeft, ChevronRight, RefreshCw, Trash2 } from "lucide-react"
 import type { ProductType } from "../../App"
 import { getImageUrl, getPlaceholder } from "../../utils/imageUtils"
+import GalleryModal from "./GalleryModal"
+import ConfirmationModal from "./ConfirmationModal"
 
 interface Product {
   _id: string
@@ -42,6 +44,64 @@ const EditProducts: React.FC = () => {
   const [shippingName, setShippingName] = useState("")
   const [shippingPrice, setShippingPrice] = useState("")
 
+  const [isGalleryModalOpen, setIsGalleryModalOpen] = useState(false)
+  const [selectedImageField, setSelectedImageField] = useState<"image" | "hoverImage" | null>(null)
+
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+  const [imageToDelete, setImageToDelete] = useState<{ path: string; field: "image" | "hoverImage" } | null>(null)
+
+  // Add saveProductWithImage function
+  const saveProductWithImage = async (fieldName: "image" | "hoverImage", imagePath: string) => {
+    if (!selectedProduct?._id) return
+
+    try {
+      const response = await fetch(`${import.meta.env.VITE_SITE_URL}/api/products/${selectedProduct._id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          ...selectedProduct,
+          [fieldName]: imagePath,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to save product with ${fieldName}`)
+      }
+    } catch (err) {
+      console.error(`Error saving product with ${fieldName}:`, err)
+      throw err
+    }
+  }
+
+  // Add saveProductWithAdditionalImages function
+  const saveProductWithAdditionalImages = async (newAdditionalImages: string[]) => {
+    if (!selectedProduct?._id) return
+
+    try {
+      const response = await fetch(`${import.meta.env.VITE_SITE_URL}/api/products/${selectedProduct._id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          ...selectedProduct,
+          additionalImages: newAdditionalImages,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to save product with additional images")
+      }
+    } catch (err) {
+      console.error("Error saving product with additional images:", err)
+      throw err
+    }
+  }
+
   // Updated fetch function with AbortController
   const fetchProducts = useCallback(async () => {
     const controller = new AbortController()
@@ -76,8 +136,11 @@ const EditProducts: React.FC = () => {
   }, [fetchProducts])
 
   // Modified to immediately update the image in the database
-  const handleFileUpload = async (file: File, field: "image" | "hoverImage", oldImagePath?: string) => {
-    if (!selectedProduct) return
+  const handleFileUpload = async (
+    file: File,
+    fieldName: "image" | "hoverImage",
+    oldImagePath?: string,
+  ) => {
     if (!file || (file.type !== "image/jpeg" && file.type !== "image/png")) {
       setError("Please select a valid JPG or PNG image")
       return
@@ -89,7 +152,7 @@ const EditProducts: React.FC = () => {
     // If there's an old image, delete it first
     if (oldImagePath) {
       try {
-        await handleDeleteImage(oldImagePath)
+        await handleDeleteImage(oldImagePath, fieldName)
       } catch (err) {
         console.error("Error deleting old image:", err)
         // Continue with upload even if delete fails
@@ -106,49 +169,45 @@ const EditProducts: React.FC = () => {
       })
 
       const data = await response.json()
-      const newImagePath = data.image.path
+      console.log("Uploaded:", data)
 
-      // Add to newly added images list
-      setNewlyAddedImages((prev) => [...prev, newImagePath])
+      // Get the image path
+      const imagePath = data.image.path
 
-      // Update the product in the database with the new image
-      const updateResponse = await fetch(
-        `${import.meta.env.VITE_SITE_URL}/api/products/${selectedProduct._id}/update-image`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          credentials: "include",
-          body: JSON.stringify({ field, imagePath: newImagePath }),
-        },
-      )
+      // Check for duplicates
+      if (selectedProduct) {
+        const allImages = [...(selectedProduct.image ? [selectedProduct.image] : []), ...(selectedProduct.hoverImage ? [selectedProduct.hoverImage] : []), ...(selectedProduct.additionalImages || [])]
+        if (allImages.includes(imagePath)) {
+          setError("Can't add duplicated images")
+          return
+        }
 
-      if (updateResponse.ok) {
-        const updatedProduct = await updateResponse.json()
+        // Update the state with the image path
+        setSelectedProduct({
+          ...selectedProduct,
+          [fieldName]: imagePath,
+        } as Product)
 
-        // Update the local state
-        setSelectedProduct(updatedProduct)
-
-        // Update the product in the products list
-        setProducts(products.map((p) => (p._id === updatedProduct._id ? updatedProduct : p)))
-      } else {
-        throw new Error("Failed to update product with new image")
+        // Save product immediately after image upload
+        if (selectedProduct._id) {
+          console.log(`Auto-saving product after ${fieldName} upload...`)
+          await saveProductWithImage(fieldName, imagePath)
+          console.log(`Product auto-saved successfully after ${fieldName} upload`)
+        }
       }
     } catch (err) {
       console.error("Upload error:", err)
-      setError("Failed to upload and update image")
+      setError("Failed to upload")
     } finally {
       setUploading(false)
     }
   }
 
-  const handleDeleteImage = async (imagePath: string) => {
+  const handleDeleteImage = async (imagePath: string, fieldName: "image" | "hoverImage" | "additionalImages") => {
     try {
       setDeletingImage(imagePath)
       setError("")
 
-      // Find the image in the database by path and delete it
       const response = await fetch(`${import.meta.env.VITE_SITE_URL}/api/images/delete-by-path`, {
         method: "POST",
         headers: {
@@ -158,17 +217,38 @@ const EditProducts: React.FC = () => {
         body: JSON.stringify({ path: imagePath }),
       })
 
-      if (!response.ok) {
+      if (response.ok) {
+        // Clear the image state
+        if (selectedProduct) {
+          if (fieldName === "additionalImages") {
+            const updatedImages = selectedProduct.additionalImages?.filter((i) => i !== imagePath) || []
+            setSelectedProduct({
+              ...selectedProduct,
+              additionalImages: updatedImages,
+            } as Product)
+          } else {
+            setSelectedProduct({
+              ...selectedProduct,
+              [fieldName]: "",
+            } as Product)
+          }
+
+          // Save product immediately after image deletion
+          if (selectedProduct._id) {
+            if (fieldName === "additionalImages") {
+              await saveProductWithAdditionalImages(selectedProduct.additionalImages?.filter((i) => i !== imagePath) || [])
+            } else {
+              await saveProductWithImage(fieldName, "")
+            }
+          }
+        }
+      } else {
         const data = await response.json()
         throw new Error(data.message || "Failed to delete image")
       }
-
-      // Remove from newly added images if it was there
-      setNewlyAddedImages((prev) => prev.filter((img) => img !== imagePath))
     } catch (err: any) {
       console.error("Delete image error:", err)
       setError(err.message || "Failed to delete image")
-      throw err
     } finally {
       setDeletingImage(null)
     }
@@ -191,19 +271,16 @@ const EditProducts: React.FC = () => {
 
   // Update the handleAddAdditionalImage function to save images immediately
   const handleAddAdditionalImage = () => {
-    if (!selectedProduct) return
-
     const fileInput = document.createElement("input")
     fileInput.type = "file"
     fileInput.accept = "image/jpeg, image/png"
     fileInput.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0]
-      if (file) {
-        try {
+      if (file && selectedProduct) {
           setUploading(true)
           setError("")
 
-          // Upload the image
+        try {
           const formData = new FormData()
           formData.append("image", file)
 
@@ -213,44 +290,34 @@ const EditProducts: React.FC = () => {
           })
 
           const data = await response.json()
-          const newImagePath = data.image.path
+          console.log("Uploaded additional image:", data)
 
-          // Add to newly added images list for tracking
-          setNewlyAddedImages((prev) => [...prev, newImagePath])
+          // Get the image path
+          const imagePath = data.image.path
 
-          // Update the product in the database with the new additional image
-          const updatedImages = [...(selectedProduct.additionalImages || []), newImagePath]
+          // Check for duplicates
+          const allImages = [...(selectedProduct.image ? [selectedProduct.image] : []), ...(selectedProduct.hoverImage ? [selectedProduct.hoverImage] : []), ...(selectedProduct.additionalImages || [])]
+          if (allImages.includes(imagePath)) {
+            setError("Can't add duplicated images")
+            return
+          }
 
-          // Update the database with just the new image
-          const updateResponse = await fetch(
-            `${import.meta.env.VITE_SITE_URL}/api/products/${selectedProduct._id}/add-image`,
-            {
-              method: "PATCH",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              credentials: "include",
-              body: JSON.stringify({ additionalImages: updatedImages }),
-            },
-          )
-
-          if (updateResponse.ok) {
-            // Update the local state
+          // Update state with the new image
+          const newAdditionalImages = [...(selectedProduct.additionalImages || []), imagePath]
             setSelectedProduct({
               ...selectedProduct,
-              additionalImages: updatedImages,
-            })
+            additionalImages: newAdditionalImages,
+          } as Product)
 
-            // Also update the product in the products list
-            setProducts(
-              products.map((p) => (p._id === selectedProduct._id ? { ...p, additionalImages: updatedImages } : p)),
-            )
-          } else {
-            throw new Error("Failed to update product with new image")
+          // Save product immediately after adding an additional image
+          if (selectedProduct._id) {
+            console.log("Auto-saving product after adding additional image...")
+            await saveProductWithAdditionalImages(newAdditionalImages)
+            console.log("Product auto-saved successfully after adding additional image")
           }
-        } catch (err: any) {
-          console.error("Error adding image:", err)
-          setError(err.message || "Failed to add image")
+        } catch (err) {
+          console.error("Upload error:", err)
+          setError("Failed to upload")
         } finally {
           setUploading(false)
         }
@@ -398,6 +465,29 @@ const EditProducts: React.FC = () => {
 
       if (startIndex + imagesPerView < allImages.length) {
         setStartIndex(startIndex + 1)
+      }
+    }
+  }
+
+  const handleGallerySelect = (imagePath: string) => {
+    if (!selectedProduct) return
+
+    // Check for duplicates
+    const allImages = [...(selectedProduct.image ? [selectedProduct.image] : []), ...(selectedProduct.hoverImage ? [selectedProduct.hoverImage] : []), ...(selectedProduct.additionalImages || [])]
+    if (allImages.includes(imagePath)) {
+      setError("Can't add duplicated images")
+      return
+    }
+
+    if (selectedImageField === "image") {
+      setSelectedProduct({ ...selectedProduct, image: imagePath } as Product)
+      if (selectedProduct._id) {
+        handleFileUpload(new File([], ""), "image", selectedProduct.image)
+      }
+    } else if (selectedImageField === "hoverImage") {
+      setSelectedProduct({ ...selectedProduct, hoverImage: imagePath } as Product)
+      if (selectedProduct._id) {
+        handleFileUpload(new File([], ""), "hoverImage", selectedProduct.hoverImage)
       }
     }
   }
@@ -645,72 +735,172 @@ const EditProducts: React.FC = () => {
               <div className="flex items-center">
                 <input
                   type="text"
-                  value={selectedProduct.image}
+                  id="image"
+                  required
+                  value={selectedProduct?.image || ""}
                   readOnly
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 bg-gray-100 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  className="mt-1 block flex-grow border border-gray-300 rounded-md shadow-sm py-2 px-3 bg-gray-100 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 />
                 <button
                   type="button"
-                  className="ml-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md"
+                  className={`ml-2 px-4 py-2 text-sm font-medium text-white 
+                  ${uploading ? "bg-gray-500 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"} 
+                  rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
                   onClick={() => {
                     const fileInput = document.createElement("input")
                     fileInput.type = "file"
                     fileInput.accept = "image/jpeg, image/png"
                     fileInput.onchange = (e) => {
                       const file = (e.target as HTMLInputElement).files?.[0]
-                      if (file) {
+                      if (file && selectedProduct) {
                         handleFileUpload(file, "image", selectedProduct.image)
                       }
                     }
                     fileInput.click()
                   }}
-                  disabled={uploading}
+                  disabled={uploading || deletingImage === selectedProduct?.image}
                 >
                   {uploading ? (
-                    "Uploading..."
-                  ) : (
+                    "Saving..."
+                  ) : selectedProduct?.image ? (
                     <span className="flex items-center">
                       <RefreshCw size={16} className="mr-1" /> Change
                     </span>
+                  ) : (
+                    "Upload"
                   )}
                 </button>
+                <button
+                  type="button"
+                  className={`ml-2 px-4 py-2 text-sm font-medium text-white 
+                  ${uploading ? "bg-gray-500 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"} 
+                  rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500`}
+                  onClick={() => {
+                    setSelectedImageField("image")
+                    setIsGalleryModalOpen(true)
+                  }}
+                  disabled={uploading}
+                >
+                  Gallery
+                </button>
+                {selectedProduct?.image && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setImageToDelete({ path: selectedProduct.image, field: "image" })
+                      setIsDeleteModalOpen(true)
+                    }}
+                    disabled={deletingImage === selectedProduct.image}
+                    className={`ml-2 p-2 text-white bg-red-600 hover:bg-red-700 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 ${
+                      deletingImage === selectedProduct.image ? "opacity-50 cursor-not-allowed" : ""
+                    }`}
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                )}
               </div>
+              {selectedProduct?.image && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (selectedProduct) {
+                      setSelectedProduct({ ...selectedProduct, image: "" })
+                      if (selectedProduct._id) {
+                        saveProductWithImage("image", "")
+                      }
+                    }
+                  }}
+                  className="mt-1 text-sm text-gray-500 hover:text-gray-700"
+                >
+                  Clear
+                </button>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Hover Image</label>
               <div className="flex items-center">
                 <input
                   type="text"
-                  value={selectedProduct.hoverImage}
+                  id="hoverImage"
+                  required
+                  value={selectedProduct?.hoverImage || ""}
                   readOnly
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 bg-gray-100 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  className="mt-1 block flex-grow border border-gray-300 rounded-md shadow-sm py-2 px-3 bg-gray-100 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 />
                 <button
                   type="button"
-                  className="ml-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md"
+                  className={`ml-2 px-4 py-2 text-sm font-medium text-white 
+                  ${uploading ? "bg-gray-500 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"} 
+                  rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
                   onClick={() => {
                     const fileInput = document.createElement("input")
                     fileInput.type = "file"
                     fileInput.accept = "image/jpeg, image/png"
                     fileInput.onchange = (e) => {
                       const file = (e.target as HTMLInputElement).files?.[0]
-                      if (file) {
+                      if (file && selectedProduct) {
                         handleFileUpload(file, "hoverImage", selectedProduct.hoverImage)
                       }
                     }
                     fileInput.click()
                   }}
-                  disabled={uploading}
+                  disabled={uploading || deletingImage === selectedProduct?.hoverImage}
                 >
                   {uploading ? (
-                    "Uploading..."
-                  ) : (
+                    "Saving..."
+                  ) : selectedProduct?.hoverImage ? (
                     <span className="flex items-center">
                       <RefreshCw size={16} className="mr-1" /> Change
                     </span>
+                  ) : (
+                    "Upload"
                   )}
                 </button>
+                <button
+                  type="button"
+                  className={`ml-2 px-4 py-2 text-sm font-medium text-white 
+                  ${uploading ? "bg-gray-500 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"} 
+                  rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500`}
+                  onClick={() => {
+                    setSelectedImageField("hoverImage")
+                    setIsGalleryModalOpen(true)
+                  }}
+                  disabled={uploading}
+                >
+                  Gallery
+                </button>
+                {selectedProduct?.hoverImage && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setImageToDelete({ path: selectedProduct.hoverImage, field: "hoverImage" })
+                      setIsDeleteModalOpen(true)
+                    }}
+                    disabled={deletingImage === selectedProduct.hoverImage}
+                    className={`ml-2 p-2 text-white bg-red-600 hover:bg-red-700 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 ${
+                      deletingImage === selectedProduct.hoverImage ? "opacity-50 cursor-not-allowed" : ""
+                    }`}
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                )}
               </div>
+              {selectedProduct?.hoverImage && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (selectedProduct) {
+                      setSelectedProduct({ ...selectedProduct, hoverImage: "" })
+                      if (selectedProduct._id) {
+                        saveProductWithImage("hoverImage", "")
+                      }
+                    }
+                  }}
+                  className="mt-1 text-sm text-gray-500 hover:text-gray-700"
+                >
+                  Clear
+                </button>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Additional Images</label>
@@ -742,7 +932,7 @@ const EditProducts: React.FC = () => {
                         type="button"
                         onClick={async () => {
                           try {
-                            await handleDeleteImage(img)
+                            await handleDeleteImage(img, "additionalImages")
 
                             // Update the product in the database
                             const updatedImages = selectedProduct.additionalImages?.filter((i) => i !== img) || []
@@ -839,6 +1029,30 @@ const EditProducts: React.FC = () => {
           </div>
         )}
       </div>
+
+      <GalleryModal
+        isOpen={isGalleryModalOpen}
+        onClose={() => {
+          setIsGalleryModalOpen(false)
+          setSelectedImageField(null)
+        }}
+        onSelect={handleGallerySelect}
+      />
+
+      <ConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => {
+          setIsDeleteModalOpen(false)
+          setImageToDelete(null)
+        }}
+        onConfirm={() => {
+          if (imageToDelete) {
+            handleDeleteImage(imageToDelete.path, imageToDelete.field)
+          }
+        }}
+        title="Delete Image"
+        message="This will remove the image from the whole page. Are you sure you want to continue?"
+      />
     </div>
   )
 }

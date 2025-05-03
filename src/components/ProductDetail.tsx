@@ -972,44 +972,6 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
               >
                 {(product.productQuantity ?? 0) < 1 ? t("outOfStock") : t("buyWithPayPal")}
               </button>
-
-              {/* PayPal form with return URL that redirects to orders page */}
-              <form
-                id="paypal-form"
-                action="https://www.sandbox.paypal.com/cgi-bin/webscr"
-                method="post"
-                target="_top"
-                style={{ display: "none" }} // Hide the form
-              >
-                <input type="hidden" name="cmd" value="_xclick" />
-                <input type="hidden" name="business" value={import.meta.env.VITE_ADMIN_USER_EMAIL_PP} />
-                <input type="hidden" name="item_name" value={product.title} />
-                <input type="hidden" name="item_number" value={product._id} />
-                <input type="hidden" name="amount" value={selectedShipping && selectedShipping.price > 0 ? (product.price + selectedShipping.price).toFixed(2) : product.price} />
-                <input type="hidden" name="quantity" value={quantity} />
-                <input type="hidden" name="currency_code" value="USD" />
-                <input type="hidden" name="custom" value={userData ? userData._id : ""} />
-                <input type="hidden" name="no_shipping" value="1" />
-                <input type="hidden" name="no_note" value="1" />
-                <input type="hidden" name="tax" value="0" />
-                <input type="hidden" name="lc" value="US" />
-                <input type="hidden" name="bn" value="PP-BuyNowBF" />
-                <input type="hidden" name="notify_url" value={`${import.meta.env.VITE_SITE_URL}/api/paypal/ipn`} />
-                <input
-                  type="hidden"
-                  name="return"
-                  value={`${window.location.origin}/orders?success=true&productId=${product._id}&title=${encodeURIComponent(product.title)}&price=${product.price}&quantity=${quantity}&shipping=${selectedShipping ? selectedShipping.price : 0}`}
-                />
-                <input type="hidden" name="cancel_return" value={`${window.location.origin}/product/${product._id}`} />
-                <input
-                  type="image"
-                  src="https://www.paypalobjects.com/en_US/i/btn/btn_buynow_LG.gif"
-                  name="submit"
-                  title="Buy with PayPal"
-                  alt="Buy now with PayPal"
-                  style={{ border: 0 }}
-                />
-              </form>
             </div>
             <p className="text-center text-gray-500 text-sm mb-8">{t("otherPaymentMethods")}</p>
 
@@ -1526,29 +1488,67 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
                           {formatPrice(selectedShipping ? (product?.price * quantity + selectedShipping.price) : (product?.price * quantity), currency)}
                         </p>
                       </div>
+                      
+                      {/* PayPal Button */}
+                      <div className="mt-4">
+                        <button
+                          onClick={handlePreviewSubmit}
+                          disabled={!isFormValid()}
+                          className={`w-full px-6 py-3 rounded-md ${
+                            isFormValid()
+                              ? "bg-primary-dark text-white hover:bg-secondary-light hover:text-gray-800"
+                              : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                          }`}
+                        >
+                          {t("proceedToPayPal")}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-
-              {/* PayPal Button */}
-              <div className="mt-8 flex justify-end">
-                <button
-                  onClick={handlePreviewSubmit}
-                  disabled={!isFormValid()}
-                  className={`px-6 py-3 rounded-md ${
-                    isFormValid()
-                      ? "bg-blue-600 text-white hover:bg-blue-700"
-                      : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                  }`}
-                >
-                  {t("proceedToPayPal")}
-                </button>
               </div>
             </div>
           </div>
         </div>
       )}
+
+      {/* PayPal form with return URL that redirects to orders page */}
+      <form
+        id="paypal-form"
+        action="https://www.sandbox.paypal.com/cgi-bin/webscr"
+        method="post"
+        target="_top"
+        style={{ display: "none" }} // Hide the form
+      >
+        <input type="hidden" name="cmd" value="_xclick" />
+        <input type="hidden" name="business" value={import.meta.env.VITE_ADMIN_USER_EMAIL_PP} />
+        <input type="hidden" name="item_name" value={product.title} />
+        <input type="hidden" name="item_number" value={product._id} />
+        <input type="hidden" name="amount" value={selectedShipping && selectedShipping.price > 0 ? (product.price + selectedShipping.price).toFixed(2) : product.price} />
+        <input type="hidden" name="quantity" value={quantity} />
+        <input type="hidden" name="currency_code" value="USD" />
+        <input type="hidden" name="custom" value={userData ? userData._id : ""} />
+        <input type="hidden" name="no_shipping" value="1" />
+        <input type="hidden" name="no_note" value="1" />
+        <input type="hidden" name="tax" value="0" />
+        <input type="hidden" name="lc" value="US" />
+        <input type="hidden" name="bn" value="PP-BuyNowBF" />
+        <input type="hidden" name="notify_url" value={`${import.meta.env.VITE_SITE_URL}/api/paypal/ipn`} />
+        <input
+          type="hidden"
+          name="return"
+          value={`${window.location.origin}/orders?success=true&productId=${product._id}&title=${encodeURIComponent(product.title)}&price=${product.price}&quantity=${quantity}&shipping=${selectedShipping ? selectedShipping.price : 0}`}
+        />
+        <input type="hidden" name="cancel_return" value={`${window.location.origin}/product/${product._id}`} />
+        <input
+          type="image"
+          src="https://www.paypalobjects.com/en_US/i/btn/btn_buynow_LG.gif"
+          name="submit"
+          title="Buy with PayPal"
+          alt="Buy now with PayPal"
+          style={{ border: 0 }}
+        />
+      </form>
 
     </div>
   )

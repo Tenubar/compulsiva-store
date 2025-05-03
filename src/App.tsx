@@ -83,10 +83,25 @@ export const ExchangeRateContext = React.createContext<{
 
 function App() {
   const [viewMode, setViewMode] = useState<ViewMode>("grid")
-  const [currency, setCurrency] = useState<Currency>("USD")
-  const [language, setLanguage] = useState<Language>("Español")
+  const [currency, setCurrency] = useState<Currency>(() => {
+    const savedCurrency = localStorage.getItem('currency') as Currency
+    return savedCurrency || "USD"
+  })
+  const [language, setLanguage] = useState<Language>(() => {
+    const savedLanguage = localStorage.getItem('language') as Language
+    return savedLanguage || "Español"
+  })
   const [selectedTypes, setSelectedTypes] = useState<ProductType[]>([])
   const [exchangeRate, setExchangeRate] = useState(1)
+
+  // Save currency and language to localStorage when they change
+  useEffect(() => {
+    localStorage.setItem('currency', currency)
+  }, [currency])
+
+  useEffect(() => {
+    localStorage.setItem('language', language)
+  }, [language])
 
   // Connect to exchange rate event source
   useEffect(() => {
