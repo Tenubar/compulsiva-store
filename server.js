@@ -1663,7 +1663,7 @@ function verifyIPN(verificationBody) {
   return new Promise((resolve, reject) => {
     // Use sandbox URL for testing, production URL for live
     // const paypalHost = process.env.VITE_NODE_ENV === "production" ? "www.paypal.com" : "www.sandbox.paypal.com"
-    const paypalHost = "www.sandbox.paypal.com";
+    const paypalHost = "www.paypal.com";
 
     const options = {
       host: paypalHost,
