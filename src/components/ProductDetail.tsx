@@ -1514,7 +1514,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
       {/* PayPal form with return URL that redirects to orders page */}
       <form
         id="paypal-form"
-        action="https://www.sandbox.paypal.com/cgi-bin/webscr"
+        action="https://www.paypal.com/cgi-bin/webscr"
         method="post"
         target="_top"
         style={{ display: "none" }} // Hide the form
