@@ -5,6 +5,7 @@ import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { ArrowLeft, Trash2, ShoppingBag } from "lucide-react"
 
+// Update the CartItem interface to include size
 interface CartItem {
   _id: string
   productId: string
@@ -13,6 +14,8 @@ interface CartItem {
   price: number
   image: string
   quantity: number
+  size?: string // Add size field
+  color?: string // Add color field
 }
 
 const Cart: React.FC = () => {
@@ -142,6 +145,7 @@ const Cart: React.FC = () => {
             </div>
             <ul className="divide-y divide-gray-200">
               {cartItems.map((item) => (
+                // Update the cart item display to show size
                 <li key={item._id} className="px-6 py-4 flex items-center">
                   <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-md border border-gray-200">
                     <img
@@ -155,7 +159,24 @@ const Cart: React.FC = () => {
                       <h3 className="text-base font-medium text-gray-900">{item.title}</h3>
                       <p className="text-base font-medium text-gray-900">${(item.price * item.quantity).toFixed(2)}</p>
                     </div>
-                    <p className="mt-1 text-sm text-gray-500">{item.type}</p>
+                    <p className="mt-1 text-sm text-gray-500">
+                      {item.type}
+                      {item.size && <span className="ml-2">- {item.size}</span>}
+                      {item.color && (
+                        <span className="ml-2 flex items-center">
+                          -{" "}
+                          <span
+                            className="w-3 h-3 rounded-full ml-1 mr-1"
+                            style={{
+                              backgroundColor: item.color.toLowerCase(),
+                              border: "1px solid #ccc",
+                              boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.1)",
+                            }}
+                          ></span>
+                          {item.color}
+                        </span>
+                      )}
+                    </p>
                     <div className="flex items-center mt-2">
                       <button
                         onClick={() => handleUpdateQuantity(item._id, item.quantity - 1)}
@@ -173,7 +194,7 @@ const Cart: React.FC = () => {
                       <button
                         onClick={() => handleUpdateQuantity(item._id, item.quantity + 1)}
                         className="text-gray-500 focus:outline-none focus:text-gray-600 p-1"
-                        disabled={true} 
+                        disabled={true}
                       >
                         <span className="text-lg">+</span>
                       </button>
@@ -185,8 +206,7 @@ const Cart: React.FC = () => {
                     </button>
                   </div>
                 </li>
-              ),
-            )}
+              ))}
             </ul>
             <div className="border-t border-gray-200 px-6 py-4">
               <div className="flex justify-between text-base font-medium text-gray-900">

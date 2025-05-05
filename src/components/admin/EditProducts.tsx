@@ -9,6 +9,7 @@ import { getImageUrl, getPlaceholder } from "../../utils/imageUtils"
 import GalleryModal from "./GalleryModal"
 import ConfirmationModal from "./ConfirmationModal"
 
+// Update the Product interface to include color in sizes
 interface Product {
   _id: string
   title: string
@@ -18,7 +19,7 @@ interface Product {
   hoverImage: string
   description?: string
   materials?: string
-  sizes?: string[]
+  sizes?: Array<{ size: string; quantity: number; colors: string[] }>
   shipping?: Array<{ name: string; price: number }>
   productQuantity?: number
   additionalImages?: string[]
@@ -32,7 +33,12 @@ const EditProducts: React.FC = () => {
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [deletingImage, setDeletingImage] = useState<string | null>(null)
+  // Add state for color input after the sizeQuantityInput state
   const [sizeInput, setSizeInput] = useState("")
+  const [sizeQuantityInput, setSizeQuantityInput] = useState("")
+  // Replace the sizeColorInput state with selectedColors array
+  const [selectedColors, setSelectedColors] = useState<string[]>([])
+  const [showColorDropdown, setShowColorDropdown] = useState(false)
   const [newlyAddedImages, setNewlyAddedImages] = useState<string[]>([]) // Track newly added images
   const navigate = useNavigate()
 
@@ -49,6 +55,31 @@ const EditProducts: React.FC = () => {
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [imageToDelete, setImageToDelete] = useState<{ path: string; field: "image" | "hoverImage" } | null>(null)
+
+  // Add this array of available colors
+  const availableColors = [
+    "Black",
+    "White",
+    "Red",
+    "Blue",
+    "Green",
+    "Yellow",
+    "Purple",
+    "Pink",
+    "Orange",
+    "Brown",
+    "Gray",
+    "Teal",
+  ]
+
+  // Add this function to toggle color selection
+  const toggleColor = (color: string) => {
+    if (selectedColors.includes(color)) {
+      setSelectedColors(selectedColors.filter((c) => c !== color))
+    } else {
+      setSelectedColors([...selectedColors, color])
+    }
+  }
 
   // Add saveProductWithImage function
   const saveProductWithImage = async (fieldName: "image" | "hoverImage", imagePath: string) => {
@@ -136,11 +167,7 @@ const EditProducts: React.FC = () => {
   }, [fetchProducts])
 
   // Modified to immediately update the image in the database
-  const handleFileUpload = async (
-    file: File,
-    fieldName: "image" | "hoverImage",
-    oldImagePath?: string,
-  ) => {
+  const handleFileUpload = async (file: File, fieldName: "image" | "hoverImage", oldImagePath?: string) => {
     if (!file || (file.type !== "image/jpeg" && file.type !== "image/png")) {
       setError("Please select a valid JPG or PNG image")
       return
@@ -176,7 +203,11 @@ const EditProducts: React.FC = () => {
 
       // Check for duplicates
       if (selectedProduct) {
-        const allImages = [...(selectedProduct.image ? [selectedProduct.image] : []), ...(selectedProduct.hoverImage ? [selectedProduct.hoverImage] : []), ...(selectedProduct.additionalImages || [])]
+        const allImages = [
+          ...(selectedProduct.image ? [selectedProduct.image] : []),
+          ...(selectedProduct.hoverImage ? [selectedProduct.hoverImage] : []),
+          ...(selectedProduct.additionalImages || []),
+        ]
         if (allImages.includes(imagePath)) {
           setError("Can't add duplicated images")
           return
@@ -236,7 +267,9 @@ const EditProducts: React.FC = () => {
           // Save product immediately after image deletion
           if (selectedProduct._id) {
             if (fieldName === "additionalImages") {
-              await saveProductWithAdditionalImages(selectedProduct.additionalImages?.filter((i) => i !== imagePath) || [])
+              await saveProductWithAdditionalImages(
+                selectedProduct.additionalImages?.filter((i) => i !== imagePath) || [],
+              )
             } else {
               await saveProductWithImage(fieldName, "")
             }
@@ -254,15 +287,31 @@ const EditProducts: React.FC = () => {
     }
   }
 
+  // Replace the handleAddSize function with this updated version
   const handleAddSize = () => {
     if (!selectedProduct) return
-    if (sizeInput.trim()) {
-      const updatedSizes = [...(selectedProduct.sizes || []), sizeInput.trim()]
+    if (sizeInput.trim() && sizeQuantityInput.trim()) {
+      const quantity = Number.parseInt(sizeQuantityInput)
+      if (isNaN(quantity) || quantity < 1) {
+        setError("Quantity must be a positive number")
+        return
+      }
+
+      const newSize = {
+        size: sizeInput.trim(),
+        quantity,
+        colors: selectedColors.length > 0 ? selectedColors : ["Default"],
+      }
+      const updatedSizes = [...(selectedProduct.sizes || []), newSize]
       setSelectedProduct({ ...selectedProduct, sizes: updatedSizes })
       setSizeInput("")
+      setSizeQuantityInput("")
+      setSelectedColors([])
+      setShowColorDropdown(false)
     }
   }
 
+  // Update the handleRemoveSize function to work with the new structure
   const handleRemoveSize = (index: number) => {
     if (!selectedProduct || !selectedProduct.sizes) return
     const updatedSizes = selectedProduct.sizes.filter((_, i) => i !== index)
@@ -277,8 +326,8 @@ const EditProducts: React.FC = () => {
     fileInput.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0]
       if (file && selectedProduct) {
-          setUploading(true)
-          setError("")
+        setUploading(true)
+        setError("")
 
         try {
           const formData = new FormData()
@@ -296,7 +345,11 @@ const EditProducts: React.FC = () => {
           const imagePath = data.image.path
 
           // Check for duplicates
-          const allImages = [...(selectedProduct.image ? [selectedProduct.image] : []), ...(selectedProduct.hoverImage ? [selectedProduct.hoverImage] : []), ...(selectedProduct.additionalImages || [])]
+          const allImages = [
+            ...(selectedProduct.image ? [selectedProduct.image] : []),
+            ...(selectedProduct.hoverImage ? [selectedProduct.hoverImage] : []),
+            ...(selectedProduct.additionalImages || []),
+          ]
           if (allImages.includes(imagePath)) {
             setError("Can't add duplicated images")
             return
@@ -304,8 +357,8 @@ const EditProducts: React.FC = () => {
 
           // Update state with the new image
           const newAdditionalImages = [...(selectedProduct.additionalImages || []), imagePath]
-            setSelectedProduct({
-              ...selectedProduct,
+          setSelectedProduct({
+            ...selectedProduct,
             additionalImages: newAdditionalImages,
           } as Product)
 
@@ -331,11 +384,11 @@ const EditProducts: React.FC = () => {
     if (shippingName.trim() && shippingPrice.trim()) {
       const newShipping = {
         name: shippingName.trim(),
-        price: Number(shippingPrice)
+        price: Number(shippingPrice),
       }
       setSelectedProduct({
         ...selectedProduct,
-        shipping: [...(selectedProduct.shipping || []), newShipping]
+        shipping: [...(selectedProduct.shipping || []), newShipping],
       })
       setShippingName("")
       setShippingPrice("")
@@ -347,7 +400,7 @@ const EditProducts: React.FC = () => {
     const newShippingOptions = (selectedProduct.shipping || []).filter((_, i) => i !== index)
     setSelectedProduct({
       ...selectedProduct,
-      shipping: newShippingOptions
+      shipping: newShippingOptions,
     })
   }
 
@@ -473,7 +526,11 @@ const EditProducts: React.FC = () => {
     if (!selectedProduct) return
 
     // Check for duplicates
-    const allImages = [...(selectedProduct.image ? [selectedProduct.image] : []), ...(selectedProduct.hoverImage ? [selectedProduct.hoverImage] : []), ...(selectedProduct.additionalImages || [])]
+    const allImages = [
+      ...(selectedProduct.image ? [selectedProduct.image] : []),
+      ...(selectedProduct.hoverImage ? [selectedProduct.hoverImage] : []),
+      ...(selectedProduct.additionalImages || []),
+    ]
     if (allImages.includes(imagePath)) {
       setError("Can't add duplicated images")
       return
@@ -617,19 +674,94 @@ const EditProducts: React.FC = () => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Product Quantity</label>
-              <input
-                type="number"
-                min="1"
-                value={selectedProduct.productQuantity || 1}
-                onChange={(e) =>
-                  setSelectedProduct({
-                    ...selectedProduct,
-                    productQuantity: Math.max(1, Number.parseInt(e.target.value) || 1),
-                  })
-                }
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3"
-              />
+              <label className="block text-sm font-medium text-gray-700">Sizes</label>
+              <div className="flex items-center">
+                <input
+                  type="text"
+                  value={sizeInput}
+                  onChange={(e) => setSizeInput(e.target.value)}
+                  className="mt-1 block flex-grow border border-gray-300 rounded-md shadow-sm py-2 px-3"
+                  placeholder="Enter a size (e.g., S, M, L, XL)"
+                />
+                <input
+                  type="number"
+                  placeholder="Quantity"
+                  min="1"
+                  value={sizeQuantityInput}
+                  onChange={(e) => setSizeQuantityInput(e.target.value)}
+                  className="mt-1 block flex-grow border border-gray-300 rounded-md shadow-sm py-2 px-3 ml-2"
+                />
+                <div className="relative mt-1 block flex-grow ml-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowColorDropdown(!showColorDropdown)}
+                    className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-left focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    {selectedColors.length > 0 ? selectedColors.join(", ") : "Select colors"}
+                  </button>
+                  {showColorDropdown && (
+                    <div className="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base overflow-auto focus:outline-none sm:text-sm">
+                      {availableColors.map((color) => (
+                        <div
+                          key={color}
+                          className="flex items-center justify-between px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                          onClick={() => toggleColor(color)}
+                        >
+                          <div className="flex items-center">
+                            <span
+                              className="w-4 h-4 mr-2 rounded-full"
+                              style={{ backgroundColor: color.toLowerCase() }}
+                            ></span>
+                            <span>{color}</span>
+                          </div>
+                          {selectedColors.includes(color) && (
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-5 w-5 text-blue-600"
+                              viewBox="0 0 20 20"
+                              fill="currentColor"
+                            >
+                              <path
+                                fillRule="evenodd"
+                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={handleAddSize}
+                  className="ml-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md"
+                >
+                  Add
+                </button>
+              </div>
+              {selectedProduct?.sizes && selectedProduct.sizes.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {selectedProduct.sizes.map((sizeObj, index) => (
+                    <div
+                      key={index}
+                      className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full flex items-center text-sm"
+                    >
+                      {typeof sizeObj === "string"
+                        ? sizeObj
+                        : `${sizeObj.size} - ${sizeObj.quantity} units - ${Array.isArray(sizeObj.colors) ? sizeObj.colors.join(", ") : sizeObj.colors || "Default"}`}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveSize(index)}
+                        className="ml-1 text-blue-600 hover:text-blue-800 focus:outline-none"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Description</label>
@@ -648,44 +780,6 @@ const EditProducts: React.FC = () => {
                 onChange={(e) => setSelectedProduct({ ...selectedProduct, materials: e.target.value })}
                 className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3"
               />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Sizes</label>
-              <div className="flex items-center">
-                <input
-                  type="text"
-                  value={sizeInput}
-                  onChange={(e) => setSizeInput(e.target.value)}
-                  className="mt-1 block flex-grow border border-gray-300 rounded-md shadow-sm py-2 px-3"
-                  placeholder="Enter a size (e.g., S, M, L, XL)"
-                />
-                <button
-                  type="button"
-                  onClick={handleAddSize}
-                  className="ml-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md"
-                >
-                  Add
-                </button>
-              </div>
-              {selectedProduct.sizes && selectedProduct.sizes.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {selectedProduct.sizes.map((size, index) => (
-                    <div
-                      key={index}
-                      className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full flex items-center text-sm"
-                    >
-                      {size}
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveSize(index)}
-                        className="ml-1 text-blue-600 hover:text-blue-800 focus:outline-none"
-                      >
-                        <X size={14} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Shipping Options</label>
@@ -718,7 +812,9 @@ const EditProducts: React.FC = () => {
                     key={index}
                     className="inline-flex items-center justify-between bg-gray-100 rounded-md text-gray-700 px-3 py-1 mr-2 mt-2"
                   >
-                    <span>{option.name} - ${option.price}</span>
+                    <span>
+                      {option.name} - ${option.price}
+                    </span>
                     <button
                       type="button"
                       onClick={() => handleRemoveShipping(index)}

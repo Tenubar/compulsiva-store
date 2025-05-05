@@ -133,39 +133,39 @@ export const translations = {
     footerQuickLinks: "Quick Links",
     footerAboutUs: "About Us",
     footerContact: "Contact Us",
-    footerShippingPolicy: "Shipping Policy",  
+    footerShippingPolicy: "Shipping Policy",
     footerReturns: "Returns",
     footerSuggestionBox: "Suggestion Box",
-
 
     // About Me
     aboutMeTitle: "About Us",
     aboutMeOurStory: "Our Story",
     aboutMeStoryParagraph1:
-    "Welcome to Compulsiva Store, where fashion meets passion. Founded in 2024, our journey began with a simple idea: to offer unique, high-quality clothing and accessories that reflect individuality and style.",
+      "Welcome to Compulsiva Store, where fashion meets passion. Founded in 2024, our journey began with a simple idea: to offer unique, high-quality clothing and accessories that reflect individuality and style.",
     aboutMeStoryParagraph2:
-    "Driven by a love for design and a commitment to sustainability, we carefully curate each piece in our collection. From handcrafted jewelry to ethically sourced apparel, we believe in fashion that not only looks good but also feels good.",
+      "Driven by a love for design and a commitment to sustainability, we carefully curate each piece in our collection. From handcrafted jewelry to ethically sourced apparel, we believe in fashion that not only looks good but also feels good.",
     aboutMeOurMission: "Our Mission",
     aboutMeMissionParagraph:
-    "At Compulsiva Store, our mission is to empower individuals to express themselves through fashion while promoting ethical and sustainable practices. We strive to create a community that values creativity, quality, and responsibility.",
+      "At Compulsiva Store, our mission is to empower individuals to express themselves through fashion while promoting ethical and sustainable practices. We strive to create a community that values creativity, quality, and responsibility.",
     aboutMeQuality: "Quality",
     aboutMeQualityText:
-    "We are committed to providing products that meet the highest standards of craftsmanship and durability.",
+      "We are committed to providing products that meet the highest standards of craftsmanship and durability.",
     aboutMeSustainability: "Sustainability",
     aboutMeSustainabilityText:
-    "We prioritize eco-friendly materials and ethical production processes to minimize our environmental impact.",
+      "We prioritize eco-friendly materials and ethical production processes to minimize our environmental impact.",
     aboutMeCommunity: "Community",
-    aboutMeCommunityText: "We aim to foster a supportive and inclusive community that celebrates diversity and creativity.",
+    aboutMeCommunityText:
+      "We aim to foster a supportive and inclusive community that celebrates diversity and creativity.",
     aboutMeTeam: "Our Team",
     aboutMeTeamIntro: "Meet the passionate individuals behind Compulsiva Store:",
     aboutMeFounderName: "Carol",
     aboutMeFounderTitle: "Founder & CEO",
     aboutMeFounderBio:
-        "With a background in fashion design and a passion for entrepreneurship, Carol founded Compulsiva Store to bring her vision of sustainable and stylish fashion to life.",
+      "With a background in fashion design and a passion for entrepreneurship, Carol founded Compulsiva Store to bring her vision of sustainable and stylish fashion to life.",
     aboutMeDesignerName: "Tenubar",
     aboutMeDesignerTitle: "Lead Designer",
     aboutMeDesignerBio:
-        "Alex is a talented designer with a keen eye for detail and a commitment to creating innovative and timeless pieces that our customers will love.",
+      "Alex is a talented designer with a keen eye for detail and a commitment to creating innovative and timeless pieces that our customers will love.",
 
     // Contact
     contactTitle: "Contact Us",
@@ -195,7 +195,7 @@ export const translations = {
     shippingTitle: "Shipping Policy",
     shippingProcessingTime: "Processing Time",
     shippingProcessingTimeText:
-    "Orders are typically processed within 1-2 business days. During peak seasons, processing times may be slightly longer.",
+      "Orders are typically processed within 1-2 business days. During peak seasons, processing times may be slightly longer.",
     shippingDomesticShipping: "Domestic Shipping",
     shippingDomesticShippingText: "We offer the following domestic shipping options:",
     shippingStandardShipping: "Standard Shipping",
@@ -213,7 +213,7 @@ export const translations = {
     shippingInternationalExpressText: "Estimated delivery within 3-7 business days.",
     shippingInternationalExpressCost: "Cost: $40.00",
     shippingInternationalNote:
-    "Please note that international shipments may be subject to customs duties and taxes, which are the responsibility of the recipient.",
+      "Please note that international shipments may be subject to customs duties and taxes, which are the responsibility of the recipient.",
     shippingTracking: "Tracking",
     shippingTrackingText: "You will receive a tracking number via email once your order has shipped.",
     shippingFaq: "Frequently Asked Questions",
@@ -227,13 +227,12 @@ export const translations = {
     shippingFaqAnswer4: "We accept PayPal.",
     deliveryTime: "Delivery Time",
     businessDays: "Business Days",
-      
-    
+
     // Returns
     returnsTitle: "Returns and Exchanges",
     returnsOverview: "Overview",
     returnsOverviewText:
-    "We want you to be completely satisfied with your purchase. If you're not happy with your order, we're here to help!",
+      "We want you to be completely satisfied with your purchase. If you're not happy with your order, we're here to help!",
     returnsEligibility: "Eligibility",
     returnsEligibilityText: "To be eligible for a return, please ensure that:",
     returnsEligibilityItem1: "The item has not been worn and is in the same condition you received it.",
@@ -247,15 +246,13 @@ export const translations = {
     returnsProcess: "How to Initiate a Return",
     returnsProcessText: "To initiate a return, please follow these steps:",
     returnsProcessStep1: "Contact Us",
-    returnsProcessStep1Text:
-    "Email our customer service team at",
+    returnsProcessStep1Text: "Email our customer service team at",
     returnsProcessStep2: "Receive Instructions",
     returnsProcessStep2Text: "We will provide you with detailed instructions on how to return your item.",
     returnsProcessStep3: "Ship the Item",
     returnsProcessStep3Text: "Carefully pack the item and ship it to the address we provide.",
     returnsProcessStep4: "Receive Refund",
-    returnsProcessStep4Text:
-    "Once we receive and inspect your return, we will process your refund.",
+    returnsProcessStep4Text: "Once we receive and inspect your return, we will process your refund.",
     returnsRefunds: "Refunds",
     returnsRefundsText: "We will process your refund to the original payment method used for the purchase.",
     returnsOriginalPayment: "Original Payment Method",
@@ -270,7 +267,7 @@ export const translations = {
     // Suggestion Box
     suggestionBoxTitle: "Suggestion Box",
     suggestionBoxIntro:
-    "We value your feedback! Please use the form below to share your suggestions and ideas for improving our products and services.",
+      "We value your feedback! Please use the form below to share your suggestions and ideas for improving our products and services.",
     suggestionBoxName: "Your Name",
     suggestionBoxEmail: "Your Email",
     suggestionBoxCategory: "Category",
@@ -291,11 +288,12 @@ export const translations = {
     suggestionSampleName1: "Jane Doe",
     suggestionSampleSuggestion2: "The website is easy to navigate, but a mobile app would be a great addition.",
     suggestionSampleName2: "John Smith",
-    suggestionBoxSampleSuggestion1: "I LOVE the new collection! It would be great to see more sustainable materials used.",
+    suggestionBoxSampleSuggestion1:
+      "I LOVE the new collection! It would be great to see more sustainable materials used.",
     suggestionBoxSampleName1: "Jane Doe",
     suggestionBoxSampleSuggestion2: "The website is easy to navigate, but a mobile app would be a great addition.",
     suggestionBoxSampleName2: "John Smith",
-      
+
     // Wishlist
     yourWishlist: "Your Wishlist",
     emptyWishlist: "Your wishlist is empty",
@@ -359,14 +357,14 @@ export const translations = {
     processingPayment: "Processing Payment",
     paymentDetails: "Payment Details",
     paymentSuccessful: "Payment Successful",
-    placeShippingAddress: "Place your shipping address",
+    placeShippingAddress: "Place the shipping address of the shipping agency",
 
     // Main Page Categories
-    "Shirt": "Shirts",
-    "Pants": "Pants",
-    "Shoes": "Shoes",
-    "Bracelet": "Bracelets",
-    "Collar": "Collars",
+    Shirt: "Shirts",
+    Pants: "Pants",
+    Shoes: "Shoes",
+    Bracelet: "Bracelets",
+    Collar: "Collars",
     viewAll: "View All",
     newArrivals: "New Arrivals",
     bestSellers: "Best Sellers",
@@ -391,14 +389,11 @@ export const translations = {
     orderTotal: "Total",
     email: "Email",
 
-
-
-    
-
     // Shipping Policy
     shippingPolicy: "Shipping Policy",
     processingTime: "Processing Time",
-    processingTimeText: "Orders are typically processed within 1-2 business days. During peak seasons, processing times may be slightly longer.",
+    processingTimeText:
+      "Orders are typically processed within 1-2 business days. During peak seasons, processing times may be slightly longer.",
     domesticShipping: "Domestic Shipping",
     domesticShippingText: "We offer the following domestic shipping options:",
     zoom: "Zoom",
@@ -414,7 +409,8 @@ export const translations = {
     tealcaText: "Reliable express delivery service",
     tealcaTime: "1-3 business days",
     internationalShipping: "International Shipping",
-    internationalShippingText: "International shipping is temporarily unavailable. We apologize for any inconvenience. Please check back later for updates.",
+    internationalShippingText:
+      "International shipping is temporarily unavailable. We apologize for any inconvenience. Please check back later for updates.",
     tracking: "Tracking",
     trackingText: "You will receive a tracking number via email once your order has shipped.",
     faq: "Frequently Asked Questions",
@@ -465,6 +461,9 @@ export const translations = {
     changeImage: "Change Image",
     deleteImage: "Delete Image",
     deleting: "Deleting...",
+    colors: "Colors",
+    noColorsAvailable: "No colors available",
+    color: "Color",
   },
   Español: {
     // Header
@@ -520,7 +519,7 @@ export const translations = {
     state: "Estado",
     postalCode: "Código Postal",
     country: "País",
-    street: "Dirección",  
+    street: "Dirección",
 
     // About Us
     aboutUs: "Sobre Compulsiva Store",
@@ -602,31 +601,32 @@ export const translations = {
     aboutMeTitle: "Sobre Nosotros",
     aboutMeOurStory: "Nuestra Historia",
     aboutMeStoryParagraph1:
-    "Bienvenido a Compulsiva Store, donde la moda se encuentra con la pasión. Fundada en 2024, nuestra historia comenzó con una idea simple: ofrecer prendas y accesorios únicos y de alta calidad que reflejen la individualidad y el estilo.",
+      "Bienvenido a Compulsiva Store, donde la moda se encuentra con la pasión. Fundada en 2024, nuestra historia comenzó con una idea simple: ofrecer prendas y accesorios únicos y de alta calidad que reflejen la individualidad y el estilo.",
     aboutMeStoryParagraph2:
-    "Impulsados por un amor por el diseño y un compromiso con la sostenibilidad, seleccionamos cuidadosamente cada pieza de nuestra colección. Desde joyería hecha a mano hasta ropa de origen ético, creemos en una moda que no solo se vea bien, sino que también se sienta bien.",
+      "Impulsados por un amor por el diseño y un compromiso con la sostenibilidad, seleccionamos cuidadosamente cada pieza de nuestra colección. Desde joyería hecha a mano hasta ropa de origen ético, creemos en una moda que no solo se vea bien, sino que también se sienta bien.",
     aboutMeOurMission: "Nuestra Misión",
     aboutMeMissionParagraph:
-    "En Compulsiva Store, nuestra misión es empoderar a las personas para que se expresen a través de la moda mientras promovemos prácticas éticas y sostenibles. Nos esforzamos por crear una comunidad que valore la creatividad, la calidad y la responsabilidad.",
+      "En Compulsiva Store, nuestra misión es empoderar a las personas para que se expresen a través de la moda mientras promovemos prácticas éticas y sostenibles. Nos esforzamos por crear una comunidad que valore la creatividad, la calidad y la responsabilidad.",
     aboutMeQuality: "Calidad",
     aboutMeQualityText:
-    "Estamos comprometidos a proporcionar productos que cumplan con los más altos estándares de artesanía y durabilidad.",
+      "Estamos comprometidos a proporcionar productos que cumplan con los más altos estándares de artesanía y durabilidad.",
     aboutMeSustainability: "Sostenibilidad",
     aboutMeSustainabilityText:
-    "Priorizamos materiales ecológicos y procesos de producción éticos para minimizar nuestro impacto ambiental.",
+      "Priorizamos materiales ecológicos y procesos de producción éticos para minimizar nuestro impacto ambiental.",
     aboutMeCommunity: "Comunidad",
-    aboutMeCommunityText: "Aspiramos a fomentar una comunidad solidaria e inclusiva que celebre la diversidad y la creatividad.",
+    aboutMeCommunityText:
+      "Aspiramos a fomentar una comunidad solidaria e inclusiva que celebre la diversidad y la creatividad.",
     aboutMeTeam: "Nuestro Equipo",
     aboutMeTeamIntro: "Conoce a las personas apasionadas detrás de Compulsiva Store:",
     aboutMeFounderName: "Carol",
     aboutMeFounderTitle: "Fundadora y CEO",
     aboutMeFounderBio:
-        "Con una formación en diseño de moda y una pasión por el emprendimiento, Carol fundó Compulsiva Store para dar vida a su visión de una moda sostenible y con estilo.",
+      "Con una formación en diseño de moda y una pasión por el emprendimiento, Carol fundó Compulsiva Store para dar vida a su visión de una moda sostenible y con estilo.",
     aboutMeDesignerName: "Tenubar",
     aboutMeDesignerTitle: "Programador y Diseñador Principal",
     aboutMeDesignerBio:
-        "Tenubar es un talentoso diseñador y programador con un agudo sentido del detalle y un compromiso con la creación de piezas innovadoras y atemporales que nuestros clientes adorarán.",
-        
+      "Tenubar es un talentoso diseñador y programador con un agudo sentido del detalle y un compromiso con la creación de piezas innovadoras y atemporales que nuestros clientes adorarán.",
+
     // Contact
     contactTitle: "Contáctanos",
     contactGetInTouch: "Contáctanos",
@@ -655,7 +655,7 @@ export const translations = {
     shippingTitle: "Política de Envío",
     shippingProcessingTime: "Tiempo de Procesamiento",
     shippingProcessingTimeText:
-    "Los pedidos se procesan normalmente dentro de 1-2 días hábiles. Durante las temporadas altas, los tiempos de procesamiento pueden ser ligeramente más largos.",
+      "Los pedidos se procesan normalmente dentro de 1-2 días hábiles. Durante las temporadas altas, los tiempos de procesamiento pueden ser ligeramente más largos.",
     shippingDomesticShipping: "Envío Nacional",
     shippingDomesticShippingText: "Ofrecemos las siguientes opciones de envío nacional:",
     shippingStandardShipping: "Envío Estándar",
@@ -673,14 +673,17 @@ export const translations = {
     shippingInternationalExpressText: "Estimación de entrega dentro de 3-7 días hábiles.",
     shippingInternationalExpressCost: "Costo: $40.00",
     shippingInternationalNote:
-    "Ten en cuenta que los envíos internacionales pueden estar sujetos a derechos de aduana e impuestos, que son responsabilidad del destinatario.",
+      "Ten en cuenta que los envíos internacionales pueden estar sujetos a derechos de aduana e impuestos, que son responsabilidad del destinatario.",
     shippingTracking: "Seguimiento",
-    shippingTrackingText: "Recibirás un número de seguimiento por correo electrónico una vez que tu pedido haya sido enviado.",
+    shippingTrackingText:
+      "Recibirás un número de seguimiento por correo electrónico una vez que tu pedido haya sido enviado.",
     shippingFaq: "Preguntas Frecuentes",
     shippingFaqQuestion1: "¿Cuál es su política de devoluciones?",
-    shippingFaqAnswer1: "Aceptamos devoluciones dentro de los 30 días posteriores a la compra. Consulta nuestra Política de Devoluciones para más detalles.",
+    shippingFaqAnswer1:
+      "Aceptamos devoluciones dentro de los 30 días posteriores a la compra. Consulta nuestra Política de Devoluciones para más detalles.",
     shippingFaqQuestion2: "¿Cómo puedo rastrear mi pedido?",
-    shippingFaqAnswer2: "Recibirás un número de seguimiento por correo electrónico una vez que tu pedido haya sido enviado.",
+    shippingFaqAnswer2:
+      "Recibirás un número de seguimiento por correo electrónico una vez que tu pedido haya sido enviado.",
     shippingFaqQuestion3: "¿Hacen envíos internacionales?",
     shippingFaqAnswer3: "Sí, ofrecemos envío internacional a la mayoría de los países.",
     shippingFaqQuestion4: "¿Qué métodos de pago aceptan?",
@@ -705,7 +708,7 @@ export const translations = {
     returnsTitle: "Devoluciones y Cambios",
     returnsOverview: "Resumen",
     returnsOverviewText:
-    "Queremos que estés completamente satisfecho con tu compra. Si no estás contento con tu pedido, ¡estamos aquí para ayudarte!",
+      "Queremos que estés completamente satisfecho con tu compra. Si no estás contento con tu pedido, ¡estamos aquí para ayudarte!",
     returnsEligibility: "Elegibilidad",
     returnsEligibilityText: "Para ser elegible para una devolución, asegúrate de que:",
     returnsEligibilityItem1: "El artículo no ha sido usado y está en las mismas condiciones en que lo recibiste.",
@@ -720,14 +723,14 @@ export const translations = {
     returnsProcessText: "Para iniciar una devolución, sigue estos pasos:",
     returnsProcessStep1: "Contáctanos",
     returnsProcessStep1Text:
-    "Envía un correo electrónico a nuestro equipo de atención al cliente a returns@fashionstore.com para solicitar una devolución.",
+      "Envía un correo electrónico a nuestro equipo de atención al cliente a returns@fashionstore.com para solicitar una devolución.",
     returnsProcessStep2: "Recibe Instrucciones",
     returnsProcessStep2Text: "Te proporcionaremos instrucciones detalladas sobre cómo devolver tu artículo.",
     returnsProcessStep3: "Envía el Artículo",
     returnsProcessStep3Text: "Empaca cuidadosamente el artículo y envíalo a la dirección que te proporcionamos.",
     returnsProcessStep4: "Recibe Reembolso",
     returnsProcessStep4Text:
-    "Una vez que recibamos e inspeccionemos el artículo devuelto, procesaremos tu reembolso dentro de 7-10 días hábiles.",
+      "Una vez que recibamos e inspeccionemos el artículo devuelto, procesaremos tu reembolso dentro de 7-10 días hábiles.",
     returnsRefunds: "Opciones de Reembolso",
     returnsRefundsText: "Puedes elegir recibir tu reembolso de una de las siguientes maneras:",
     returnsOriginalPayment: "Método de Pago Original",
@@ -742,7 +745,7 @@ export const translations = {
     // Suggestion Box
     suggestionBoxTitle: "Buzón de Sugerencias",
     suggestionBoxIntro:
-    "¡Valoramos tus comentarios! Utiliza el formulario a continuación para compartir tus sugerencias e ideas para mejorar nuestros productos y servicios.",
+      "¡Valoramos tus comentarios! Utiliza el formulario a continuación para compartir tus sugerencias e ideas para mejorar nuestros productos y servicios.",
     suggestionBoxName: "Tu Nombre",
     suggestionBoxEmail: "Tu Correo Electrónico",
     suggestionBoxCategory: "Categoría",
@@ -763,11 +766,13 @@ export const translations = {
     suggestionSampleName1: "Jane Doe",
     suggestionSampleSuggestion2: "The website is easy to navigate, but a mobile app would be a great addition.",
     suggestionSampleName2: "John Smith",
-    suggestionBoxSampleSuggestion1: "¡Me encanta la nueva colección! Sería genial ver más materiales sostenibles utilizados.",
+    suggestionBoxSampleSuggestion1:
+      "¡Me encanta la nueva colección! Sería genial ver más materiales sostenibles utilizados.",
     suggestionBoxSampleName1: "Jane Doe",
-    suggestionBoxSampleSuggestion2: "El sitio web es fácil de navegar, pero una aplicación móvil sería una gran adición.",
+    suggestionBoxSampleSuggestion2:
+      "El sitio web es fácil de navegar, pero una aplicación móvil sería una gran adición.",
     suggestionBoxSampleName2: "John Smith",
-    
+
     // Orders
     orders: "Pedidos",
     myOrders: "Mis Pedidos",
@@ -808,7 +813,7 @@ export const translations = {
     cannotRateOutOfStock: "No se pueden calificar productos agotados",
     loginToRate: "Inicia sesión para calificar este producto",
     outOfStock: "Agotado",
-    placeShippingAddress: "Coloca tu dirección de envío",
+    placeShippingAddress: "Coloca la dirección de la agencia de envío",
     proceedToPayPal: "Proceder al Pago con PayPal",
     shippingCost: "Costo de Envío",
     processingPayment: "Procesando Pago",
@@ -816,11 +821,11 @@ export const translations = {
     paymentSuccessful: "Pago Exitoso",
 
     // Main Page Categories
-    "Shirt": "Camisas",
-    "Pants": "Pantalones",
-    "Shoes": "Zapatos",
-    "Bracelet": "Pulseras",
-    "Collar": "Collares",
+    Shirt: "Camisas",
+    Pants: "Pantalones",
+    Shoes: "Zapatos",
+    Bracelet: "Pulseras",
+    Collar: "Collares",
     viewAll: "Ver Todo",
     newArrivals: "Novedades",
     bestSellers: "Más Vendidos",
@@ -845,11 +850,11 @@ export const translations = {
     orderTotal: "Total",
     id: "Cédula",
 
-
     // Shipping Policy
     shippingPolicy: "Política de Envío",
     processingTime: "Tiempo de Procesamiento",
-    processingTimeText: "Los pedidos generalmente se procesan dentro de 1-2 días hábiles. Durante las temporadas altas, los tiempos de procesamiento pueden ser un poco más largos.",
+    processingTimeText:
+      "Los pedidos generalmente se procesan dentro de 1-2 días hábiles. Durante las temporadas altas, los tiempos de procesamiento pueden ser un poco más largos.",
     domesticShipping: "Envío Nacional",
     domesticShippingText: "Ofrecemos las siguientes opciones de envío nacional:",
     zoom: "Zoom",
@@ -865,12 +870,14 @@ export const translations = {
     tealcaText: "Servicio de entrega exprés confiable",
     tealcaTime: "1-3 días hábiles",
     internationalShipping: "Envío Internacional",
-    internationalShippingText: "El envío internacional no está disponible temporalmente. Nos disculpamos por cualquier inconveniente. Por favor, vuelva a consultar más tarde para actualizaciones.",
+    internationalShippingText:
+      "El envío internacional no está disponible temporalmente. Nos disculpamos por cualquier inconveniente. Por favor, vuelva a consultar más tarde para actualizaciones.",
     tracking: "Seguimiento",
     trackingText: "Recibirá un número de seguimiento por correo electrónico una vez que su pedido haya sido enviado.",
     faq: "Preguntas Frecuentes",
     faqQuestion1: "¿Cuál es su política de devoluciones?",
-    faqAnswer1: "Aceptamos devoluciones dentro de los 30 días posteriores a la compra. Consulte nuestra Política de Devoluciones para más detalles.",
+    faqAnswer1:
+      "Aceptamos devoluciones dentro de los 30 días posteriores a la compra. Consulte nuestra Política de Devoluciones para más detalles.",
     faqQuestion2: "¿Cómo puedo rastrear mi pedido?",
     faqAnswer2: "Recibirá un número de seguimiento por correo electrónico una vez que su pedido haya sido enviado.",
     faqQuestion3: "¿Realizan envíos internacionales?",
@@ -908,7 +915,7 @@ export const translations = {
     imageDetails: "Detalles de la Imagen",
     filename: "Nombre del archivo",
     path: "Ruta",
-    size: "Tamaño",
+    size: "Talla",
     format: "Formato",
     productName: "Nombre del Producto",
     noProductsUsingImage: "No hay productos usando esta imagen",
@@ -918,6 +925,9 @@ export const translations = {
     uploading: "Subiendo...",
     deleteImage: "Eliminar Imagen",
     deleting: "Eliminando...",
+    colors: "Colores",
+    noColorsAvailable: "No hay colores disponibles",
+    color: "Color",
   },
 }
 

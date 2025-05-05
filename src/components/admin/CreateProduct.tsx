@@ -17,7 +17,7 @@ interface DraftData {
   hoverImage: string
   description: string
   materials: string
-  sizes: string[]
+  sizes: Array<{ size: string; quantity: number; color: string }>
   shipping: Array<{ name: string; price: number }>
   productQuantity: number
   additionalImages: string[]
@@ -32,11 +32,15 @@ const CreateProduct: React.FC = () => {
   const [description, setDescription] = useState("")
   const [materials, setMaterials] = useState("")
   const [sizeInput, setSizeInput] = useState("")
-  const [sizes, setSizes] = useState<string[]>([])
+  const [sizeQuantityInput, setSizeQuantityInput] = useState("")
+  // Changed from selectedColors array to selectedColor string
+  const [selectedColor, setSelectedColor] = useState("")
+  const [customColor, setCustomColor] = useState("")
+  const [showColorDropdown, setShowColorDropdown] = useState(false)
+  const [sizes, setSizes] = useState<Array<{ size: string; quantity: number; color: string }>>([])
   const [shippingName, setShippingName] = useState("")
   const [shippingPrice, setShippingPrice] = useState("")
   const [shippingOptions, setShippingOptions] = useState<Array<{ name: string; price: number }>>([])
-  const [productQuantity, setProductQuantity] = useState(1)
   const [additionalImages, setAdditionalImages] = useState<string[]>([])
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
@@ -44,6 +48,7 @@ const CreateProduct: React.FC = () => {
   const [deletingImage, setDeletingImage] = useState<string | null>(null)
   const [draftId, setDraftId] = useState<string | null>(null)
   const [savingDraft, setSavingDraft] = useState(false)
+  const [isCustomColor, setIsCustomColor] = useState(false)
   const navigate = useNavigate()
 
   // For image carousel
@@ -79,19 +84,7 @@ const CreateProduct: React.FC = () => {
   // Mark form as changed when any field updates
   useEffect(() => {
     formChangedRef.current = true
-  }, [
-    title,
-    type,
-    price,
-    image,
-    hoverImage,
-    description,
-    materials,
-    sizes,
-    shippingOptions,
-    productQuantity,
-    additionalImages,
-  ])
+  }, [title, type, price, image, hoverImage, description, materials, sizes, shippingOptions, additionalImages])
 
   const createNewDraft = async () => {
     try {
@@ -131,6 +124,7 @@ const CreateProduct: React.FC = () => {
     }
   }
 
+  // Update loadDraft method to handle color as string
   const loadDraft = async (id: string) => {
     try {
       const response = await fetch(`${import.meta.env.VITE_SITE_URL}/api/drafts/${id}`, {
@@ -150,9 +144,30 @@ const CreateProduct: React.FC = () => {
         setHoverImage(productData.hoverImage || "")
         setDescription(productData.description || "")
         setMaterials(productData.materials || "")
-        setSizes(productData.sizes || [])
+
+        // Handle sizes conversion - ensure color is a string
+        setSizes(
+          Array.isArray(productData.sizes)
+            ? productData.sizes.map(
+                (s: string | { size: string; quantity: number; color?: string; colors?: string[] }) => {
+                  if (typeof s === "string") {
+                    return { size: s, quantity: 1, color: "Default" }
+                  } else if (s.color) {
+                    // If color string already exists, use it
+                    return { ...s, color: s.color }
+                  } else if (s.colors && Array.isArray(s.colors) && s.colors.length > 0) {
+                    // Convert old colors array to color string (use first color)
+                    return { size: s.size, quantity: s.quantity, color: s.colors[0] }
+                  } else {
+                    // Default case
+                    return { size: s.size, quantity: s.quantity || 1, color: "Default" }
+                  }
+                },
+              )
+            : [],
+        )
+
         setShippingOptions(productData.shipping || [])
-        setProductQuantity(productData.productQuantity || 1)
         setAdditionalImages(productData.additionalImages || [])
       } else {
         // If draft not found, create a new one
@@ -186,7 +201,7 @@ const CreateProduct: React.FC = () => {
         materials,
         sizes,
         shipping: shippingOptions,
-        productQuantity,
+        productQuantity: 1,
         additionalImages,
       }
 
@@ -234,7 +249,7 @@ const CreateProduct: React.FC = () => {
         materials,
         sizes,
         shipping: shippingOptions,
-        productQuantity,
+        productQuantity: 1,
         additionalImages,
       }
 
@@ -296,7 +311,7 @@ const CreateProduct: React.FC = () => {
             materials,
             sizes,
             shipping: shippingOptions,
-            productQuantity,
+            productQuantity: 1,
             additionalImages: updatedAdditionalImages,
           },
         }),
@@ -508,13 +523,60 @@ const CreateProduct: React.FC = () => {
     fileInput.click()
   }
 
+  // Add this array of available colors
+  const availableColors = [
+    "Black",
+    "White",
+    "Red",
+    "Blue",
+    "Green",
+    "Yellow",
+    "Purple",
+    "Pink",
+    "Orange",
+    "Brown",
+    "Gray",
+    "Teal",
+  ]
+
+  // Select a single color
+  const selectColor = (color: string) => {
+    setSelectedColor(color)
+    setShowColorDropdown(false)
+    setIsCustomColor(false)
+  }
+
+  // Updated handleAddSize function to use a single color
   const handleAddSize = () => {
-    if (sizeInput.trim()) {
-      const newSizes = [...sizes, sizeInput.trim()]
+    if (sizeInput.trim() && sizeQuantityInput.trim()) {
+      const quantity = Number.parseInt(sizeQuantityInput)
+      if (isNaN(quantity) || quantity < 1) {
+        setError("Quantity must be a positive number")
+        return
+      }
+
+      // Use either the selected color, custom color, or default
+      let finalColor = "Default"
+      if (isCustomColor && customColor.trim()) {
+        finalColor = customColor.trim()
+      } else if (selectedColor) {
+        finalColor = selectedColor
+      }
+
+      const newSize = {
+        size: sizeInput.trim(),
+        quantity,
+        color: finalColor,
+      }
+
+      const newSizes = [...sizes, newSize]
       setSizes(newSizes)
       setSizeInput("")
+      setSizeQuantityInput("")
+      setSelectedColor("")
+      setCustomColor("")
+      setShowColorDropdown(false)
 
-      // Save draft immediately after adding a size
       if (draftId) {
         formChangedRef.current = true
         saveDraft()
@@ -539,7 +601,7 @@ const CreateProduct: React.FC = () => {
     if (shippingName.trim() && shippingPrice.trim()) {
       const newShipping = {
         name: shippingName.trim(),
-        price: Number(shippingPrice)
+        price: Number(shippingPrice),
       }
       setShippingOptions([...shippingOptions, newShipping])
       setShippingName("")
@@ -566,8 +628,7 @@ const CreateProduct: React.FC = () => {
       !description.trim() ||
       !materials.trim() ||
       sizes.length === 0 ||
-      shippingOptions.length === 0 ||
-      productQuantity < 1
+      shippingOptions.length === 0
     ) {
       setError("Please fill all the required inputs and add at least one size and shipping option")
       return
@@ -594,7 +655,6 @@ const CreateProduct: React.FC = () => {
           materials,
           sizes,
           shipping: shippingOptions,
-          productQuantity,
           additionalImages,
         }),
       })
@@ -624,7 +684,6 @@ const CreateProduct: React.FC = () => {
                   materials,
                   sizes,
                   shipping: [],
-                  productQuantity,
                   additionalImages: [],
                 },
               }),
@@ -759,6 +818,7 @@ const CreateProduct: React.FC = () => {
         <form onSubmit={handleSubmit} className="mt-8 space-y-6">
           {error && <div className="bg-red-50 border border-red-400 text-red-700 px-4 py-3 rounded">{error}</div>}
 
+          {/* Title */}
           <div>
             <label htmlFor="title" className="block text-sm font-medium text-gray-700">
               Title
@@ -782,6 +842,7 @@ const CreateProduct: React.FC = () => {
             />
           </div>
 
+          {/* Type */}
           <div>
             <label htmlFor="type" className="block text-sm font-medium text-gray-700">
               Type
@@ -809,6 +870,7 @@ const CreateProduct: React.FC = () => {
             </select>
           </div>
 
+          {/* Price */}
           <div>
             <label htmlFor="price" className="block text-sm font-medium text-gray-700">
               Price
@@ -834,18 +896,162 @@ const CreateProduct: React.FC = () => {
             />
           </div>
 
+          {/* Sizes + Quantity + Color */}
           <div>
-            <label htmlFor="productQuantity" className="block text-sm font-medium text-gray-700">
-              Product Quantity
+            <label className="block text-sm font-medium text-gray-700">Sizes</label>
+            <div className="flex items-center mt-1 space-x-2">
+              <input
+                type="text"
+                placeholder="Enter size"
+                value={sizeInput}
+                onChange={(e) => setSizeInput(e.target.value)}
+                className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              />
+              <input
+                type="number"
+                placeholder="Quantity"
+                min="1"
+                value={sizeQuantityInput}
+                onChange={(e) => setSizeQuantityInput(e.target.value)}
+                className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              />
+              <div className="relative w-full">
+                {isCustomColor ? (
+                  <input
+                    type="text"
+                    placeholder="Custom color"
+                    value={customColor}
+                    onChange={(e) => setCustomColor(e.target.value)}
+                    className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  />
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setShowColorDropdown(!showColorDropdown)}
+                      className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-left focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      {selectedColor || "Select color"}
+                    </button>
+                    {showColorDropdown && (
+                      <div className="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base overflow-auto focus:outline-none sm:text-sm">
+                        {availableColors.map((color) => (
+                          <div
+                            key={color}
+                            className="flex items-center justify-between px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                            onClick={() => selectColor(color)}
+                          >
+                            <div className="flex items-center">
+                              <span
+                                className="w-4 h-4 mr-2 rounded-full"
+                                style={{ backgroundColor: color.toLowerCase() }}
+                              ></span>
+                              <span>{color}</span>
+                            </div>
+                            {selectedColor === color && (
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="h-5 w-5 text-blue-600"
+                                viewBox="0 0 20 20"
+                                fill="currentColor"
+                              >
+                                <path
+                                  fillRule="evenodd"
+                                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                  clipRule="evenodd"
+                                />
+                              </svg>
+                            )}
+                          </div>
+                        ))}
+                        <div
+                          className="flex items-center px-4 py-2 hover:bg-gray-100 cursor-pointer border-t border-gray-200"
+                          onClick={() => setIsCustomColor(true)}
+                        >
+                          <span className="text-blue-600">+ Add custom color</span>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+                {isCustomColor && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCustomColor(false)
+                      setCustomColor("")
+                    }}
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    <X size={16} />
+                  </button>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={handleAddSize}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                Add
+              </button>
+            </div>
+            <ul className="mt-2">
+              {sizes.map((sizeObj, index) => (
+                <li
+                  key={index}
+                  className="inline-flex items-center justify-between bg-gray-100 rounded-md text-gray-700 px-3 py-1 mr-2 mt-2"
+                >
+                  <span>
+                    {sizeObj.size} - {sizeObj.quantity} units - {sizeObj.color}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveSize(index)}
+                    className="ml-2 text-red-500 hover:text-red-700 focus:outline-none"
+                  >
+                    <X size={16} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Description */}
+          <div>
+            <label htmlFor="description" className="block text-sm font-medium text-gray-700">
+              Description
+            </label>
+            <textarea
+              id="description"
+              required
+              value={description}
+              onChange={(e) => {
+                setDescription(e.target.value)
+                formChangedRef.current = true
+              }}
+              onBlur={() => {
+                if (draftId && formChangedRef.current) {
+                  saveDraft()
+                  formChangedRef.current = false
+                }
+              }}
+              rows={3}
+              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          {/* Materials */}
+          <div>
+            <label htmlFor="materials" className="block text-sm font-medium text-gray-700">
+              Materials
             </label>
             <input
-              type="number"
-              id="productQuantity"
+              type="text"
+              id="materials"
               required
-              min="1"
-              value={productQuantity}
+              value={materials}
               onChange={(e) => {
-                setProductQuantity(Math.max(1, Number.parseInt(e.target.value) || 1))
+                setMaterials(e.target.value)
                 formChangedRef.current = true
               }}
               onBlur={() => {
@@ -858,6 +1064,54 @@ const CreateProduct: React.FC = () => {
             />
           </div>
 
+          {/* Shipping Options */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Shipping Options</label>
+            <div className="flex items-center mt-1">
+              <input
+                type="text"
+                placeholder="Shipping name"
+                value={shippingName}
+                onChange={(e) => setShippingName(e.target.value)}
+                className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              />
+              <input
+                type="number"
+                placeholder="Price"
+                value={shippingPrice}
+                onChange={(e) => setShippingPrice(e.target.value)}
+                className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 ml-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              />
+              <button
+                type="button"
+                onClick={handleAddShipping}
+                className="ml-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                Add
+              </button>
+            </div>
+            <ul className="mt-2">
+              {shippingOptions.map((option, index) => (
+                <li
+                  key={index}
+                  className="inline-flex items-center justify-between bg-gray-100 rounded-md text-gray-700 px-3 py-1 mr-2 mt-2"
+                >
+                  <span>
+                    {option.name} - ${option.price}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveShipping(index)}
+                    className="ml-2 text-red-500 hover:text-red-700 focus:outline-none"
+                  >
+                    <X size={16} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Image */}
           <div>
             <label htmlFor="image" className="block text-sm font-medium text-gray-700">
               Image
@@ -945,6 +1199,7 @@ const CreateProduct: React.FC = () => {
             )}
           </div>
 
+          {/* Hover Image */}
           <div>
             <label htmlFor="hoverImage" className="block text-sm font-medium text-gray-700">
               Hover Image
@@ -1032,133 +1287,7 @@ const CreateProduct: React.FC = () => {
             )}
           </div>
 
-          <div>
-            <label htmlFor="description" className="block text-sm font-medium text-gray-700">
-              Description
-            </label>
-            <textarea
-              id="description"
-              required
-              value={description}
-              onChange={(e) => {
-                setDescription(e.target.value)
-                formChangedRef.current = true
-              }}
-              onBlur={() => {
-                if (draftId && formChangedRef.current) {
-                  saveDraft()
-                  formChangedRef.current = false
-                }
-              }}
-              rows={3}
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="materials" className="block text-sm font-medium text-gray-700">
-              Materials
-            </label>
-            <input
-              type="text"
-              id="materials"
-              required
-              value={materials}
-              onChange={(e) => {
-                setMaterials(e.target.value)
-                formChangedRef.current = true
-              }}
-              onBlur={() => {
-                if (draftId && formChangedRef.current) {
-                  saveDraft()
-                  formChangedRef.current = false
-                }
-              }}
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Sizes</label>
-            <div className="flex items-center mt-1">
-              <input
-                type="text"
-                placeholder="Enter size"
-                value={sizeInput}
-                onChange={(e) => setSizeInput(e.target.value)}
-                className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-              />
-              <button
-                type="button"
-                onClick={handleAddSize}
-                className="ml-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                Add
-              </button>
-            </div>
-            <ul className="mt-2">
-              {sizes.map((size, index) => (
-                <li
-                  key={index}
-                  className="inline-flex items-center justify-between bg-gray-100 rounded-md text-gray-700 px-3 py-1 mr-2 mt-2"
-                >
-                  <span>{size}</span>
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveSize(index)}
-                    className="ml-2 text-red-500 hover:text-red-700 focus:outline-none"
-                  >
-                    <X size={16} />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Shipping Options</label>
-            <div className="flex items-center mt-1">
-              <input
-                type="text"
-                placeholder="Shipping name"
-                value={shippingName}
-                onChange={(e) => setShippingName(e.target.value)}
-                className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-              />
-              <input
-                type="number"
-                placeholder="Price"
-                value={shippingPrice}
-                onChange={(e) => setShippingPrice(e.target.value)}
-                className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 ml-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-              />
-              <button
-                type="button"
-                onClick={handleAddShipping}
-                className="ml-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                Add
-              </button>
-            </div>
-            <ul className="mt-2">
-              {shippingOptions.map((option, index) => (
-                <li
-                  key={index}
-                  className="inline-flex items-center justify-between bg-gray-100 rounded-md text-gray-700 px-3 py-1 mr-2 mt-2"
-                >
-                  <span>{option.name} - ${option.price}</span>
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveShipping(index)}
-                    className="ml-2 text-red-500 hover:text-red-700 focus:outline-none"
-                  >
-                    <X size={16} />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-
+          {/* Additional Images */}
           <div>
             <label htmlFor="additionalImages" className="block text-sm font-medium text-gray-700">
               Additional Images

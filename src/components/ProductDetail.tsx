@@ -27,16 +27,22 @@ import { getProductApiUrl, getApiUrl } from "../utils/apiUtils"
 import { useCurrencyConversion } from "../utils/currencyUtils"
 
 interface ProductDetailProps {
-  onBack: () => void
+  onBack?: () => void
 }
 
+// Update the Product interface to include the legacy color field
 interface Product {
   _id: string
   title: string
   price: number
   description?: string
   materials?: string
-  sizes?: string[]
+  sizes?: Array<{
+    size: string
+    quantity: number
+    colors?: string[]
+    color?: string // Add support for legacy color field
+  }>
   shipping?: Array<{ name: string; price: number }>
   image: string
   hoverImage?: string
@@ -109,6 +115,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
   const [showModal, setShowModal] = useState(false)
   const [modalImage, setModalImage] = useState<string | null>(null)
   const [selectedSize, setSelectedSize] = useState<string>("")
+  const [selectedColor, setSelectedColor] = useState<string>("")
   const [userRating, setUserRating] = useState(0)
   const [hoverRating, setHoverRating] = useState(0)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
@@ -132,7 +139,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
     city: "",
     state: "",
     postalCode: "",
-    country: ""
+    country: "",
   })
   const [previewPhone, setPreviewPhone] = useState("")
   const [previewId, setPreviewId] = useState("")
@@ -161,6 +168,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
     }
   }, [location])
 
+  // Update the fetchProduct function to handle both color and colors fields
   const fetchProduct = async (forceRefresh = false) => {
     if (!id) {
       setError("Product ID is missing")
@@ -195,6 +203,28 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
         productQuantity: response.data.productQuantity != null ? Number(response.data.productQuantity) : 1,
       }
 
+      // Normalize sizes to ensure colors are properly handled
+      if (productData.sizes && Array.isArray(productData.sizes)) {
+        productData.sizes = productData.sizes.map((size: { size: string; quantity: number; colors?: string[]; color?: string }) => {
+          // If size has a color field but no colors array, convert it
+          if (size.color && (!size.colors || !size.colors.length)) {
+            return {
+              ...size,
+              colors: [size.color],
+            }
+          }
+          // Ensure colors is at least an empty array if undefined
+          if (!size.colors) {
+            return {
+              ...size,
+              colors: [],
+            }
+          }
+          return size
+        })
+      }
+
+      console.log("Normalized product data:", productData)
       setProduct(productData)
       lastFetchTime.current = timestamp
       isReturningFromPurchase.current = false
@@ -211,9 +241,54 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
         setSelectedShipping(productData.shipping[0])
       }
 
-      // Initialize selected size when product loads
+      // Initialize selected size when product loads - choose first available size
       if (productData && productData.sizes && productData.sizes.length > 0) {
-        setSelectedSize(productData.sizes[0])
+        // Group sizes by name
+        const sizeGroups = new Map()
+        productData.sizes.forEach((sizeObj: { size: string; quantity: number; colors?: string[]; color?: string }) => {
+          const sizeLower = sizeObj.size.toLowerCase()
+          // Handle both color and colors fields
+          const colorArray = Array.isArray(sizeObj.colors) ? sizeObj.colors : sizeObj.color ? [sizeObj.color] : []
+
+          if (!sizeGroups.has(sizeLower)) {
+            sizeGroups.set(sizeLower, {
+              size: sizeObj.size,
+              quantity: sizeObj.quantity,
+              colors: colorArray,
+            })
+          } else {
+            const existingSize = sizeGroups.get(sizeLower)
+            existingSize.quantity += sizeObj.quantity
+            if (colorArray.length > 0) {
+              existingSize.colors = [...new Set([...existingSize.colors, ...colorArray])]
+            }
+          }
+        })
+
+        // Convert map to array
+        const mergedSizes = Array.from(sizeGroups.values())
+        console.log("Merged sizes:", mergedSizes)
+
+        // Find first size that has quantity > 0
+        const availableSize = mergedSizes.find((sizeObj) => sizeObj.quantity > 0)
+
+        if (availableSize) {
+          setSelectedSize(availableSize.size)
+          // Set first available color if any
+          if (availableSize.colors && availableSize.colors.length > 0) {
+            setSelectedColor(availableSize.colors[0])
+          } else {
+            setSelectedColor("")
+          }
+        } else {
+          setSelectedSize(mergedSizes[0].size) // Default to first size even if out of stock
+          // Set first available color if any
+          if (mergedSizes[0].colors && mergedSizes[0].colors.length > 0) {
+            setSelectedColor(mergedSizes[0].colors[0])
+          } else {
+            setSelectedColor("")
+          }
+        }
       }
 
       // Increment visit count only once per page load
@@ -596,14 +671,55 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
 
   // Update quantity handling to respect product quantity limit
   const handleQuantityChange = (newQuantity: number) => {
-    if (product && product.productQuantity) {
-      // Ensure quantity is between 1 and product quantity
-      const validQuantity = Math.min(Math.max(1, newQuantity), product.productQuantity)
-      setQuantity(validQuantity)
-    } else {
-      // If no product quantity is set, just ensure it's at least 1
-      setQuantity(Math.max(1, newQuantity))
-    }
+    // Find the selected size and color combination to get its quantity
+    const colorObj = getColorsForSelectedSize().find((c) => c.color === selectedColor)
+    const maxQuantity = colorObj?.quantity || 0
+
+    // Ensure quantity is between 1 and available quantity for the selected size and color
+    const validQuantity = Math.min(Math.max(1, newQuantity), maxQuantity)
+    setQuantity(validQuantity)
+  }
+
+  // Add console logging to debug the colors issue
+  const getColorsForSelectedSize = () => {
+    if (!product || !selectedSize) return []
+
+    console.log("Product sizes:", product.sizes)
+    console.log("Selected size:", selectedSize)
+
+    // Find all size objects with the same size name
+    const sizeObjs =
+      product.sizes?.filter(
+        (sizeObj: { size: string; quantity: number; colors?: string[] }) =>
+          sizeObj.size.toLowerCase() === selectedSize.toLowerCase(),
+      ) || []
+
+    console.log("Matching size objects:", sizeObjs)
+
+    // Create a map to store color and its quantity
+    const colorMap = new Map()
+
+    // Combine colors from all matching size objects
+    sizeObjs.forEach((sizeObj) => {
+      // Handle both string and array formats for colors
+      const colorArray = Array.isArray(sizeObj.colors) ? sizeObj.colors : sizeObj.color ? [sizeObj.color] : [] // Support legacy 'color' field
+
+      if (colorArray && colorArray.length > 0) {
+        colorArray.forEach((color: string) => {
+          // If color already exists, add the quantity
+          if (colorMap.has(color)) {
+            colorMap.set(color, colorMap.get(color) + sizeObj.quantity)
+          } else {
+            colorMap.set(color, sizeObj.quantity)
+          }
+        })
+      }
+    })
+
+    console.log("Color map:", Array.from(colorMap.entries()))
+
+    // Convert map to array of objects with color and quantity
+    return Array.from(colorMap).map(([color, quantity]) => ({ color, quantity }))
   }
 
   // Add a manual refresh function
@@ -647,6 +763,17 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
       setAddingToCart(true)
       setCartMessage("")
 
+      // Find the quantity for the selected color
+      const colorObj = getColorsForSelectedSize().find((c) => c.color.toLowerCase() === selectedColor.toLowerCase())
+
+      // Check if selected color is available
+      if (!colorObj || colorObj.quantity <= 0) {
+        setCartMessage(t("colorOutOfStock"))
+        setTimeout(() => setCartMessage(""), 3000)
+        setAddingToCart(false)
+        return
+      }
+
       const response = await fetch(`${import.meta.env.VITE_SITE_URL}/api/cart`, {
         method: "POST",
         headers: {
@@ -660,6 +787,8 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
           price: product.price,
           image: product.image,
           quantity: quantity,
+          size: selectedSize,
+          color: selectedColor,
         }),
       })
 
@@ -696,7 +825,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
   // Default values for missing fields
   const description = product.description || "No description available."
   const materials = product.materials || "Information not available."
-  const sizes = product.sizes || ["S", "M", "L"]
+  const sizes = product.sizes || []
   const shipping = product.shipping || []
   const reviews = product.reviews || []
   const recommended = product.recommended || []
@@ -739,7 +868,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
           id: previewId,
           firstName: previewFirstName,
           lastName: previewLastName,
-          address: previewAddress
+          address: previewAddress,
         }),
       })
 
@@ -764,19 +893,31 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
       return
     }
 
+    // Check if selected size is available
+    const selectedSizeObj = product.sizes?.find(
+      (sizeObj: { size: string; quantity: number; colors?: string[] }) => sizeObj.size === selectedSize,
+    )
+    if (!selectedSizeObj || selectedSizeObj.quantity <= 0) {
+      setCartMessage(t("sizeOutOfStock"))
+      setTimeout(() => setCartMessage(""), 3000)
+      return
+    }
+
     // Initialize preview form with current user data
     if (userData) {
       setPreviewFirstName(userData.firstName || "")
       setPreviewLastName(userData.lastName || "")
       setPreviewPhone(userData.phone || "")
       setPreviewId(userData.id || "")
-      setPreviewAddress(userData.address || {
-        street: "",
-        city: "",
-        state: "",
-        postalCode: "",
-        country: ""
-      })
+      setPreviewAddress(
+        userData.address || {
+          street: "",
+          city: "",
+          state: "",
+          postalCode: "",
+          country: "",
+        },
+      )
     }
 
     setShowPayPalPreview(true)
@@ -808,8 +949,8 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
       <Header currency={currency} setCurrency={setCurrency} language={language} setLanguage={setLanguage} />
 
       <main className="container mx-auto px-4 py-8 mt-16">
-          {/* Back button */}
-          <div className="mb-8">
+        {/* Back button */}
+        <div className="mb-8">
           <button onClick={handleBackToProducts} className="flex items-center text-gray-700 hover:text-primary-dark">
             <ArrowLeft size={20} className="mr-2" /> {t("backToProducts")}
           </button>
@@ -858,7 +999,9 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
 
           <div>
             <h1 className="text-3xl font-title font-bold mb-4">{product.title}</h1>
-            <p className="text-2xl font-title font-[800] text-pricetxt text-[1.8rem] mb-6">{formatPrice(product.price, currency)}</p>
+            <p className="text-2xl font-title font-[800] text-pricetxt text-[1.8rem] mb-6">
+              {formatPrice(product.price, currency)}
+            </p>
 
             {/* Update the star rating component to allow rating if purchased, regardless of stock */}
             <div className="mb-4">
@@ -871,11 +1014,9 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
                       className={`${!isLoggedIn || !hasPurchased ? "cursor-not-allowed opacity-70" : "cursor-pointer"} ${
                         (hoverRating || userRating) >= star
                           ? "text-primary-dark fill-primary-dark"
-                          : averageRating >= star
+                          : averageRating >= star - 0.5
                             ? "text-primary-dark fill-primary-dark"
-                            : averageRating >= star - 0.5
-                              ? "text-primary-dark fill-primary-dark"
-                              : "text-gray-300"
+                            : "text-gray-300"
                       }`}
                       onClick={() => handleRatingSubmit(star)}
                       onMouseEnter={() => (isLoggedIn && hasPurchased ? setHoverRating(star) : null)}
@@ -890,8 +1031,8 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
 
               {isLoggedIn && !hasPurchased && (
                 <div className="mt-2">
-                <p className="text-sm text-amber-600">{t("purchaseRequiredForRating")}</p>
-              </div>
+                  <p className="text-sm text-amber-600">{t("purchaseRequiredForRating")}</p>
+                </div>
               )}
 
               {!isLoggedIn && (
@@ -903,19 +1044,39 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
               )}
             </div>
 
+            {/* Update the quantity section to show available quantity for selected size */}
             <div className="mb-6">
               <div className="flex items-center justify-between">
                 <label className="block font-subtitle text-gray-700 mb-2">{t("quantity")}</label>
-                <span
-                  className={`text-sm font-body ${(product.productQuantity ?? 0) < 1 ? "text-red-600 font-bold" : "text-gray-500"}`}
-                >
-                  {(product.productQuantity ?? 0) < 1 ? t("outOfStock") : `${t("available")}: ${productQuantity ?? 0}`}
-                </span>
+                {selectedSize && (
+                  <span
+                    className={`text-sm font-body ${
+                      (
+                        product.sizes?.find(
+                          (s: { size: string; quantity: number; colors?: string[] }) => s.size === selectedSize,
+                        )?.quantity ?? 0
+                      ) <= 0
+                        ? "text-red-600 font-bold"
+                        : "text-gray-500"
+                    }`}
+                  >
+                    {(product.sizes?.find(
+                      (s: { size: string; quantity: number; colors?: string[] }) => s.size === selectedSize,
+                    )?.quantity ?? 0 <= 0)
+                      ? t("outOfStock")
+                      : `${t("available")}: ${product.sizes?.find((s: { size: string; quantity: number; colors?: string[] }) => s.size === selectedSize)?.quantity ?? 0}`}
+                  </span>
+                )}
               </div>
               <div className="flex items-center">
                 <button
                   onClick={() => handleQuantityChange(quantity - 1)}
-                  disabled={quantity <= 1 || (product.productQuantity ?? 0) < 1}
+                  disabled={
+                    quantity <= 1 ||
+                    (product.sizes?.find(
+                      (s: { size: string; quantity: number; colors?: string[] }) => s.size === selectedSize,
+                    )?.quantity || 0) <= 0
+                  }
                   className="px-3 py-1 border rounded-l-md disabled:opacity-50"
                 >
                   -
@@ -923,15 +1084,31 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
                 <input
                   type="number"
                   min="1"
-                  max={productQuantity}
+                  max={
+                    product.sizes?.find(
+                      (s: { size: string; quantity: number; colors?: string[] }) => s.size === selectedSize,
+                    )?.quantity || 0
+                  }
                   value={quantity}
                   onChange={(e) => handleQuantityChange(Number.parseInt(e.target.value) || 1)}
-                  disabled={(product.productQuantity ?? 0) < 1}
+                  disabled={
+                    (product.sizes?.find(
+                      (s: { size: string; quantity: number; colors?: string[] }) => s.size === selectedSize,
+                    )?.quantity || 0) <= 0
+                  }
                   className="w-16 px-3 py-1 border-t border-b text-center font-body disabled:bg-gray-100"
                 />
                 <button
                   onClick={() => handleQuantityChange(quantity + 1)}
-                  disabled={quantity >= productQuantity || (product.productQuantity ?? 0) < 1}
+                  disabled={
+                    quantity >=
+                      (product.sizes?.find(
+                        (s: { size: string; quantity: number; colors?: string[] }) => s.size === selectedSize,
+                      )?.quantity || 0) ||
+                    (product.sizes?.find(
+                      (s: { size: string; quantity: number; colors?: string[] }) => s.size === selectedSize,
+                    )?.quantity || 0) <= 0
+                  }
                   className="px-3 py-1 border rounded-r-md disabled:opacity-50"
                 >
                   +
@@ -964,12 +1141,21 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
                 {addingToCart ? t("adding") : t("addToCart")}
               </button>
 
+              {/* Update the Buy with PayPal button to be disabled if selected size is out of stock */}
               <button
                 className="flex-1 bg-primary-dark text-primary-light py-3 rounded-md hover:bg-secondary-light hover:text-gray-800 disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:bg-primary-dark disabled:hover:text-primary-light"
                 onClick={handlePayPalCheckout}
-                disabled={(product?.productQuantity ?? 0) < 1}
+                disabled={
+                  (product.sizes?.find(
+                    (s: { size: string; quantity: number; colors?: string[] }) => s.size === selectedSize,
+                  )?.quantity || 0) <= 0
+                }
               >
-                {(product.productQuantity ?? 0) < 1 ? t("outOfStock") : t("buyWithPayPal")}
+                {(product.sizes?.find(
+                  (s: { size: string; quantity: number; colors?: string[] }) => s.size === selectedSize,
+                )?.quantity || 0) <= 0
+                  ? t("outOfStock")
+                  : t("buyWithPayPal")}
               </button>
             </div>
             <p className="text-center text-gray-500 text-sm mb-8">{t("otherPaymentMethods")}</p>
@@ -986,20 +1172,118 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
                 <p className="font-body text-gray-700">{materials}</p>
               </div>
 
+              {/* Replace the sizes section in the render part with this updated version */}
               <div>
                 <h2 className="text-xl font-title font-semibold mb-2">{t("sizes")}</h2>
                 <div className="flex flex-wrap gap-2">
-                  {sizes.map((size, index) => (
-                    <button
-                      key={index}
-                      className={`px-4 py-2 border rounded-md font-body ${
-                        selectedSize === size ? "bg-primary-light text-black border-primary" : "hover:border-primary"
-                      }`}
-                      onClick={() => setSelectedSize(size)}
-                    >
-                      {size}
-                    </button>
-                  ))}
+                  {product.sizes && product.sizes.length > 0 ? (
+                    (() => {
+                      // Group sizes by name (case insensitive)
+                      const sizeGroups = new Map()
+                      product.sizes.forEach((sizeObj: { size: string; quantity: number; colors?: string[] }) => {
+                        const sizeLower = sizeObj.size.toLowerCase()
+                        if (!sizeGroups.has(sizeLower)) {
+                          sizeGroups.set(sizeLower, {
+                            size: sizeObj.size, // Keep original case for display
+                            quantity: sizeObj.quantity,
+                            colors: sizeObj.colors || [],
+                          })
+                        } else {
+                          const existingSize = sizeGroups.get(sizeLower)
+                          existingSize.quantity += sizeObj.quantity
+                          // Combine colors
+                          if (sizeObj.colors && sizeObj.colors.length > 0) {
+                            existingSize.colors = [...new Set([...existingSize.colors, ...sizeObj.colors])]
+                          }
+                        }
+                      })
+
+                      // Convert map to array
+                      const mergedSizes = Array.from(sizeGroups.values())
+
+                      return mergedSizes.map((sizeObj, index) => (
+                        <button
+                          key={index}
+                          className={`px-4 py-2 rounded-md font-body ${
+                            selectedSize.toLowerCase() === sizeObj.size.toLowerCase()
+                              ? "bg-primary-light text-black border-primary border"
+                              : sizeObj.quantity > 0
+                                ? "bg-gray-200 text-gray-700 border border-gray-300 hover:border-primary"
+                                : "bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed"
+                          }`}
+                          onClick={() => {
+                            if (sizeObj.quantity > 0) {
+                              setSelectedSize(sizeObj.size)
+                              // Reset color when changing size and set to first available color
+                              const colorOptions = getColorsForSelectedSize()
+                              if (colorOptions.length > 0) {
+                                setSelectedColor(colorOptions[0].color)
+                              } else {
+                                setSelectedColor("")
+                              }
+                            }
+                          }}
+                          disabled={sizeObj.quantity <= 0}
+                        >
+                          <div className="flex flex-col items-center">
+                            <span>{sizeObj.size}</span>
+                            <span className="text-xs mt-1">
+                              {sizeObj.quantity <= 0 ? `(${t("outOfStock")})` : `(${sizeObj.quantity})`}
+                            </span>
+                            {/* Color indicators */}
+                            {sizeObj.colors && sizeObj.colors.length > 0 && (
+                              <div className="flex mt-1 gap-1 flex-wrap justify-center">
+                                {sizeObj.colors.map((color: string, colorIndex: number) => (
+                                  <span
+                                    key={colorIndex}
+                                    className="w-3 h-3 rounded-full border border-gray-300"
+                                    style={{
+                                      backgroundColor: color.toLowerCase(),
+                                      boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.1)",
+                                    }}
+                                    title={color}
+                                  ></span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </button>
+                      ))
+                    })()
+                  ) : (
+                    <p className="text-gray-500">{t("noSizesAvailable")}</p>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <h2 className="text-xl font-title font-semibold mb-2">{t("colors")}</h2>
+                <div className="flex flex-wrap gap-2">
+                  {getColorsForSelectedSize().length > 0 ? (
+                    getColorsForSelectedSize().map((colorObj, index) => (
+                      <button
+                        key={index}
+                        className={`px-4 py-2 rounded-md font-body flex items-center ${
+                          selectedColor === colorObj.color
+                            ? "bg-primary-light text-black border-primary border"
+                            : "bg-gray-200 text-gray-700 border border-gray-300 hover:border-primary"
+                        }`}
+                        onClick={() => setSelectedColor(colorObj.color)}
+                      >
+                        <span
+                          className="w-4 h-4 rounded-full mr-2"
+                          style={{
+                            backgroundColor: colorObj.color.toLowerCase(),
+                            border: "1px solid #ccc",
+                            boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.1)",
+                          }}
+                        ></span>
+                        {colorObj.color} <span className="ml-2 text-xs">({colorObj.quantity})</span>
+                      </button>
+                    ))
+                  ) : (
+                    <p className="text-gray-500">{t("noColorsAvailable")}</p>
+                  )}
                 </div>
               </div>
 
@@ -1021,7 +1305,9 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
                 {selectedShipping && (
                   <div className="flex items-center justify-between bg-gray-50 p-3 rounded-md">
                     <span className="font-body text-gray-700">{selectedShipping.name}</span>
-                    <div className={`px-3 py-1 rounded-md ${selectedShipping.price === 0 ? 'bg-green-500' : 'bg-orange-500'}`}>
+                    <div
+                      className={`px-3 py-1 rounded-md ${selectedShipping.price === 0 ? "bg-green-500" : "bg-orange-500"}`}
+                    >
                       <span className="text-white font-medium">
                         {selectedShipping.price === 0 ? t("free") : `$${selectedShipping.price}`}
                       </span>
@@ -1271,8 +1557,8 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
         </div>
       )}
 
-       {/* Login prompt modal */}
-       {showLoginPrompt && (
+      {/* Login prompt modal */}
+      {showLoginPrompt && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full">
             <div className="flex justify-end">
@@ -1407,9 +1693,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
                           required
                         />
                         {selectedShipping && (
-                          <div className="mt-1 text-sm text-gray-600">
-                            {t(`placeShippingAddress`)}
-                          </div>
+                          <div className="mt-1 text-sm text-gray-600">{t(`placeShippingAddress`)}</div>
                         )}
                       </div>
                     </div>
@@ -1471,6 +1755,26 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
                       <p className="text-gray-900">{formatPrice(product?.price, currency)}</p>
                     </div>
                     <div className="flex justify-between">
+                      <p className="text-gray-600">{t("size")}</p>
+                      <p className="text-gray-900">{selectedSize}</p>
+                    </div>
+                    {selectedColor && (
+                      <div className="flex justify-between">
+                        <p className="text-gray-600">{t("color")}</p>
+                        <div className="flex items-center">
+                          <span
+                            className="w-4 h-4 rounded-full mr-2"
+                            style={{
+                              backgroundColor: selectedColor.toLowerCase(),
+                              border: "1px solid #ccc",
+                              boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.1)",
+                            }}
+                          ></span>
+                          <p className="text-gray-900">{selectedColor}</p>
+                        </div>
+                      </div>
+                    )}
+                    <div className="flex justify-between">
                       <p className="text-gray-600">{t("quantity")}</p>
                       <p className="text-gray-900">{quantity}</p>
                     </div>
@@ -1484,10 +1788,15 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
                       <div className="flex justify-between">
                         <p className="text-lg font-medium text-gray-900">{t("total")}</p>
                         <p className="text-lg font-medium text-gray-900">
-                          {formatPrice(selectedShipping ? (product?.price * quantity + selectedShipping.price) : (product?.price * quantity), currency)}
+                          {formatPrice(
+                            selectedShipping
+                              ? product?.price * quantity + selectedShipping.price
+                              : product?.price * quantity,
+                            currency,
+                          )}
                         </p>
                       </div>
-                      
+
                       {/* PayPal Button */}
                       <div className="mt-4">
                         <button
@@ -1513,39 +1822,45 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
 
       {/* PayPal form with return URL that redirects to orders page */}
       <form
-        id="paypal-form"
         action="https://www.paypal.com/cgi-bin/webscr"
         method="post"
         target="_top"
-        style={{ display: "none" }} // Hide the form
+        className="hidden"
       >
         <input type="hidden" name="cmd" value="_xclick" />
-        <input type="hidden" name="business" value={import.meta.env.VITE_ADMIN_USER_EMAIL_PP} />
-        <input type="hidden" name="item_name" value={product.title} />
+        <input type="hidden" name="business" value={import.meta.env.VITE_ADMIN_USER_EMAIL} />
+        <input
+          type="hidden"
+          name="item_name"
+          value={`${product.title} - ${selectedSize}${selectedColor ? ` - ${selectedColor}` : ""}`}
+        />
         <input type="hidden" name="item_number" value={product._id} />
-        <input type="hidden" name="amount" value={selectedShipping && selectedShipping.price > 0 ? (product.price + selectedShipping.price).toFixed(2) : product.price} />
+        <input
+          type="hidden"
+          name="amount"
+          value={
+            selectedShipping && selectedShipping.price > 0
+              ? (product.price + selectedShipping.price).toFixed(2)
+              : product.price
+          }
+        />
         <input type="hidden" name="quantity" value={quantity} />
         <input type="hidden" name="currency_code" value="USD" />
-        <input type="hidden" name="custom" value={userData ? userData._id : ""} />
+        <input type="hidden" name="custom" value={`${userData ? userData._id : ""}|${selectedSize}|${selectedColor}`} />
         <input type="hidden" name="no_shipping" value="1" />
         <input type="hidden" name="no_note" value="1" />
         <input type="hidden" name="tax" value="0" />
-        <input type="hidden" name="lc" value="US" />
-        <input type="hidden" name="bn" value="PP-BuyNowBF" />
-        <input type="hidden" name="notify_url" value={`${import.meta.env.VITE_SITE_URL}/api/paypal/ipn`} />
         <input
           type="hidden"
           name="return"
-          value={`${window.location.origin}/orders?success=true&productId=${product._id}&title=${encodeURIComponent(product.title)}&price=${product.price}&quantity=${quantity}&shipping=${selectedShipping ? selectedShipping.price : 0}`}
+          value={`${window.location.origin}/orders?success=true&productId=${product._id}&title=${encodeURIComponent(product.title)}&price=${product.price}&quantity=${quantity}&shipping=${selectedShipping ? selectedShipping.price : 0}&size=${selectedSize}&color=${encodeURIComponent(selectedColor)}`}
         />
         <input type="hidden" name="cancel_return" value={`${window.location.origin}/product/${product._id}`} />
         <input
           type="image"
           src="https://www.paypalobjects.com/en_US/i/btn/btn_buynow_LG.gif"
           name="submit"
-          title="Buy with PayPal"
-          alt="Buy now with PayPal"
-          style={{ border: 0 }}
+          alt="PayPal - The safer, easier way to pay online!"
         />
       </form>
     </div>

@@ -66,8 +66,8 @@ const userSchema = new mongoose.Schema(
       city: { type: String, default: "" },
       state: { type: String, default: "" },
       postalCode: { type: String, default: "" },
-      country: { type: String, default: "" }
-    }
+      country: { type: String, default: "" },
+    },
   },
   { timestamps: true },
 )
@@ -123,7 +123,16 @@ const productSchema = new mongoose.Schema(
     hoverImage: { type: String, required: true },
     description: { type: String },
     materials: { type: String },
-    sizes: { type: [String], default: [] },
+    sizes: {
+      type: [
+        {
+          size: String,
+          quantity: Number,
+          color: { type: String, default: "Default" }, // Changed from colors array to color string
+        },
+      ],
+      default: [],
+    },
     shipping: { type: [{ name: String, price: Number }], default: [] },
     productQuantity: { type: Number, default: 1, min: 1 },
     additionalImages: { type: [String], default: [] },
@@ -173,6 +182,8 @@ const orderSchema = new mongoose.Schema(
     title: { type: String, required: true },
     price: { type: Number, required: true },
     quantity: { type: Number, required: true, default: 1 },
+    size: { type: String, default: "" }, // Size field
+    color: { type: String, default: "" }, // Add color field
     paypalTransactionId: { type: String, required: true },
     paypalOrderId: { type: String },
     payerEmail: { type: String },
@@ -188,7 +199,7 @@ const orderSchema = new mongoose.Schema(
     },
     shippingMethod: {
       name: { type: String },
-      price: { type: Number, default: 0 }
+      price: { type: Number, default: 0 },
     },
     status: { type: String, default: "completed" },
     paymentDetails: { type: Object },
@@ -197,7 +208,6 @@ const orderSchema = new mongoose.Schema(
 )
 
 const Order = mongoose.model("Order", orderSchema)
-
 
 // PayPal IPN Log Schema - New schema to log all IPN messages
 const ipnLogSchema = new mongoose.Schema(
@@ -397,12 +407,12 @@ app.post("/logout", (req, res) => {
     httpOnly: true,
     secure: process.env.VITE_NODE_ENV === "production",
     sameSite: "none",
-    path: "/" // Asegúrate de que el path coincida con el usado al crear el cookie
-  });
+    path: "/", // Asegúrate de que el path coincida con el usado al crear el cookie
+  })
 
   res.json({ message: "Logged out successfully" })
 })
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                  
+
 // User Routes
 
 // Get all users - Admin only
@@ -502,17 +512,17 @@ app.put("/update-user", authenticateToken, async (req, res) => {
     const { name, email, avatar, phone, id, firstName, lastName, address } = req.body
     const updatedUser = await User.findByIdAndUpdate(
       req.user.userId,
-      { 
-        name, 
-        email, 
+      {
+        name,
+        email,
         avatar,
         phone,
         id,
         firstName,
         lastName,
-        address
+        address,
       },
-      { new: true }
+      { new: true },
     ).select("-password")
 
     res.json(updatedUser)
@@ -789,7 +799,6 @@ app.get("/products", async (req, res) => {
 
 app.post("/api/products", async (req, res) => {
   try {
-
     if (req.body.productQuantity) {
       req.body.productQuantity = Number(req.body.productQuantity)
     }
@@ -806,7 +815,6 @@ app.post("/api/products", async (req, res) => {
 // Update product - Added new route for API endpoint
 app.put("/api/products/:id", authenticateToken, isAdmin, async (req, res) => {
   try {
-
     // Ensure productQuantity is a number
     if (req.body.productQuantity) {
       req.body.productQuantity = Number(req.body.productQuantity)
@@ -1073,7 +1081,7 @@ app.get("/products/:id", async (req, res) => {
       ...product,
       description: product.description || "Quality product from Carol Store.",
       materials: product.materials || "Premium materials.",
-      sizes: product.sizes || ["S", "M", "L", "XL"],
+      sizes: product.sizes || [{ size: "M", quantity: 1, color: "Default" }],
       shipping: product.shipping || "Standard shipping: 3-5 business days.",
       productQuantity: product.productQuantity != null ? Number(product.productQuantity) : 1,
       visits: product.visits || 0,
@@ -1281,6 +1289,8 @@ const cartItemSchema = new mongoose.Schema(
     price: { type: Number, required: true },
     image: { type: String, required: true },
     quantity: { type: Number, required: true, default: 1 },
+    size: { type: String, default: "" }, // Size field
+    color: { type: String, default: "" }, // Add color field
   },
   { timestamps: true },
 )
@@ -1381,9 +1391,10 @@ app.get("/api/cart/count", authenticateToken, async (req, res) => {
   }
 })
 
+// Update the cart POST endpoint to handle sizes
 app.post("/api/cart", authenticateToken, async (req, res) => {
   try {
-    const { productId, title, type, price, image, quantity } = req.body
+    const { productId, title, type, price, image, quantity, size, color } = req.body
 
     // Get the product to check available quantity
     const product = await Product.findById(productId)
@@ -1391,21 +1402,34 @@ app.post("/api/cart", authenticateToken, async (req, res) => {
       return res.status(404).json({ message: "Product not found" })
     }
 
-    // Check if item already exists in cart
+    // Find the selected size in the product
+    const selectedSize = product.sizes.find((s) => s.size === size)
+    if (!selectedSize) {
+      return res.status(400).json({ message: "Selected size not found" })
+    }
+
+    // Check if the selected color is available for this size
+    if (color && selectedSize.color && !selectedSize.color.includes(color)) {
+      return res.status(400).json({ message: "Selected color not available for this size" })
+    }
+
+    // Check if item already exists in cart with the same size and color
     const existingItem = await CartItem.findOne({
       userId: req.user.userId,
       productId: productId,
+      size: size,
+      color: color || "",
     })
 
     // Calculate total quantity after this addition
     const currentQuantity = existingItem ? existingItem.quantity : 0
     const newTotalQuantity = currentQuantity + quantity
 
-    // Check if the new total quantity exceeds available stock
-    if (newTotalQuantity > product.productQuantity) {
+    // Check if the new total quantity exceeds available stock for this size
+    if (newTotalQuantity > selectedSize.quantity) {
       return res.status(400).json({
         message: "Maximum stock reached!",
-        availableStock: product.productQuantity,
+        availableStock: selectedSize.quantity,
         currentInCart: currentQuantity,
       })
     }
@@ -1425,6 +1449,8 @@ app.post("/api/cart", authenticateToken, async (req, res) => {
         price,
         image,
         quantity,
+        size,
+        color: color || "",
       })
 
       await cartItem.save()
@@ -1492,8 +1518,6 @@ app.get("/api/orders/:id", authenticateToken, async (req, res) => {
     res.status(500).json({ message: "Error fetching order", error: error.message })
   }
 })
-
-  
 
 app.post("/api/orders", authenticateToken, async (req, res) => {
   try {
@@ -1597,7 +1621,6 @@ app.delete("/api/product/:id", authenticateToken, isAdmin, async (req, res) => {
   }
 })
 
-
 // PayPal IPN Webhook
 app.post("/api/paypal/ipn", express.raw({ type: "application/x-www-form-urlencoded" }), async (req, res) => {
   // Convert the raw body to a string
@@ -1623,7 +1646,6 @@ app.post("/api/paypal/ipn", express.raw({ type: "application/x-www-form-urlencod
     ipnLog.verified = verificationResult === "VERIFIED"
 
     if (ipnLog.verified) {
-
       // Process the payment if it's completed
       if (ipnData.payment_status === "Completed") {
         try {
@@ -1663,7 +1685,7 @@ function verifyIPN(verificationBody) {
   return new Promise((resolve, reject) => {
     // Use sandbox URL for testing, production URL for live
     // const paypalHost = process.env.VITE_NODE_ENV === "production" ? "www.paypal.com" : "www.sandbox.paypal.com"
-    const paypalHost = "www.paypal.com";
+    const paypalHost = "www.paypal.com"
 
     const options = {
       host: paypalHost,
@@ -1700,6 +1722,7 @@ function verifyIPN(verificationBody) {
   })
 }
 
+// Update the createOrderFromIPN function to handle sizes
 async function createOrderFromIPN(ipnData) {
   try {
     // Check if an order with this transaction ID already exists
@@ -1709,8 +1732,11 @@ async function createOrderFromIPN(ipnData) {
       return existingOrder
     }
 
-    // Extract the user ID from the custom field
-    const userId = ipnData.custom
+    // Extract the user ID, size, and color from the custom field (format: "userId|size|color")
+    const customParts = ipnData.custom.split("|")
+    const userId = customParts[0]
+    const selectedSize = customParts.length > 1 ? customParts[1] : ""
+    const selectedColor = customParts.length > 2 ? customParts[2] : ""
 
     // Check if user exists and get their address
     const user = await User.findById(userId)
@@ -1728,9 +1754,10 @@ async function createOrderFromIPN(ipnData) {
     }
 
     // Get shipping method from product
-    const shippingMethod = product.shipping && product.shipping.length > 0 
-      ? product.shipping[0]  // Get the first shipping method
-      : { name: "Standard", price: 0 }
+    const shippingMethod =
+      product.shipping && product.shipping.length > 0
+        ? product.shipping[0] // Get the first shipping method
+        : { name: "Standard", price: 0 }
 
     // Create address string from user's address
     const addressParts = []
@@ -1739,7 +1766,7 @@ async function createOrderFromIPN(ipnData) {
     if (user.address.state) addressParts.push(user.address.state)
     if (user.address.postalCode) addressParts.push(user.address.postalCode)
     if (user.address.country) addressParts.push(user.address.country)
-    
+
     const addressString = addressParts.join(", ")
 
     // Create the order
@@ -1749,6 +1776,8 @@ async function createOrderFromIPN(ipnData) {
       title: ipnData.item_name || product.title,
       price: Number.parseFloat(ipnData.mc_gross) / Number.parseInt(ipnData.quantity || 1),
       quantity: Number.parseInt(ipnData.quantity || 1),
+      size: selectedSize,
+      color: selectedColor,
       paypalTransactionId: ipnData.txn_id,
       paypalOrderId: ipnData.parent_txn_id || ipnData.txn_id,
       payerEmail: ipnData.payer_email,
@@ -1763,7 +1792,7 @@ async function createOrderFromIPN(ipnData) {
       },
       shippingMethod: {
         name: `${addressString} (${shippingMethod.name})`,
-        price: shippingMethod.price
+        price: shippingMethod.price,
       },
       status: "completed",
       paymentDetails: ipnData,
@@ -1774,22 +1803,29 @@ async function createOrderFromIPN(ipnData) {
     // Always update inventory when an order is created
     const purchaseQuantity = Number.parseInt(ipnData.quantity || 1)
 
-    console.log(
-      `Updating stock for product ${productId}. Current quantity: ${product.productQuantity}, Purchase quantity: ${purchaseQuantity}`,
-    )
+    console.log(`Updating stock for product ${productId}, size ${selectedSize}. Purchase quantity: ${purchaseQuantity}`)
 
-    // Calculate new quantity and ensure it's not negative
-    const newQuantity = Math.max(0, product.productQuantity - purchaseQuantity)
+    // Find the size that was purchased
+    const sizeIndex = product.sizes.findIndex((s) => s.size === selectedSize)
+    if (sizeIndex >= 0) {
+      // Calculate new quantity and ensure it's not negative
+      const newQuantity = Math.max(0, product.sizes[sizeIndex].quantity - purchaseQuantity)
 
-    // Update the product with the new quantity
-    const updatedProduct = await Product.findByIdAndUpdate(productId, { productQuantity: newQuantity }, { new: true })
+      // Update the size quantity
+      product.sizes[sizeIndex].quantity = newQuantity
 
-    console.log(`Stock updated for product ${productId}. New quantity: ${updatedProduct.productQuantity}`)
+      // Update the product with the modified sizes array
+      await Product.findByIdAndUpdate(productId, { sizes: product.sizes }, { new: true })
+
+      console.log(`Stock updated for product ${productId}, size ${selectedSize}. New quantity: ${newQuantity}`)
+    }
 
     // Remove the item from the user's cart if it exists
     await CartItem.deleteMany({
       userId: userId,
       productId: productId,
+      size: selectedSize,
+      color: selectedColor,
     })
 
     return order
@@ -1799,9 +1835,9 @@ async function createOrderFromIPN(ipnData) {
   }
 }
 
-
 // Check if user has purchased a specific product
-app.get("/api/user/has-purchased/:productId", authenticateToken, async (req, res) => {
+app.get("/api/user/has-purchased/:productId", authenticateToken, async (req, res) =>
+{
   try {
     const productId = req.params.productId
     const userId = req.user.userId
@@ -1821,10 +1857,12 @@ app.get("/api/user/has-purchased/:productId", authenticateToken, async (req, res
     console.error("Error checking purchase history:", error)
     res.status(500).json({ message: "Error checking purchase history", error: error.message })
   }
-})
+}
+)
 
 // Suggestion Routes
-app.post("/api/suggestions", authenticateToken, async (req, res) => {
+app.post("/api/suggestions", authenticateToken, async (req, res) =>
+{
   try {
     const { message } = req.body
     const user = await User.findById(req.user.userId)
@@ -1845,18 +1883,17 @@ app.post("/api/suggestions", authenticateToken, async (req, res) => {
     console.error("Error creating suggestion:", error)
     res.status(500).json({ message: "Error creating suggestion", error: error.message })
   }
-})
+}
+)
 
-app.get("/api/suggestions", async (req, res) => {
+app.get("/api/suggestions", async (req, res) =>
+{
   try {
-    const page = parseInt(req.query.page) || 1
-    const limit = parseInt(req.query.limit) || 5
+    const page = Number.parseInt(req.query.page) || 1
+    const limit = Number.parseInt(req.query.limit) || 5
     const skip = (page - 1) * limit
 
-    const suggestions = await Suggestion.find()
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
+    const suggestions = await Suggestion.find().sort({ createdAt: -1 }).skip(skip).limit(limit)
 
     const total = await Suggestion.countDocuments()
 
@@ -1870,9 +1907,11 @@ app.get("/api/suggestions", async (req, res) => {
     console.error("Error fetching suggestions:", error)
     res.status(500).json({ message: "Error fetching suggestions", error: error.message })
   }
-})
+}
+)
 
-app.delete("/api/suggestions/:id", authenticateToken, async (req, res) => {
+app.delete("/api/suggestions/:id", authenticateToken, async (req, res) =>
+{
   try {
     const suggestion = await Suggestion.findById(req.params.id)
 
@@ -1891,15 +1930,19 @@ app.delete("/api/suggestions/:id", authenticateToken, async (req, res) => {
     console.error("Error deleting suggestion:", error)
     res.status(500).json({ message: "Error deleting suggestion", error: error.message })
   }
-})
+}
+)
 
 // Make sure this route is accessible without authentication for testing
-app.get("/api/test-route", (req, res) => {
+app.get("/api/test-route", (req, res) =>
+{
   res.json({ message: "API is working" })
-})
+}
+)
 
 // check admin status
-app.get("/api/check-admin", authenticateToken, async (req, res) => {
+app.get("/api/check-admin", authenticateToken, async (req, res) =>
+{
   try {
     const user = await User.findById(req.user.userId)
     if (user && user.email === process.env.VITE_ADMIN_USER_EMAIL) {
@@ -1910,7 +1953,8 @@ app.get("/api/check-admin", authenticateToken, async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: "Error checking admin status", error: error.message })
   }
-})
+}
+)
 
 const PORT = process.env.VITE_PORT || 3000
 app.listen(PORT, () => {

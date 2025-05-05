@@ -3,12 +3,13 @@
 import type React from "react"
 import { useState, useRef, useEffect } from "react"
 import { useNavigate, useParams } from "react-router-dom"
-import { ArrowLeft, Trash2, X, ChevronLeft, ChevronRight, RefreshCw, Upload } from "lucide-react"
+import { ArrowLeft, X, ChevronLeft, ChevronRight, RefreshCw, Trash2 } from "lucide-react"
 import type { ProductType } from "../../App"
 import { getImageUrl, getPlaceholder } from "../../utils/imageUtils"
 import GalleryModal from "./GalleryModal"
 import ConfirmationModal from "./ConfirmationModal"
 
+// Update the DraftData interface to include color in sizes
 interface DraftData {
   title: string
   type: ProductType
@@ -17,7 +18,7 @@ interface DraftData {
   hoverImage: string
   description: string
   materials: string
-  sizes: string[]
+  sizes: Array<{ size: string; quantity: number; colors: string[] }>
   shipping: Array<{ name: string; price: number }>
   productQuantity: number
   additionalImages: string[]
@@ -32,12 +33,16 @@ const EditDraft: React.FC = () => {
   const [hoverImage, setHoverImage] = useState("")
   const [description, setDescription] = useState("")
   const [materials, setMaterials] = useState("")
+  // Add state for color input after the sizeQuantityInput state
   const [sizeInput, setSizeInput] = useState("")
-  const [sizes, setSizes] = useState<string[]>([])
+  const [sizeQuantityInput, setSizeQuantityInput] = useState("")
+  const [sizeColorInput, setSizeColorInput] = useState("")
+  const [selectedColors, setSelectedColors] = useState<string[]>([])
+  const [showColorDropdown, setShowColorDropdown] = useState(false)
+  const [sizes, setSizes] = useState<Array<{ size: string; quantity: number; colors: string[] }>>([])
   const [shippingName, setShippingName] = useState("")
   const [shippingPrice, setShippingPrice] = useState("")
   const [shippingOptions, setShippingOptions] = useState<Array<{ name: string; price: number }>>([])
-  const [productQuantity, setProductQuantity] = useState(1)
   const [additionalImages, setAdditionalImages] = useState<string[]>([])
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
@@ -88,20 +93,9 @@ const EditDraft: React.FC = () => {
   // Mark form as changed when any field updates
   useEffect(() => {
     formChangedRef.current = true
-  }, [
-    title,
-    type,
-    price,
-    image,
-    hoverImage,
-    description,
-    materials,
-    sizes,
-    shippingOptions,
-    productQuantity,
-    additionalImages,
-  ])
+  }, [title, type, price, image, hoverImage, description, materials, sizes, shippingOptions, additionalImages])
 
+  // Update the loadDraft function to handle color in sizes
   const loadDraft = async (draftId: string) => {
     try {
       setLoading(true)
@@ -122,9 +116,19 @@ const EditDraft: React.FC = () => {
         setHoverImage(productData.hoverImage || "")
         setDescription(productData.description || "")
         setMaterials(productData.materials || "")
-        setSizes(productData.sizes || [])
+        setSizes(
+          Array.isArray(productData.sizes)
+            ? productData.sizes.map((s: string | { size: string; quantity: number; colors?: string[] | string }) =>
+                typeof s === "string"
+                  ? { size: s, quantity: 1, colors: ["Default"] }
+                  : {
+                      ...s,
+                      colors: s.colors ? (Array.isArray(s.colors) ? s.colors : [s.colors]) : ["Default"],
+                    },
+              )
+            : [],
+        )
         setShippingOptions(productData.shipping || [])
-        setProductQuantity(productData.productQuantity || 1)
         setAdditionalImages(productData.additionalImages || [])
       } else {
         // If draft not found, redirect to drafts page
@@ -157,7 +161,7 @@ const EditDraft: React.FC = () => {
         materials,
         sizes,
         shipping: shippingOptions,
-        productQuantity,
+        productQuantity: 1,
         additionalImages,
       }
 
@@ -201,7 +205,7 @@ const EditDraft: React.FC = () => {
         materials,
         sizes,
         shipping: shippingOptions,
-        productQuantity,
+        productQuantity: 1,
         additionalImages,
       }
 
@@ -245,7 +249,7 @@ const EditDraft: React.FC = () => {
         materials,
         sizes,
         shipping: shippingOptions,
-        productQuantity,
+        productQuantity: 1,
         additionalImages: newAdditionalImages,
       }
 
@@ -462,11 +466,51 @@ const EditDraft: React.FC = () => {
     fileInput.click()
   }
 
+  // Add this array of available colors
+  const availableColors = [
+    "Black",
+    "White",
+    "Red",
+    "Blue",
+    "Green",
+    "Yellow",
+    "Purple",
+    "Pink",
+    "Orange",
+    "Brown",
+    "Gray",
+    "Teal",
+  ]
+
+  // Add this function to toggle color selection
+  const toggleColor = (color: string) => {
+    if (selectedColors.includes(color)) {
+      setSelectedColors(selectedColors.filter((c) => c !== color))
+    } else {
+      setSelectedColors([...selectedColors, color])
+    }
+  }
+
+  // Update the handleAddSize function to include color
   const handleAddSize = () => {
-    if (sizeInput.trim()) {
-      const newSizes = [...sizes, sizeInput.trim()]
+    if (sizeInput.trim() && sizeQuantityInput.trim()) {
+      const quantity = Number.parseInt(sizeQuantityInput)
+      if (isNaN(quantity) || quantity < 1) {
+        setError("Quantity must be a positive number")
+        return
+      }
+
+      const newSize = {
+        size: sizeInput.trim(),
+        quantity,
+        colors: selectedColors.length > 0 ? selectedColors : ["Default"],
+      }
+      const newSizes = [...sizes, newSize]
       setSizes(newSizes)
       setSizeInput("")
+      setSizeQuantityInput("")
+      setSelectedColors([])
+      setShowColorDropdown(false)
 
       // Save draft immediately after adding a size
       if (draftId) {
@@ -493,7 +537,7 @@ const EditDraft: React.FC = () => {
     if (shippingName.trim() && shippingPrice.trim()) {
       const newShipping = {
         name: shippingName.trim(),
-        price: Number(shippingPrice)
+        price: Number(shippingPrice),
       }
       setShippingOptions([...shippingOptions, newShipping])
       setShippingName("")
@@ -520,8 +564,7 @@ const EditDraft: React.FC = () => {
       !description.trim() ||
       !materials.trim() ||
       sizes.length === 0 ||
-      shippingOptions.length === 0 ||
-      productQuantity < 1
+      shippingOptions.length === 0
     ) {
       setError("Please fill all the required inputs and add at least one size and shipping option")
       return
@@ -548,7 +591,7 @@ const EditDraft: React.FC = () => {
           materials,
           sizes,
           shipping: shippingOptions,
-          productQuantity,
+          productQuantity: 1,
           additionalImages,
         }),
       })
@@ -578,7 +621,7 @@ const EditDraft: React.FC = () => {
                   materials,
                   sizes,
                   shipping: [],
-                  productQuantity,
+                  productQuantity: 1,
                   additionalImages: [],
                 },
               }),
@@ -723,7 +766,6 @@ const EditDraft: React.FC = () => {
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-6">
           {error && <div className="bg-red-50 border border-red-400 text-red-700 px-4 py-3 rounded">{error}</div>}
-
           <div>
             <label htmlFor="title" className="block text-sm font-medium text-gray-700">
               Title
@@ -746,7 +788,6 @@ const EditDraft: React.FC = () => {
               className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
-
           <div>
             <label htmlFor="type" className="block text-sm font-medium text-gray-700">
               Type
@@ -773,7 +814,6 @@ const EditDraft: React.FC = () => {
               ))}
             </select>
           </div>
-
           <div>
             <label htmlFor="price" className="block text-sm font-medium text-gray-700">
               Price
@@ -798,31 +838,6 @@ const EditDraft: React.FC = () => {
               className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
-
-          <div>
-            <label htmlFor="productQuantity" className="block text-sm font-medium text-gray-700">
-              Product Quantity
-            </label>
-            <input
-              type="number"
-              id="productQuantity"
-              required
-              min="1"
-              value={productQuantity}
-              onChange={(e) => {
-                setProductQuantity(Math.max(1, Number.parseInt(e.target.value) || 1))
-                formChangedRef.current = true
-              }}
-              onBlur={() => {
-                if (draftId && formChangedRef.current) {
-                  saveDraft()
-                  formChangedRef.current = false
-                }
-              }}
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-
           <div>
             <label htmlFor="image" className="block text-sm font-medium text-gray-700">
               Image
@@ -839,8 +854,8 @@ const EditDraft: React.FC = () => {
               <button
                 type="button"
                 className={`ml-2 px-4 py-2 text-sm font-medium text-white 
-                ${uploading ? "bg-gray-500 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"} 
-                rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
+      ${uploading ? "bg-gray-500 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"} 
+      rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
                 onClick={() => {
                   const fileInput = document.createElement("input")
                   fileInput.type = "file"
@@ -868,8 +883,8 @@ const EditDraft: React.FC = () => {
               <button
                 type="button"
                 className={`ml-2 px-4 py-2 text-sm font-medium text-white 
-                ${uploading ? "bg-gray-500 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"} 
-                rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500`}
+      ${uploading ? "bg-gray-500 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"} 
+      rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500`}
                 onClick={() => {
                   setSelectedImageField("image")
                   setIsGalleryModalOpen(true)
@@ -907,7 +922,6 @@ const EditDraft: React.FC = () => {
               </button>
             )}
           </div>
-
           <div>
             <label htmlFor="hoverImage" className="block text-sm font-medium text-gray-700">
               Hover Image
@@ -924,8 +938,8 @@ const EditDraft: React.FC = () => {
               <button
                 type="button"
                 className={`ml-2 px-4 py-2 text-sm font-medium text-white 
-                ${uploading ? "bg-gray-500 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"} 
-                rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
+      ${uploading ? "bg-gray-500 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"} 
+      rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
                 onClick={() => {
                   const fileInput = document.createElement("input")
                   fileInput.type = "file"
@@ -953,8 +967,8 @@ const EditDraft: React.FC = () => {
               <button
                 type="button"
                 className={`ml-2 px-4 py-2 text-sm font-medium text-white 
-                ${uploading ? "bg-gray-500 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"} 
-                rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500`}
+      ${uploading ? "bg-gray-500 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"} 
+      rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500`}
                 onClick={() => {
                   setSelectedImageField("hoverImage")
                   setIsGalleryModalOpen(true)
@@ -992,7 +1006,96 @@ const EditDraft: React.FC = () => {
               </button>
             )}
           </div>
-
+          <div>
+            <label htmlFor="sizes" className="block text-sm font-medium text-gray-700">
+              Sizes
+            </label>
+            <div className="flex items-center mt-1">
+              <input
+                type="text"
+                id="sizeInput"
+                placeholder="Enter size"
+                value={sizeInput}
+                onChange={(e) => setSizeInput(e.target.value)}
+                className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              />
+              <input
+                type="number"
+                placeholder="Quantity"
+                min="1"
+                value={sizeQuantityInput}
+                onChange={(e) => setSizeQuantityInput(e.target.value)}
+                className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 ml-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              />
+              <div className="relative w-full ml-2">
+                <button
+                  type="button"
+                  onClick={() => setShowColorDropdown(!showColorDropdown)}
+                  className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-left focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                >
+                  {selectedColors.length > 0 ? selectedColors.join(", ") : "Select colors"}
+                </button>
+                {showColorDropdown && (
+                  <div className="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base overflow-auto focus:outline-none sm:text-sm">
+                    {availableColors.map((color) => (
+                      <div
+                        key={color}
+                        className="flex items-center justify-between px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                        onClick={() => toggleColor(color)}
+                      >
+                        <div className="flex items-center">
+                          <span
+                            className="w-4 h-4 mr-2 rounded-full"
+                            style={{ backgroundColor: color.toLowerCase() }}
+                          ></span>
+                          <span>{color}</span>
+                        </div>
+                        {selectedColors.includes(color) && (
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-5 w-5 text-blue-600"
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={handleAddSize}
+                className="ml-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                Add
+              </button>
+            </div>
+            <div className="mt-2">
+              {sizes.map((sizeObj, index) => (
+                <div
+                  key={index}
+                  className="inline-flex items-center bg-gray-100 rounded-full px-3 py-1 mr-2 text-sm text-gray-700"
+                >
+                  {sizeObj.size} - {sizeObj.quantity} units -{" "}
+                  {Array.isArray(sizeObj.colors) ? sizeObj.colors.join(", ") : sizeObj.colors}
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveSize(index)}
+                    className="ml-2 text-gray-500 hover:text-gray-700 focus:outline-none"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
           <div>
             <label htmlFor="description" className="block text-sm font-medium text-gray-700">
               Description
@@ -1011,17 +1114,15 @@ const EditDraft: React.FC = () => {
                   formChangedRef.current = false
                 }
               }}
-              rows={3}
+              rows={4}
               className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
             ></textarea>
           </div>
-
           <div>
             <label htmlFor="materials" className="block text-sm font-medium text-gray-700">
               Materials
             </label>
-            <input
-              type="text"
+            <textarea
               id="materials"
               required
               value={materials}
@@ -1035,50 +1136,10 @@ const EditDraft: React.FC = () => {
                   formChangedRef.current = false
                 }
               }}
+              rows={3}
               className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-            />
+            ></textarea>
           </div>
-
-          <div>
-            <label htmlFor="sizes" className="block text-sm font-medium text-gray-700">
-              Sizes
-            </label>
-            <div className="flex items-center mt-1">
-              <input
-                type="text"
-                id="sizeInput"
-                placeholder="Enter size"
-                value={sizeInput}
-                onChange={(e) => setSizeInput(e.target.value)}
-                className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-              />
-              <button
-                type="button"
-                onClick={handleAddSize}
-                className="ml-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                Add
-              </button>
-            </div>
-            <div className="mt-2">
-              {sizes.map((size, index) => (
-                <div
-                  key={index}
-                  className="inline-flex items-center bg-gray-100 rounded-full px-3 py-1 mr-2 text-sm text-gray-700"
-                >
-                  {size}
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveSize(index)}
-                    className="ml-2 text-gray-500 hover:text-gray-700 focus:outline-none"
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-
           <div>
             <label className="block text-sm font-medium text-gray-700">Shipping Options</label>
             <div className="flex items-center mt-1">
@@ -1110,7 +1171,9 @@ const EditDraft: React.FC = () => {
                   key={index}
                   className="inline-flex items-center justify-between bg-gray-100 rounded-md text-gray-700 px-3 py-1 mr-2 mt-2"
                 >
-                  <span>{option.name} - ${option.price}</span>
+                  <span>
+                    {option.name} - ${option.price}
+                  </span>
                   <button
                     type="button"
                     onClick={() => handleRemoveShipping(index)}
@@ -1122,7 +1185,6 @@ const EditDraft: React.FC = () => {
               ))}
             </ul>
           </div>
-
           <div>
             <label className="block text-sm font-medium text-gray-700">Additional Images</label>
             <div className="mt-1 flex items-center">
@@ -1159,7 +1221,6 @@ const EditDraft: React.FC = () => {
               ))}
             </div>
           </div>
-
           <div>
             <button
               type="submit"
