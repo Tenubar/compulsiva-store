@@ -51,6 +51,13 @@ const CreateProduct: React.FC = () => {
   const [isCustomColor, setIsCustomColor] = useState(false)
   const navigate = useNavigate()
 
+  // Add two new state variables after the existing state declarations (around line 50)
+  const [productQuantity, setProductQuantity] = useState<number>(1)
+  const [isMaterialsRequired, setIsMaterialsRequired] = useState(true)
+  const [isSizesRequired, setIsSizesRequired] = useState(true)
+  // Add a new state variable for the "Use same image" checkbox after the other state declarations (around line 50)
+  const [useSameImage, setUseSameImage] = useState(false)
+
   // For image carousel
   const [startIndex, setStartIndex] = useState(0)
   const imagesPerView = 4
@@ -84,7 +91,19 @@ const CreateProduct: React.FC = () => {
   // Mark form as changed when any field updates
   useEffect(() => {
     formChangedRef.current = true
-  }, [title, type, price, image, hoverImage, description, materials, sizes, shippingOptions, additionalImages])
+  }, [
+    title,
+    type,
+    price,
+    image,
+    hoverImage,
+    description,
+    materials,
+    sizes,
+    shippingOptions,
+    additionalImages,
+    productQuantity,
+  ])
 
   const createNewDraft = async () => {
     try {
@@ -201,7 +220,7 @@ const CreateProduct: React.FC = () => {
         materials,
         sizes,
         shipping: shippingOptions,
-        productQuantity: 1,
+        productQuantity: isSizesRequired ? 1 : productQuantity,
         additionalImages,
       }
 
@@ -249,7 +268,7 @@ const CreateProduct: React.FC = () => {
         materials,
         sizes,
         shipping: shippingOptions,
-        productQuantity: 1,
+        productQuantity: isSizesRequired ? 1 : productQuantity,
         additionalImages,
       }
 
@@ -311,7 +330,7 @@ const CreateProduct: React.FC = () => {
             materials,
             sizes,
             shipping: shippingOptions,
-            productQuantity: 1,
+            productQuantity: isSizesRequired ? 1 : productQuantity,
             additionalImages: updatedAdditionalImages,
           },
         }),
@@ -619,18 +638,20 @@ const CreateProduct: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    // Update the handleSubmit function validation logic (around line 380)
+    // Replace the existing validation with this:
     // Validate that all required fields have a value.
     if (
       !title.trim() ||
       !price.trim() ||
       !image.trim() ||
-      !hoverImage.trim() ||
+      (!hoverImage.trim() && !useSameImage) ||
       !description.trim() ||
-      !materials.trim() ||
-      sizes.length === 0 ||
+      (isMaterialsRequired && !materials.trim()) ||
+      (isSizesRequired && sizes.length === 0) ||
       shippingOptions.length === 0
     ) {
-      setError("Please fill all the required inputs and add at least one size and shipping option")
+      setError("Please fill all the required inputs and add at least one shipping option")
       return
     }
 
@@ -638,7 +659,7 @@ const CreateProduct: React.FC = () => {
     setError("")
 
     try {
-      // First create the product
+      // Modify the form submission data to use the main image as hover image when checkbox is checked
       const response = await fetch(`${import.meta.env.VITE_SITE_URL}/api/products`, {
         method: "POST",
         headers: {
@@ -650,11 +671,12 @@ const CreateProduct: React.FC = () => {
           type,
           price: Number(price),
           image,
-          hoverImage,
+          hoverImage: useSameImage ? image : hoverImage,
           description,
           materials,
           sizes,
           shipping: shippingOptions,
+          productQuantity: isSizesRequired ? 1 : productQuantity,
           additionalImages,
         }),
       })
@@ -684,6 +706,7 @@ const CreateProduct: React.FC = () => {
                   materials,
                   sizes,
                   shipping: [],
+                  productQuantity: isSizesRequired ? 1 : productQuantity,
                   additionalImages: [],
                 },
               }),
@@ -862,7 +885,7 @@ const CreateProduct: React.FC = () => {
               }}
               className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
             >
-              {(["Shirt", "Pants", "Shoes", "Bracelet", "Collar"] as ProductType[]).map((t) => (
+              {(["Shirt", "Pants", "Shoes", "Bracelet", "Collar", "Other"] as ProductType[]).map((t) => (
                 <option key={t} value={t}>
                   {t}
                 </option>
@@ -896,16 +919,62 @@ const CreateProduct: React.FC = () => {
             />
           </div>
 
+          {/* Product Quantity */}
+          <div>
+            <label htmlFor="productQuantity" className="block text-sm font-medium text-gray-700">
+              Quantity
+            </label>
+            <input
+              type="number"
+              id="productQuantity"
+              min="1"
+              value={productQuantity}
+              onChange={(e) => {
+                setProductQuantity(Number(e.target.value))
+                formChangedRef.current = true
+              }}
+              onBlur={() => {
+                if (draftId && formChangedRef.current) {
+                  saveDraft()
+                  formChangedRef.current = false
+                }
+              }}
+              disabled={isSizesRequired}
+              className={`mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
+                isSizesRequired ? "bg-gray-100 cursor-not-allowed" : ""
+              }`}
+            />
+          </div>
+
           {/* Sizes + Quantity + Color */}
           <div>
-            <label className="block text-sm font-medium text-gray-700">Sizes</label>
+            {/* Add checkbox for Sizes section (before the Sizes input, around line 460) */}
+            {/* Replace the Sizes label with: */}
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-gray-700">Sizes</label>
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="sizesRequired"
+                  checked={isSizesRequired}
+                  onChange={(e) => setIsSizesRequired(e.target.checked)}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label htmlFor="sizesRequired" className="ml-2 text-sm text-gray-600">
+                  Required
+                </label>
+              </div>
+            </div>
             <div className="flex items-center mt-1 space-x-2">
               <input
                 type="text"
                 placeholder="Enter size"
                 value={sizeInput}
                 onChange={(e) => setSizeInput(e.target.value)}
-                className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                disabled={!isSizesRequired}
+                className={`block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
+                  !isSizesRequired ? "bg-gray-100 cursor-not-allowed" : ""
+                }`}
               />
               <input
                 type="number"
@@ -913,7 +982,10 @@ const CreateProduct: React.FC = () => {
                 min="1"
                 value={sizeQuantityInput}
                 onChange={(e) => setSizeQuantityInput(e.target.value)}
-                className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                disabled={!isSizesRequired}
+                className={`block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
+                  !isSizesRequired ? "bg-gray-100 cursor-not-allowed" : ""
+                }`}
               />
               <div className="relative w-full">
                 {isCustomColor ? (
@@ -922,18 +994,24 @@ const CreateProduct: React.FC = () => {
                     placeholder="Custom color"
                     value={customColor}
                     onChange={(e) => setCustomColor(e.target.value)}
-                    className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    disabled={!isSizesRequired}
+                    className={`block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
+                      !isSizesRequired ? "bg-gray-100 cursor-not-allowed" : ""
+                    }`}
                   />
                 ) : (
                   <>
                     <button
                       type="button"
                       onClick={() => setShowColorDropdown(!showColorDropdown)}
-                      className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-left focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      disabled={!isSizesRequired}
+                      className={`block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-left focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
+                        !isSizesRequired ? "bg-gray-100 cursor-not-allowed" : ""
+                      }`}
                     >
                       {selectedColor || "Select color"}
                     </button>
-                    {showColorDropdown && (
+                    {showColorDropdown && isSizesRequired && (
                       <div className="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base overflow-auto focus:outline-none sm:text-sm">
                         {availableColors.map((color) => (
                           <div
@@ -974,7 +1052,7 @@ const CreateProduct: React.FC = () => {
                     )}
                   </>
                 )}
-                {isCustomColor && (
+                {isCustomColor && isSizesRequired && (
                   <button
                     type="button"
                     onClick={() => {
@@ -990,7 +1068,12 @@ const CreateProduct: React.FC = () => {
               <button
                 type="button"
                 onClick={handleAddSize}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                disabled={!isSizesRequired}
+                className={`px-4 py-2 text-sm font-medium text-white ${
+                  !isSizesRequired
+                    ? "bg-gray-400 cursor-not-allowed"
+                    : "bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                } rounded-md shadow-sm`}
               >
                 Add
               </button>
@@ -1007,7 +1090,12 @@ const CreateProduct: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => handleRemoveSize(index)}
-                    className="ml-2 text-red-500 hover:text-red-700 focus:outline-none"
+                    disabled={!isSizesRequired}
+                    className={`ml-2 ${
+                      !isSizesRequired
+                        ? "text-gray-400 cursor-not-allowed"
+                        : "text-red-500 hover:text-red-700 focus:outline-none"
+                    }`}
                   >
                     <X size={16} />
                   </button>
@@ -1041,14 +1129,31 @@ const CreateProduct: React.FC = () => {
           </div>
 
           {/* Materials */}
+          {/* Add checkbox for Materials section (before the Materials input, around line 560) */}
+          {/* Replace the Materials section with: */}
           <div>
-            <label htmlFor="materials" className="block text-sm font-medium text-gray-700">
-              Materials
-            </label>
+            <div className="flex items-center justify-between mb-2">
+              <label htmlFor="materials" className="block text-sm font-medium text-gray-700">
+                Materials
+              </label>
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="materialsRequired"
+                  checked={isMaterialsRequired}
+                  onChange={(e) => setIsMaterialsRequired(e.target.checked)}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label htmlFor="materialsRequired" className="ml-2 text-sm text-gray-600">
+                  Required
+                </label>
+              </div>
+            </div>
             <input
               type="text"
               id="materials"
-              required
+              required={isMaterialsRequired}
+              disabled={!isMaterialsRequired}
               value={materials}
               onChange={(e) => {
                 setMaterials(e.target.value)
@@ -1060,7 +1165,9 @@ const CreateProduct: React.FC = () => {
                   formChangedRef.current = false
                 }
               }}
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              className={`mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
+                !isMaterialsRequired ? "bg-gray-100 cursor-not-allowed" : ""
+              }`}
             />
           </div>
 
@@ -1201,22 +1308,38 @@ const CreateProduct: React.FC = () => {
 
           {/* Hover Image */}
           <div>
-            <label htmlFor="hoverImage" className="block text-sm font-medium text-gray-700">
-              Hover Image
-            </label>
+            <div className="flex items-center justify-between mb-2">
+              <label htmlFor="hoverImage" className="block text-sm font-medium text-gray-700">
+                Hover Image
+              </label>
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="useSameImage"
+                  checked={useSameImage}
+                  onChange={(e) => setUseSameImage(e.target.checked)}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label htmlFor="useSameImage" className="ml-2 text-sm text-gray-600">
+                  Use the same as Image
+                </label>
+              </div>
+            </div>
             <div className="flex items-center">
               <input
                 type="text"
                 id="hoverImage"
-                required
-                value={hoverImage}
+                required={!useSameImage}
+                value={useSameImage ? "Using main image" : hoverImage}
                 readOnly
-                className="mt-1 block flex-grow border border-gray-300 rounded-md shadow-sm py-2 px-3 bg-gray-100 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                className={`mt-1 block flex-grow border border-gray-300 rounded-md shadow-sm py-2 px-3 ${
+                  useSameImage ? "bg-gray-200 text-gray-500" : "bg-gray-100"
+                } focus:outline-none focus:ring-blue-500 focus:border-blue-500`}
               />
               <button
                 type="button"
                 className={`ml-2 px-4 py-2 text-sm font-medium text-white 
-                ${uploading ? "bg-gray-500 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"} 
+                ${uploading || useSameImage ? "bg-gray-500 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"} 
                 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
                 onClick={() => {
                   const fileInput = document.createElement("input")
@@ -1230,11 +1353,11 @@ const CreateProduct: React.FC = () => {
                   }
                   fileInput.click()
                 }}
-                disabled={uploading || deletingImage === hoverImage}
+                disabled={uploading || deletingImage === hoverImage || useSameImage}
               >
                 {uploading ? (
                   "Saving..."
-                ) : hoverImage ? (
+                ) : hoverImage && !useSameImage ? (
                   <span className="flex items-center">
                     <RefreshCw size={16} className="mr-1" /> Change
                   </span>
@@ -1245,17 +1368,17 @@ const CreateProduct: React.FC = () => {
               <button
                 type="button"
                 className={`ml-2 px-4 py-2 text-sm font-medium text-white 
-                ${uploading ? "bg-gray-500 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"} 
+                ${uploading || useSameImage ? "bg-gray-500 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"} 
                 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500`}
                 onClick={() => {
                   setSelectedImageField("hoverImage")
                   setIsGalleryModalOpen(true)
                 }}
-                disabled={uploading}
+                disabled={uploading || useSameImage}
               >
                 Gallery
               </button>
-              {hoverImage && (
+              {hoverImage && !useSameImage && (
                 <button
                   type="button"
                   onClick={() => {
@@ -1271,7 +1394,7 @@ const CreateProduct: React.FC = () => {
                 </button>
               )}
             </div>
-            {hoverImage && (
+            {hoverImage && !useSameImage && (
               <button
                 type="button"
                 onClick={() => {

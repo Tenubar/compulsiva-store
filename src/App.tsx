@@ -33,7 +33,6 @@ import SuggestionBox from "./components/SuggestionBox"
 import Orders from "./components/Orders"
 import OrderDetail from "./components/OrderDetail"
 
-
 // Add this function to restore scroll position
 function ScrollToTop() {
   const { pathname } = useLocation()
@@ -61,7 +60,7 @@ function ScrollToTop() {
 export type ViewMode = "grid" | "list"
 export type Currency = "USD" | "EUR" | "VES"
 export type Language = LanguageType
-export type ProductType = "Shirt" | "Pants" | "Shoes" | "Bracelet" | "Collar"
+export type ProductType = "Shirt" | "Pants" | "Shoes" | "Bracelet" | "Collar" | "Other"
 
 // Create a language context to be used throughout the app
 export const LanguageContext = React.createContext<{
@@ -88,11 +87,11 @@ export const ExchangeRateContext = React.createContext<{
 function App() {
   const [viewMode, setViewMode] = useState<ViewMode>("grid")
   const [currency, setCurrency] = useState<Currency>(() => {
-    const savedCurrency = localStorage.getItem('currency') as Currency
+    const savedCurrency = localStorage.getItem("currency") as Currency
     return savedCurrency || "USD"
   })
   const [language, setLanguage] = useState<Language>(() => {
-    const savedLanguage = localStorage.getItem('language') as Language
+    const savedLanguage = localStorage.getItem("language") as Language
     return savedLanguage || "Español"
   })
   const [selectedTypes, setSelectedTypes] = useState<ProductType[]>([])
@@ -100,19 +99,19 @@ function App() {
 
   // Save currency and language to localStorage when they change
   useEffect(() => {
-    localStorage.setItem('currency', currency)
+    localStorage.setItem("currency", currency)
   }, [currency])
 
   useEffect(() => {
-    localStorage.setItem('language', language)
+    localStorage.setItem("language", language)
   }, [language])
 
   // Connect to exchange rate event source
   useEffect(() => {
     const eventSource = new EventSource("https://solartech.onrender.com/info1")
-    
+
     eventSource.onmessage = (event) => {
-      const rate = parseFloat(event.data)
+      const rate = Number.parseFloat(event.data)
       if (!isNaN(rate)) {
         setExchangeRate(rate)
       }
@@ -130,8 +129,8 @@ function App() {
 
   // Translation function
   const t = (key: string): string => {
-    const translation = translations[language][key as keyof (typeof translations)[typeof language]];
-    return typeof translation === "string" ? translation : key;
+    const translation = translations[language][key as keyof (typeof translations)[typeof language]]
+    return typeof translation === "string" ? translation : key
   }
 
   // Add effect to store scroll position when navigating to product detail
@@ -182,7 +181,6 @@ function App() {
             <Route path="/profile" element={<Profile />} />
             <Route path="/orders" element={<Orders />} />
             <Route path="/orders/:id" element={<OrderDetail />} />
-
 
             {/* Admin Routes */}
             <Route
@@ -272,7 +270,7 @@ function App() {
                     </div>
 
                     <div className="flex flex-wrap gap-4 mb-6">
-                      {(["Shirt", "Pants", "Shoes", "Bracelet", "Collar"] as const).map((type) => (
+                      {(["Shirt", "Pants", "Shoes", "Bracelet", "Collar", "Other"] as const).map((type) => (
                         <button
                           key={type}
                           onClick={() => toggleProductType(type)}

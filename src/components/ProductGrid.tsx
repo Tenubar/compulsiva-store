@@ -13,6 +13,7 @@ import { LanguageContext } from "../App"
 import { useCurrencyConversion } from "../utils/currencyUtils"
 import type { Currency } from "../App"
 
+// Update the Product interface to include additionalImages
 interface Product {
   _id: string
   title: string
@@ -20,6 +21,7 @@ interface Product {
   price: number
   image: string
   hoverImage: string
+  additionalImages?: string[]
 }
 
 interface ProductGridProps {
@@ -96,6 +98,7 @@ const ProductGrid: React.FC<ProductGridProps> = ({ onProductClick, selectedTypes
     <>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {paginatedProducts.map((product) => (
+          // Update the hover image logic in the product grid
           <div
             key={product._id}
             className="bg-white rounded-lg shadow-md overflow-hidden transition-transform duration-300 hover:scale-105"
@@ -104,7 +107,13 @@ const ProductGrid: React.FC<ProductGridProps> = ({ onProductClick, selectedTypes
           >
             <div className="relative aspect-square h-[300px]">
               <img
-                src={getImageUrl(hoveredProduct === product._id ? product.hoverImage : product.image)}
+                src={getImageUrl(
+                  hoveredProduct === product._id
+                    ? product.additionalImages && product.additionalImages.length > 0
+                      ? product.additionalImages[0]
+                      : product.hoverImage || product.image
+                    : product.image,
+                )}
                 alt={product.title}
                 className="w-full h-full object-cover cursor-pointer"
                 onClick={() => navigate(`/product/${product._id}`)}

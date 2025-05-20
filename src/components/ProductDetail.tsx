@@ -205,23 +205,25 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
 
       // Normalize sizes to ensure colors are properly handled
       if (productData.sizes && Array.isArray(productData.sizes)) {
-        productData.sizes = productData.sizes.map((size: { size: string; quantity: number; colors?: string[]; color?: string }) => {
-          // If size has a color field but no colors array, convert it
-          if (size.color && (!size.colors || !size.colors.length)) {
-            return {
-              ...size,
-              colors: [size.color],
+        productData.sizes = productData.sizes.map(
+          (size: { size: string; quantity: number; colors?: string[]; color?: string }) => {
+            // If size has a color field but no colors array, convert it
+            if (size.color && (!size.colors || !size.colors.length)) {
+              return {
+                ...size,
+                colors: [size.color],
+              }
             }
-          }
-          // Ensure colors is at least an empty array if undefined
-          if (!size.colors) {
-            return {
-              ...size,
-              colors: [],
+            // Ensure colors is at least an empty array if undefined
+            if (!size.colors) {
+              return {
+                ...size,
+                colors: [],
+              }
             }
-          }
-          return size
-        })
+            return size
+          },
+        )
       }
 
       console.log("Normalized product data:", productData)
@@ -671,27 +673,36 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
 
   // Update quantity handling to respect product quantity limit
   const handleQuantityChange = (newQuantity: number) => {
-    // Find the selected size and color combination to get its quantity
-    const colorObj = getColorsForSelectedSize().find((c) => c.color === selectedColor)
-    const maxQuantity = colorObj?.quantity || 0
+    if (product && product.sizes && product.sizes.length > 0) {
+      // Find the selected size and color combination to get its quantity
+      const colorObj = getColorsForSelectedSize().find((c) => c.color === selectedColor)
+      const maxQuantity = colorObj?.quantity || 0
 
-    // Ensure quantity is between 1 and available quantity for the selected size and color
-    const validQuantity = Math.min(Math.max(1, newQuantity), maxQuantity)
-    setQuantity(validQuantity)
+      // Ensure quantity is between 1 and available quantity for the selected size and color
+      const validQuantity = Math.min(Math.max(1, newQuantity), maxQuantity)
+      setQuantity(validQuantity)
+    } else if (product) {
+      // Use productQuantity when sizes are not used
+      const maxQuantity = product.productQuantity || 0
+      const validQuantity = Math.min(Math.max(1, newQuantity), maxQuantity)
+      setQuantity(validQuantity)
+    }
   }
 
   // Add console logging to debug the colors issue
-  const getColorsForSelectedSize = () => {
-    if (!product || !selectedSize) return []
+  const getColorsForSelectedSize = (sizeParam?: string) => {
+    if (!product) return []
+    const sizeToUse = sizeParam || selectedSize
+    if (!sizeToUse) return []
 
     console.log("Product sizes:", product.sizes)
-    console.log("Selected size:", selectedSize)
+    console.log("Selected size:", sizeToUse)
 
     // Find all size objects with the same size name
     const sizeObjs =
       product.sizes?.filter(
         (sizeObj: { size: string; quantity: number; colors?: string[] }) =>
-          sizeObj.size.toLowerCase() === selectedSize.toLowerCase(),
+          sizeObj.size.toLowerCase() === sizeToUse.toLowerCase(),
       ) || []
 
     console.log("Matching size objects:", sizeObjs)
@@ -763,15 +774,26 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
       setAddingToCart(true)
       setCartMessage("")
 
-      // Find the quantity for the selected color
-      const colorObj = getColorsForSelectedSize().find((c) => c.color.toLowerCase() === selectedColor.toLowerCase())
+      // Check stock based on whether sizes are used or not
+      if (product.sizes && product.sizes.length > 0) {
+        // Find the quantity for the selected color
+        const colorObj = getColorsForSelectedSize().find((c) => c.color.toLowerCase() === selectedColor.toLowerCase())
 
-      // Check if selected color is available
-      if (!colorObj || colorObj.quantity <= 0) {
-        setCartMessage(t("colorOutOfStock"))
-        setTimeout(() => setCartMessage(""), 3000)
-        setAddingToCart(false)
-        return
+        // Check if selected color is available
+        if (!colorObj || colorObj.quantity <= 0) {
+          setCartMessage(t("colorOutOfStock"))
+          setTimeout(() => setCartMessage(""), 3000)
+          setAddingToCart(false)
+          return
+        }
+      } else {
+        // Check if product is in stock when not using sizes
+        if ((product.productQuantity || 0) <= 0) {
+          setCartMessage(t("productOutOfStock"))
+          setTimeout(() => setCartMessage(""), 3000)
+          setAddingToCart(false)
+          return
+        }
       }
 
       const response = await fetch(`${import.meta.env.VITE_SITE_URL}/api/cart`, {
@@ -787,8 +809,8 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
           price: product.price,
           image: product.image,
           quantity: quantity,
-          size: selectedSize,
-          color: selectedColor,
+          size: selectedSize || "",
+          color: selectedColor || "",
         }),
       })
 
@@ -824,8 +846,8 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
 
   // Default values for missing fields
   const description = product.description || "No description available."
-  const materials = product.materials || "Information not available."
-  const sizes = product.sizes || []
+  // Remove the materials default
+  // Remove the sizes default
   const shipping = product.shipping || []
   const reviews = product.reviews || []
   const recommended = product.recommended || []
@@ -834,7 +856,10 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
   const ratingCount = product.ratingCount || 0
 
   // Get all available images
-  const images = product.images || [product.image, product.hoverImage].filter(Boolean)
+  const allImages = product.images || [product.image, product.hoverImage].filter(Boolean)
+  // Use a Set to remove duplicate URLs
+  const uniqueImageUrls = new Set(allImages)
+  const images = Array.from(uniqueImageUrls)
 
   // Add this function to check if all required fields are filled
   const isFormValid = () => {
@@ -893,14 +918,24 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
       return
     }
 
-    // Check if selected size is available
-    const selectedSizeObj = product.sizes?.find(
-      (sizeObj: { size: string; quantity: number; colors?: string[] }) => sizeObj.size === selectedSize,
-    )
-    if (!selectedSizeObj || selectedSizeObj.quantity <= 0) {
-      setCartMessage(t("sizeOutOfStock"))
-      setTimeout(() => setCartMessage(""), 3000)
-      return
+    // Check stock based on whether sizes are used or not
+    if (product.sizes && product.sizes.length > 0) {
+      // Check if selected size is available
+      const selectedSizeObj = product.sizes?.find(
+        (sizeObj: { size: string; quantity: number; colors?: string[] }) => sizeObj.size === selectedSize,
+      )
+      if (!selectedSizeObj || selectedSizeObj.quantity <= 0) {
+        setCartMessage(t("sizeOutOfStock"))
+        setTimeout(() => setCartMessage(""), 3000)
+        return
+      }
+    } else {
+      // Check if product is in stock when not using sizes
+      if ((product.productQuantity || 0) <= 0) {
+        setCartMessage(t("productOutOfStock"))
+        setTimeout(() => setCartMessage(""), 3000)
+        return
+      }
     }
 
     // Initialize preview form with current user data
@@ -1044,28 +1079,35 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
               )}
             </div>
 
-            {/* Update the quantity section to show available quantity for selected size */}
+            {/* Update the quantity handling section to check for sizes and use productQuantity when sizes are empty */}
             <div className="mb-6">
               <div className="flex items-center justify-between">
                 <label className="block font-subtitle text-gray-700 mb-2">{t("quantity")}</label>
-                {selectedSize && (
+                {!product.sizes || product.sizes.length === 0 ? (
                   <span
                     className={`text-sm font-body ${
-                      (
-                        product.sizes?.find(
-                          (s: { size: string; quantity: number; colors?: string[] }) => s.size === selectedSize,
-                        )?.quantity ?? 0
-                      ) <= 0
-                        ? "text-red-600 font-bold"
-                        : "text-gray-500"
+                      (product.productQuantity || 0) <= 0 ? "text-red-600 font-bold" : "text-gray-500"
                     }`}
                   >
-                    {(product.sizes?.find(
-                      (s: { size: string; quantity: number; colors?: string[] }) => s.size === selectedSize,
-                    )?.quantity ?? 0 <= 0)
+                    {(product.productQuantity || 0) <= 0
                       ? t("outOfStock")
-                      : `${t("available")}: ${product.sizes?.find((s: { size: string; quantity: number; colors?: string[] }) => s.size === selectedSize)?.quantity ?? 0}`}
+                      : `${t("available")}: ${product.productQuantity || 0}`}
                   </span>
+                ) : (
+                  selectedSize &&
+                  selectedColor && (
+                    <span
+                      className={`text-sm font-body ${
+                        getColorsForSelectedSize().find((c) => c.color === selectedColor)?.quantity <= 0
+                          ? "text-red-600 font-bold"
+                          : "text-gray-500"
+                      }`}
+                    >
+                      {getColorsForSelectedSize().find((c) => c.color === selectedColor)?.quantity <= 0
+                        ? t("outOfStock")
+                        : `${t("available")}: ${getColorsForSelectedSize().find((c) => c.color === selectedColor)?.quantity || 0}`}
+                    </span>
+                  )
                 )}
               </div>
               <div className="flex items-center">
@@ -1073,9 +1115,10 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
                   onClick={() => handleQuantityChange(quantity - 1)}
                   disabled={
                     quantity <= 1 ||
-                    (product.sizes?.find(
-                      (s: { size: string; quantity: number; colors?: string[] }) => s.size === selectedSize,
-                    )?.quantity || 0) <= 0
+                    (product.sizes && product.sizes.length > 0
+                      ? !selectedColor ||
+                        (getColorsForSelectedSize().find((c) => c.color === selectedColor)?.quantity || 0) <= 0
+                      : (product.productQuantity || 0) <= 0)
                   }
                   className="px-3 py-1 border rounded-l-md disabled:opacity-50"
                 >
@@ -1085,29 +1128,29 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
                   type="number"
                   min="1"
                   max={
-                    product.sizes?.find(
-                      (s: { size: string; quantity: number; colors?: string[] }) => s.size === selectedSize,
-                    )?.quantity || 0
+                    product.sizes && product.sizes.length > 0
+                      ? getColorsForSelectedSize().find((c) => c.color === selectedColor)?.quantity || 0
+                      : product.productQuantity || 0
                   }
                   value={quantity}
                   onChange={(e) => handleQuantityChange(Number.parseInt(e.target.value) || 1)}
                   disabled={
-                    (product.sizes?.find(
-                      (s: { size: string; quantity: number; colors?: string[] }) => s.size === selectedSize,
-                    )?.quantity || 0) <= 0
+                    product.sizes && product.sizes.length > 0
+                      ? !selectedColor ||
+                        (getColorsForSelectedSize().find((c) => c.color === selectedColor)?.quantity || 0) <= 0
+                      : (product.productQuantity || 0) <= 0
                   }
                   className="w-16 px-3 py-1 border-t border-b text-center font-body disabled:bg-gray-100"
                 />
                 <button
                   onClick={() => handleQuantityChange(quantity + 1)}
                   disabled={
-                    quantity >=
-                      (product.sizes?.find(
-                        (s: { size: string; quantity: number; colors?: string[] }) => s.size === selectedSize,
-                      )?.quantity || 0) ||
-                    (product.sizes?.find(
-                      (s: { size: string; quantity: number; colors?: string[] }) => s.size === selectedSize,
-                    )?.quantity || 0) <= 0
+                    product.sizes && product.sizes.length > 0
+                      ? !selectedColor ||
+                        quantity >=
+                          (getColorsForSelectedSize().find((c) => c.color === selectedColor)?.quantity || 0) ||
+                        (getColorsForSelectedSize().find((c) => c.color === selectedColor)?.quantity || 0) <= 0
+                      : quantity >= (product.productQuantity || 0) || (product.productQuantity || 0) <= 0
                   }
                   className="px-3 py-1 border rounded-r-md disabled:opacity-50"
                 >
@@ -1146,16 +1189,22 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
                 className="flex-1 bg-primary-dark text-primary-light py-3 rounded-md hover:bg-secondary-light hover:text-gray-800 disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:bg-primary-dark disabled:hover:text-primary-light"
                 onClick={handlePayPalCheckout}
                 disabled={
-                  (product.sizes?.find(
-                    (s: { size: string; quantity: number; colors?: string[] }) => s.size === selectedSize,
-                  )?.quantity || 0) <= 0
+                  product.sizes && product.sizes.length > 0
+                    ? !selectedSize ||
+                      !selectedColor ||
+                      (getColorsForSelectedSize().find((c) => c.color === selectedColor)?.quantity || 0) <= 0
+                    : (product.productQuantity || 0) <= 0
                 }
               >
-                {(product.sizes?.find(
-                  (s: { size: string; quantity: number; colors?: string[] }) => s.size === selectedSize,
-                )?.quantity || 0) <= 0
-                  ? t("outOfStock")
-                  : t("buyWithPayPal")}
+                {product.sizes && product.sizes.length > 0
+                  ? !selectedSize ||
+                    !selectedColor ||
+                    (getColorsForSelectedSize().find((c) => c.color === selectedColor)?.quantity || 0) <= 0
+                    ? t("outOfStock")
+                    : t("buyWithPayPal")
+                  : (product.productQuantity || 0) <= 0
+                    ? t("outOfStock")
+                    : t("buyWithPayPal")}
               </button>
             </div>
             <p className="text-center text-gray-500 text-sm mb-8">{t("otherPaymentMethods")}</p>
@@ -1167,17 +1216,18 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
             <p className="font-body text-gray-700 mb-8">{description}</p>
 
             <div className="space-y-6">
-              <div>
-                <h2 className="text-xl font-title font-semibold mb-2">{t("materials")}</h2>
-                <p className="font-body text-gray-700">{materials}</p>
-              </div>
+              {product.materials && (
+                <div>
+                  <h2 className="text-xl font-title font-semibold mb-2">{t("materials")}</h2>
+                  <p className="font-body text-gray-700">{product.materials}</p>
+                </div>
+              )}
 
-              {/* Replace the sizes section in the render part with this updated version */}
-              <div>
-                <h2 className="text-xl font-title font-semibold mb-2">{t("sizes")}</h2>
-                <div className="flex flex-wrap gap-2">
-                  {product.sizes && product.sizes.length > 0 ? (
-                    (() => {
+              {product.sizes && product.sizes.length > 0 && (
+                <div>
+                  <h2 className="text-xl font-title font-semibold mb-2">{t("sizes")}</h2>
+                  <div className="flex flex-wrap gap-2">
+                    {(() => {
                       // Group sizes by name (case insensitive)
                       const sizeGroups = new Map()
                       product.sizes.forEach((sizeObj: { size: string; quantity: number; colors?: string[] }) => {
@@ -1214,13 +1264,12 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
                           onClick={() => {
                             if (sizeObj.quantity > 0) {
                               setSelectedSize(sizeObj.size)
-                              // Reset color when changing size and set to first available color
-                              const colorOptions = getColorsForSelectedSize()
-                              if (colorOptions.length > 0) {
-                                setSelectedColor(colorOptions[0].color)
-                              } else {
-                                setSelectedColor("")
-                              }
+                              // Use colors from the clicked sizeObj, not from getColorsForSelectedSize()
+                              const colorOptions = getColorsForSelectedSize(sizeObj.size)
+                              const firstAvailableColor = colorOptions.find((c) => c.quantity > 0)
+                              setSelectedColor(
+                                firstAvailableColor ? firstAvailableColor.color : colorOptions[0]?.color || "",
+                              )
                             }
                           }}
                           disabled={sizeObj.quantity <= 0}
@@ -1249,18 +1298,16 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
                           </div>
                         </button>
                       ))
-                    })()
-                  ) : (
-                    <p className="text-gray-500">{t("noSizesAvailable")}</p>
-                  )}
+                    })()}
+                  </div>
                 </div>
-              </div>
+              )}
 
-              <div>
-                <h2 className="text-xl font-title font-semibold mb-2">{t("colors")}</h2>
-                <div className="flex flex-wrap gap-2">
-                  {getColorsForSelectedSize().length > 0 ? (
-                    getColorsForSelectedSize().map((colorObj, index) => (
+              {product.sizes && product.sizes.length > 0 && getColorsForSelectedSize().length > 0 && (
+                <div>
+                  <h2 className="text-xl font-title font-semibold mb-2">{t("colors")}</h2>
+                  <div className="flex flex-wrap gap-2">
+                    {getColorsForSelectedSize().map((colorObj, index) => (
                       <button
                         key={index}
                         className={`px-4 py-2 rounded-md font-body flex items-center ${
@@ -1280,12 +1327,10 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
                         ></span>
                         {colorObj.color} <span className="ml-2 text-xs">({colorObj.quantity})</span>
                       </button>
-                    ))
-                  ) : (
-                    <p className="text-gray-500">{t("noColorsAvailable")}</p>
-                  )}
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div>
                 <h2 className="text-xl font-title font-semibold mb-2">{t("shipping")}</h2>
@@ -1822,13 +1867,15 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
 
       {/* PayPal form with return URL that redirects to orders page */}
       <form
-        action="https://www.paypal.com/cgi-bin/webscr"
+        // action="https://www.paypal.com/cgi-bin/webscr"
+        action="https://www.sandbox.paypal.com/cgi-bin/webscr"
         method="post"
         target="_top"
         className="hidden"
+        id="paypal-form"
       >
         <input type="hidden" name="cmd" value="_xclick" />
-        <input type="hidden" name="business" value={import.meta.env.VITE_ADMIN_USER_EMAIL} />
+        <input type="hidden" name="business" value={import.meta.env.VITE_ADMIN_USER_EMAIL_PP} />
         <input
           type="hidden"
           name="item_name"

@@ -1080,8 +1080,9 @@ app.get("/products/:id", async (req, res) => {
     const enhancedProduct = {
       ...product,
       description: product.description || "Quality product from Carol Store.",
-      materials: product.materials || "Premium materials.",
-      sizes: product.sizes || [{ size: "M", quantity: 1, color: "Default" }],
+      materials: product.materials || "",
+      // sizes: product.sizes || [{ size: "M", quantity: 1, color: "Default" }],
+      sizes: product.sizes || "",
       shipping: product.shipping || "Standard shipping: 3-5 business days.",
       productQuantity: product.productQuantity != null ? Number(product.productQuantity) : 1,
       visits: product.visits || 0,
@@ -1133,7 +1134,16 @@ const draftSchema = new mongoose.Schema(
       hoverImage: { type: String, default: "" },
       description: { type: String, default: "" },
       materials: { type: String, default: "" },
-      sizes: { type: [String], default: [] },
+      sizes: {
+        type: [
+          {
+            size: { type: String, default: "" },
+            quantity: { type: Number, default: 0 },
+            color: { type: String, default: "Default" }, // Single color string to match productSchema
+          },
+        ],
+        default: [],
+      },
       shipping: { type: [{ name: String, price: Number }], default: [] },
       productQuantity: { type: Number, default: 1 },
       additionalImages: { type: [String], default: [] },
@@ -1685,7 +1695,8 @@ function verifyIPN(verificationBody) {
   return new Promise((resolve, reject) => {
     // Use sandbox URL for testing, production URL for live
     // const paypalHost = process.env.VITE_NODE_ENV === "production" ? "www.paypal.com" : "www.sandbox.paypal.com"
-    const paypalHost = "www.paypal.com"
+    // const paypalHost = "www.paypal.com"
+    const paypalHost = "www.sandbox.paypal.com"
 
     const options = {
       host: paypalHost,
@@ -1800,23 +1811,15 @@ async function createOrderFromIPN(ipnData) {
 
     await order.save()
 
-    // Always update inventory when an order is created
+    // Update inventory
     const purchaseQuantity = Number.parseInt(ipnData.quantity || 1)
-
     console.log(`Updating stock for product ${productId}, size ${selectedSize}. Purchase quantity: ${purchaseQuantity}`)
 
-    // Find the size that was purchased
     const sizeIndex = product.sizes.findIndex((s) => s.size === selectedSize)
     if (sizeIndex >= 0) {
-      // Calculate new quantity and ensure it's not negative
       const newQuantity = Math.max(0, product.sizes[sizeIndex].quantity - purchaseQuantity)
-
-      // Update the size quantity
       product.sizes[sizeIndex].quantity = newQuantity
-
-      // Update the product with the modified sizes array
       await Product.findByIdAndUpdate(productId, { sizes: product.sizes }, { new: true })
-
       console.log(`Stock updated for product ${productId}, size ${selectedSize}. New quantity: ${newQuantity}`)
     }
 

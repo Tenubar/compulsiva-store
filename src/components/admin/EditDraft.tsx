@@ -9,7 +9,7 @@ import { getImageUrl, getPlaceholder } from "../../utils/imageUtils"
 import GalleryModal from "./GalleryModal"
 import ConfirmationModal from "./ConfirmationModal"
 
-// Update the DraftData interface to include color in sizes
+// Update the DraftData interface to match the server-side schema:
 interface DraftData {
   title: string
   type: ProductType
@@ -18,7 +18,7 @@ interface DraftData {
   hoverImage: string
   description: string
   materials: string
-  sizes: Array<{ size: string; quantity: number; colors: string[] }>
+  sizes: Array<{ size: string; quantity: number; color: string }> // Changed from colors array to color string
   shipping: Array<{ name: string; price: number }>
   productQuantity: number
   additionalImages: string[]
@@ -38,7 +38,8 @@ const EditDraft: React.FC = () => {
   const [sizeQuantityInput, setSizeQuantityInput] = useState("")
   const [sizeColorInput, setSizeColorInput] = useState("")
   const [selectedColors, setSelectedColors] = useState<string[]>([])
-  const [showColorDropdown, setShowColorDropdown] = useState(false)
+  const [customColor, setCustomColor] = useState("")
+  const [isCustomColor, setIsCustomColor] = useState(false)
   const [sizes, setSizes] = useState<Array<{ size: string; quantity: number; colors: string[] }>>([])
   const [shippingName, setShippingName] = useState("")
   const [shippingPrice, setShippingPrice] = useState("")
@@ -65,6 +66,15 @@ const EditDraft: React.FC = () => {
   const [selectedImageField, setSelectedImageField] = useState<"image" | "hoverImage" | null>(null)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [imageToDelete, setImageToDelete] = useState<{ path: string; field: "image" | "hoverImage" } | null>(null)
+  const [showColorDropdown, setShowColorDropdown] = useState(false)
+
+  // Add two new state variables after the existing state declarations (around line 50)
+  const [isMaterialsRequired, setIsMaterialsRequired] = useState(true)
+  const [isSizesRequired, setIsSizesRequired] = useState(true)
+  const [productQuantity, setProductQuantity] = useState<number>(1)
+
+  // Add a new state variable for the "Use same image" checkbox after the other state declarations (around line 50)
+  const [useSameImage, setUseSameImage] = useState(false)
 
   useEffect(() => {
     if (id) {
@@ -93,9 +103,21 @@ const EditDraft: React.FC = () => {
   // Mark form as changed when any field updates
   useEffect(() => {
     formChangedRef.current = true
-  }, [title, type, price, image, hoverImage, description, materials, sizes, shippingOptions, additionalImages])
+  }, [
+    title,
+    type,
+    price,
+    image,
+    hoverImage,
+    description,
+    materials,
+    sizes,
+    shippingOptions,
+    additionalImages,
+    productQuantity,
+  ])
 
-  // Update the loadDraft function to handle color in sizes
+  // Update the loadDraft function to properly handle and display colors from MongoDB
   const loadDraft = async (draftId: string) => {
     try {
       setLoading(true)
@@ -116,20 +138,59 @@ const EditDraft: React.FC = () => {
         setHoverImage(productData.hoverImage || "")
         setDescription(productData.description || "")
         setMaterials(productData.materials || "")
-        setSizes(
-          Array.isArray(productData.sizes)
-            ? productData.sizes.map((s: string | { size: string; quantity: number; colors?: string[] | string }) =>
-                typeof s === "string"
-                  ? { size: s, quantity: 1, colors: ["Default"] }
-                  : {
-                      ...s,
-                      colors: s.colors ? (Array.isArray(s.colors) ? s.colors : [s.colors]) : ["Default"],
-                    },
-              )
-            : [],
-        )
+
+        // After setting the image and hoverImage values:
+        setImage(productData.image || "")
+        setHoverImage(productData.hoverImage || "")
+        // Check if they're the same and set the checkbox accordingly
+        if (productData.image && productData.hoverImage && productData.image === productData.hoverImage) {
+          setUseSameImage(true)
+        }
+
+        // Process sizes data from MongoDB
+        if (Array.isArray(productData.sizes)) {
+          const processedSizes = productData.sizes.map((s: any) => {
+            // Handle string format (old format)
+            if (typeof s === "string") {
+              return { size: s, quantity: 1, colors: ["Default"] }
+            }
+
+            // Handle object format
+            let colorArray = ["Default"]
+
+            // Handle colors array
+            if (s.colors && Array.isArray(s.colors)) {
+              colorArray = s.colors.length > 0 ? [s.colors[0]] : ["Default"]
+            }
+            // Handle single color string
+            else if (s.colors && typeof s.colors === "string") {
+              colorArray = [s.colors]
+            }
+            // Handle color field (new format in MongoDB)
+            else if (s.color && typeof s.color === "string") {
+              colorArray = [s.color]
+            }
+
+            return {
+              size: s.size || "",
+              quantity: s.quantity || 1,
+              colors: colorArray,
+            }
+          })
+
+          setSizes(processedSizes)
+
+          // If there are sizes, set the first color as selected for the UI
+          if (processedSizes.length > 0 && processedSizes[0].colors.length > 0) {
+            setSelectedColors([processedSizes[0].colors[0]])
+          }
+        } else {
+          setSizes([])
+        }
+
         setShippingOptions(productData.shipping || [])
         setAdditionalImages(productData.additionalImages || [])
+        setProductQuantity(productData.productQuantity || 1)
       } else {
         // If draft not found, redirect to drafts page
         setError("Draft not found")
@@ -150,6 +211,16 @@ const EditDraft: React.FC = () => {
 
     try {
       setSavingDraft(true)
+      console.log("Saving draft with sizes:", sizes)
+
+      // Convert the sizes array to match the server-side schema
+      const convertedSizes = sizes.map((sizeObj) => ({
+        size: sizeObj.size,
+        quantity: sizeObj.quantity,
+        color: sizeObj.colors && sizeObj.colors.length > 0 ? sizeObj.colors[0] : "Default",
+      }))
+
+      console.log("Converted sizes for MongoDB:", convertedSizes)
 
       const draftData: DraftData = {
         title,
@@ -159,9 +230,9 @@ const EditDraft: React.FC = () => {
         hoverImage,
         description,
         materials,
-        sizes,
+        sizes: convertedSizes, // Use the converted sizes
         shipping: shippingOptions,
-        productQuantity: 1,
+        productQuantity: isSizesRequired ? 0 : productQuantity,
         additionalImages,
       }
 
@@ -195,6 +266,13 @@ const EditDraft: React.FC = () => {
       setSavingDraft(true)
       console.log(`Saving draft with ${fieldName}:`, imagePath)
 
+      // Convert the sizes array to match the server-side schema
+      const convertedSizes = sizes.map((sizeObj) => ({
+        size: sizeObj.size,
+        quantity: sizeObj.quantity,
+        color: sizeObj.colors && sizeObj.colors.length > 0 ? sizeObj.colors[0] : "Default",
+      }))
+
       const draftData: DraftData = {
         title,
         type,
@@ -203,9 +281,9 @@ const EditDraft: React.FC = () => {
         hoverImage: fieldName === "hoverImage" ? imagePath : hoverImage,
         description,
         materials,
-        sizes,
+        sizes: convertedSizes, // Use the converted sizes
         shipping: shippingOptions,
-        productQuantity: 1,
+        productQuantity: isSizesRequired ? 0 : productQuantity,
         additionalImages,
       }
 
@@ -239,6 +317,13 @@ const EditDraft: React.FC = () => {
       setSavingDraft(true)
       console.log("Saving draft with additional images:", newAdditionalImages)
 
+      // Convert the sizes array to match the server-side schema
+      const convertedSizes = sizes.map((sizeObj) => ({
+        size: sizeObj.size,
+        quantity: sizeObj.quantity,
+        color: sizeObj.colors && sizeObj.colors.length > 0 ? sizeObj.colors[0] : "Default",
+      }))
+
       const draftData: DraftData = {
         title,
         type,
@@ -247,9 +332,9 @@ const EditDraft: React.FC = () => {
         hoverImage,
         description,
         materials,
-        sizes,
+        sizes: convertedSizes, // Use the converted sizes
         shipping: shippingOptions,
-        productQuantity: 1,
+        productQuantity: isSizesRequired ? 0 : productQuantity,
         additionalImages: newAdditionalImages,
       }
 
@@ -482,16 +567,7 @@ const EditDraft: React.FC = () => {
     "Teal",
   ]
 
-  // Add this function to toggle color selection
-  const toggleColor = (color: string) => {
-    if (selectedColors.includes(color)) {
-      setSelectedColors(selectedColors.filter((c) => c !== color))
-    } else {
-      setSelectedColors([...selectedColors, color])
-    }
-  }
-
-  // Update the handleAddSize function to include color
+  // Update the handleAddSize function to use custom color
   const handleAddSize = () => {
     if (sizeInput.trim() && sizeQuantityInput.trim()) {
       const quantity = Number.parseInt(sizeQuantityInput)
@@ -500,16 +576,26 @@ const EditDraft: React.FC = () => {
         return
       }
 
+      // Use either the custom color or selected colors
+      let finalColors = ["Default"]
+      if (isCustomColor && customColor.trim()) {
+        finalColors = [customColor.trim()]
+      } else if (selectedColors.length > 0) {
+        finalColors = selectedColors
+      }
+
       const newSize = {
         size: sizeInput.trim(),
         quantity,
-        colors: selectedColors.length > 0 ? selectedColors : ["Default"],
+        colors: finalColors,
       }
       const newSizes = [...sizes, newSize]
       setSizes(newSizes)
       setSizeInput("")
       setSizeQuantityInput("")
       setSelectedColors([])
+      setCustomColor("")
+      setIsCustomColor(false)
       setShowColorDropdown(false)
 
       // Save draft immediately after adding a size
@@ -555,18 +641,20 @@ const EditDraft: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    // Update the handleSubmit function validation logic (around line 380)
+    // Replace the existing validation with this:
     // Validate that all required fields have a value.
     if (
       !title.trim() ||
       !price.trim() ||
       !image.trim() ||
-      !hoverImage.trim() ||
+      (!hoverImage.trim() && !useSameImage) ||
       !description.trim() ||
-      !materials.trim() ||
-      sizes.length === 0 ||
+      (isMaterialsRequired && !materials.trim()) ||
+      (isSizesRequired && sizes.length === 0) ||
       shippingOptions.length === 0
     ) {
-      setError("Please fill all the required inputs and add at least one size and shipping option")
+      setError("Please fill all the required inputs and add at least one shipping option")
       return
     }
 
@@ -574,7 +662,16 @@ const EditDraft: React.FC = () => {
     setError("")
 
     try {
-      // First create the product
+      // Convert sizes to the format expected by the server
+      const convertedSizes = sizes.map((sizeObj) => ({
+        size: sizeObj.size,
+        quantity: sizeObj.quantity,
+        color: sizeObj.colors && sizeObj.colors.length > 0 ? sizeObj.colors[0] : "Default",
+      }))
+
+      console.log("Creating product with sizes:", convertedSizes)
+
+      // Modify the form submission data to use the main image as hover image when checkbox is checked
       const response = await fetch(`${import.meta.env.VITE_SITE_URL}/api/products`, {
         method: "POST",
         headers: {
@@ -586,12 +683,12 @@ const EditDraft: React.FC = () => {
           type,
           price: Number(price),
           image,
-          hoverImage,
+          hoverImage: useSameImage ? image : hoverImage,
           description,
           materials,
-          sizes,
+          sizes: convertedSizes, // Use the converted sizes
           shipping: shippingOptions,
-          productQuantity: 1,
+          productQuantity: isSizesRequired ? 0 : productQuantity,
           additionalImages,
         }),
       })
@@ -619,9 +716,9 @@ const EditDraft: React.FC = () => {
                   hoverImage: "",
                   description,
                   materials,
-                  sizes,
+                  sizes: convertedSizes, // Use the converted sizes
                   shipping: [],
-                  productQuantity: 1,
+                  productQuantity: isSizesRequired ? 0 : productQuantity,
                   additionalImages: [],
                 },
               }),
@@ -807,7 +904,7 @@ const EditDraft: React.FC = () => {
               }}
               className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
             >
-              {(["Shirt", "Pants", "Shoes", "Bracelet", "Collar"] as ProductType[]).map((t) => (
+              {(["Shirt", "Pants", "Shoes", "Bracelet", "Collar", "Other"] as ProductType[]).map((t) => (
                 <option key={t} value={t}>
                   {t}
                 </option>
@@ -836,6 +933,32 @@ const EditDraft: React.FC = () => {
                 }
               }}
               className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          {/* Product Quantity */}
+          <div>
+            <label htmlFor="productQuantity" className="block text-sm font-medium text-gray-700">
+              Quantity
+            </label>
+            <input
+              type="number"
+              id="productQuantity"
+              min="0"
+              value={productQuantity}
+              onChange={(e) => {
+                setProductQuantity(Number(e.target.value))
+                formChangedRef.current = true
+              }}
+              onBlur={() => {
+                if (draftId && formChangedRef.current) {
+                  saveDraft()
+                  formChangedRef.current = false
+                }
+              }}
+              disabled={isSizesRequired}
+              className={`mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
+                isSizesRequired ? "bg-gray-100 cursor-not-allowed" : ""
+              }`}
             />
           </div>
           <div>
@@ -923,22 +1046,38 @@ const EditDraft: React.FC = () => {
             )}
           </div>
           <div>
-            <label htmlFor="hoverImage" className="block text-sm font-medium text-gray-700">
-              Hover Image
-            </label>
+            <div className="flex items-center justify-between mb-2">
+              <label htmlFor="hoverImage" className="block text-sm font-medium text-gray-700">
+                Hover Image
+              </label>
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="useSameImage"
+                  checked={useSameImage}
+                  onChange={(e) => setUseSameImage(e.target.checked)}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label htmlFor="useSameImage" className="ml-2 text-sm text-gray-600">
+                  Use the same as Image
+                </label>
+              </div>
+            </div>
             <div className="flex items-center">
               <input
                 type="text"
                 id="hoverImage"
-                required
-                value={hoverImage}
+                required={!useSameImage}
+                value={useSameImage ? "Using main image" : hoverImage}
                 readOnly
-                className="mt-1 block flex-grow border border-gray-300 rounded-md shadow-sm py-2 px-3 bg-gray-100 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                className={`mt-1 block flex-grow border border-gray-300 rounded-md shadow-sm py-2 px-3 ${
+                  useSameImage ? "bg-gray-200 text-gray-500" : "bg-gray-100"
+                } focus:outline-none focus:ring-blue-500 focus:border-blue-500`}
               />
               <button
                 type="button"
                 className={`ml-2 px-4 py-2 text-sm font-medium text-white 
-      ${uploading ? "bg-gray-500 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"} 
+      ${uploading || useSameImage ? "bg-gray-500 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"} 
       rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
                 onClick={() => {
                   const fileInput = document.createElement("input")
@@ -952,11 +1091,11 @@ const EditDraft: React.FC = () => {
                   }
                   fileInput.click()
                 }}
-                disabled={uploading || deletingImage === hoverImage}
+                disabled={uploading || deletingImage === hoverImage || useSameImage}
               >
                 {uploading ? (
                   "Saving..."
-                ) : hoverImage ? (
+                ) : hoverImage && !useSameImage ? (
                   <span className="flex items-center">
                     <RefreshCw size={16} className="mr-1" /> Change
                   </span>
@@ -967,17 +1106,17 @@ const EditDraft: React.FC = () => {
               <button
                 type="button"
                 className={`ml-2 px-4 py-2 text-sm font-medium text-white 
-      ${uploading ? "bg-gray-500 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"} 
+      ${uploading || useSameImage ? "bg-gray-500 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"} 
       rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500`}
                 onClick={() => {
                   setSelectedImageField("hoverImage")
                   setIsGalleryModalOpen(true)
                 }}
-                disabled={uploading}
+                disabled={uploading || useSameImage}
               >
                 Gallery
               </button>
-              {hoverImage && (
+              {hoverImage && !useSameImage && (
                 <button
                   type="button"
                   onClick={() => {
@@ -993,7 +1132,7 @@ const EditDraft: React.FC = () => {
                 </button>
               )}
             </div>
-            {hoverImage && (
+            {hoverImage && !useSameImage && (
               <button
                 type="button"
                 onClick={() => {
@@ -1006,18 +1145,37 @@ const EditDraft: React.FC = () => {
               </button>
             )}
           </div>
-          <div>
+          {/* Add checkbox for Sizes section (before the Sizes input, around line 460) */}
+          {/* Replace the Sizes label with: */}
+          <div className="flex items-center justify-between mb-2">
             <label htmlFor="sizes" className="block text-sm font-medium text-gray-700">
               Sizes
             </label>
-            <div className="flex items-center mt-1">
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="sizesRequired"
+                checked={isSizesRequired}
+                onChange={(e) => setIsSizesRequired(e.target.checked)}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <label htmlFor="sizesRequired" className="ml-2 text-sm text-gray-600">
+                Required
+              </label>
+            </div>
+          </div>
+          <div>
+            <div className="flex items-center mt-1 space-x-2">
               <input
                 type="text"
                 id="sizeInput"
                 placeholder="Enter size"
                 value={sizeInput}
                 onChange={(e) => setSizeInput(e.target.value)}
-                className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                disabled={!isSizesRequired}
+                className={`block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
+                  !isSizesRequired ? "bg-gray-100 cursor-not-allowed" : ""
+                }`}
               />
               <input
                 type="number"
@@ -1025,54 +1183,112 @@ const EditDraft: React.FC = () => {
                 min="1"
                 value={sizeQuantityInput}
                 onChange={(e) => setSizeQuantityInput(e.target.value)}
-                className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 ml-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                disabled={!isSizesRequired}
+                className={`block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
+                  !isSizesRequired ? "bg-gray-100 cursor-not-allowed" : ""
+                }`}
               />
-              <div className="relative w-full ml-2">
-                <button
-                  type="button"
-                  onClick={() => setShowColorDropdown(!showColorDropdown)}
-                  className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-left focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                >
-                  {selectedColors.length > 0 ? selectedColors.join(", ") : "Select colors"}
-                </button>
-                {showColorDropdown && (
-                  <div className="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base overflow-auto focus:outline-none sm:text-sm">
-                    {availableColors.map((color) => (
-                      <div
-                        key={color}
-                        className="flex items-center justify-between px-4 py-2 hover:bg-gray-100 cursor-pointer"
-                        onClick={() => toggleColor(color)}
-                      >
+              <div className="relative w-full">
+                {isCustomColor ? (
+                  <input
+                    type="text"
+                    placeholder="Custom color"
+                    value={customColor}
+                    onChange={(e) => setCustomColor(e.target.value)}
+                    disabled={!isSizesRequired}
+                    className={`block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
+                      !isSizesRequired ? "bg-gray-100 cursor-not-allowed" : ""
+                    }`}
+                  />
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setShowColorDropdown(!showColorDropdown)}
+                      disabled={!isSizesRequired}
+                      className={`block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-left focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
+                        !isSizesRequired ? "bg-gray-100 cursor-not-allowed" : ""
+                      }`}
+                    >
+                      {selectedColors.length > 0 ? (
                         <div className="flex items-center">
                           <span
                             className="w-4 h-4 mr-2 rounded-full"
-                            style={{ backgroundColor: color.toLowerCase() }}
+                            style={{ backgroundColor: selectedColors[0].toLowerCase() }}
                           ></span>
-                          <span>{color}</span>
+                          <span>{selectedColors.join(", ")}</span>
                         </div>
-                        {selectedColors.includes(color) && (
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="h-5 w-5 text-blue-600"
-                            viewBox="0 0 20 20"
-                            fill="currentColor"
+                      ) : (
+                        "Select color"
+                      )}
+                    </button>
+                    {showColorDropdown && isSizesRequired && (
+                      <div className="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base overflow-auto focus:outline-none sm:text-sm">
+                        {availableColors.map((color) => (
+                          <div
+                            key={color}
+                            className="flex items-center justify-between px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                            onClick={() => {
+                              setSelectedColors([color])
+                              setShowColorDropdown(false)
+                              setIsCustomColor(false)
+                            }}
                           >
-                            <path
-                              fillRule="evenodd"
-                              d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                              clipRule="evenodd"
-                            />
-                          </svg>
-                        )}
+                            <div className="flex items-center">
+                              <span
+                                className="w-4 h-4 mr-2 rounded-full"
+                                style={{ backgroundColor: color.toLowerCase() }}
+                              ></span>
+                              <span>{color}</span>
+                            </div>
+                            {selectedColors.includes(color) && (
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="h-5 w-5 text-blue-600"
+                                viewBox="0 0 20 20"
+                                fill="currentColor"
+                              >
+                                <path
+                                  fillRule="evenodd"
+                                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                  clipRule="evenodd"
+                                />
+                              </svg>
+                            )}
+                          </div>
+                        ))}
+                        <div
+                          className="flex items-center px-4 py-2 hover:bg-gray-100 cursor-pointer border-t border-gray-200"
+                          onClick={() => setIsCustomColor(true)}
+                        >
+                          <span className="text-blue-600">+ Add custom color</span>
+                        </div>
                       </div>
-                    ))}
-                  </div>
+                    )}
+                  </>
+                )}
+                {isCustomColor && isSizesRequired && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCustomColor(false)
+                      setCustomColor("")
+                    }}
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    <X size={16} />
+                  </button>
                 )}
               </div>
               <button
                 type="button"
                 onClick={handleAddSize}
-                className="ml-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                disabled={!isSizesRequired}
+                className={`px-4 py-2 text-sm font-medium text-white ${
+                  !isSizesRequired
+                    ? "bg-gray-400 cursor-not-allowed"
+                    : "bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                } rounded-md shadow-sm`}
               >
                 Add
               </button>
@@ -1081,16 +1297,39 @@ const EditDraft: React.FC = () => {
               {sizes.map((sizeObj, index) => (
                 <div
                   key={index}
-                  className="inline-flex items-center bg-gray-100 rounded-full px-3 py-1 mr-2 text-sm text-gray-700"
+                  className="inline-flex items-center justify-between bg-gray-100 rounded-md text-gray-700 px-3 py-1 mr-2 mt-2"
                 >
-                  {sizeObj.size} - {sizeObj.quantity} units -{" "}
-                  {Array.isArray(sizeObj.colors) ? sizeObj.colors.join(", ") : sizeObj.colors}
+                  <div className="flex items-center">
+                    {Array.isArray(sizeObj.colors) && sizeObj.colors.length > 0 && (
+                      <div className="flex mr-2">
+                        {sizeObj.colors.map((color, colorIndex) => (
+                          <span
+                            key={colorIndex}
+                            className="w-4 h-4 rounded-full mr-1"
+                            style={{ backgroundColor: color.toLowerCase() }}
+                            title={color}
+                          ></span>
+                        ))}
+                      </div>
+                    )}
+                    <span>
+                      {sizeObj.size} - {sizeObj.quantity} units -{" "}
+                      {Array.isArray(sizeObj.colors) && sizeObj.colors.length > 0
+                        ? sizeObj.colors.join(", ")
+                        : "Default"}
+                    </span>
+                  </div>
                   <button
                     type="button"
                     onClick={() => handleRemoveSize(index)}
-                    className="ml-2 text-gray-500 hover:text-gray-700 focus:outline-none"
+                    disabled={!isSizesRequired}
+                    className={`ml-2 ${
+                      !isSizesRequired
+                        ? "text-gray-400 cursor-not-allowed"
+                        : "text-red-500 hover:text-red-700 focus:outline-none"
+                    }`}
                   >
-                    <X size={14} />
+                    <X size={16} />
                   </button>
                 </div>
               ))}
@@ -1118,13 +1357,30 @@ const EditDraft: React.FC = () => {
               className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
             ></textarea>
           </div>
+          {/* Add checkbox for Materials section (before the Materials input, around line 560) */}
+          {/* Replace the Materials section with: */}
           <div>
-            <label htmlFor="materials" className="block text-sm font-medium text-gray-700">
-              Materials
-            </label>
+            <div className="flex items-center justify-between mb-2">
+              <label htmlFor="materials" className="block text-sm font-medium text-gray-700">
+                Materials
+              </label>
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="materialsRequired"
+                  checked={isMaterialsRequired}
+                  onChange={(e) => setIsMaterialsRequired(e.target.checked)}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label htmlFor="materialsRequired" className="ml-2 text-sm text-gray-600">
+                  Required
+                </label>
+              </div>
+            </div>
             <textarea
               id="materials"
-              required
+              required={isMaterialsRequired}
+              disabled={!isMaterialsRequired}
               value={materials}
               onChange={(e) => {
                 setMaterials(e.target.value)
@@ -1137,7 +1393,9 @@ const EditDraft: React.FC = () => {
                 }
               }}
               rows={3}
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              className={`mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
+                !isMaterialsRequired ? "bg-gray-100 cursor-not-allowed" : ""
+              }`}
             ></textarea>
           </div>
           <div>

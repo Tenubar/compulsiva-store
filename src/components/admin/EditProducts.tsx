@@ -19,7 +19,7 @@ interface Product {
   hoverImage: string
   description?: string
   materials?: string
-  sizes?: Array<{ size: string; quantity: number; colors: string[] }>
+  sizes?: Array<{ size: string; quantity: number; color: string }>
   shipping?: Array<{ name: string; price: number }>
   productQuantity?: number
   additionalImages?: string[]
@@ -36,14 +36,21 @@ const EditProducts: React.FC = () => {
   // Add state for color input after the sizeQuantityInput state
   const [sizeInput, setSizeInput] = useState("")
   const [sizeQuantityInput, setSizeQuantityInput] = useState("")
-  // Replace the sizeColorInput state with selectedColors array
-  const [selectedColors, setSelectedColors] = useState<string[]>([])
+  // Replace selectedColors array with selectedColor string
+  const [selectedColor, setSelectedColor] = useState("")
+  const [customColor, setCustomColor] = useState("")
   const [showColorDropdown, setShowColorDropdown] = useState(false)
+  const [isCustomColor, setIsCustomColor] = useState(false)
   const [newlyAddedImages, setNewlyAddedImages] = useState<string[]>([]) // Track newly added images
+  // Add a new state variable for the "Use same image" checkbox after the other state declarations (around line 50)
+  const [useSameImage, setUseSameImage] = useState(false)
   const navigate = useNavigate()
+  const [productQuantity, setProductQuantity] = useState<number>(1)
 
   // For image carousel
   const [startIndex, setStartIndex] = useState(0)
+  const [isMaterialsRequired, setIsMaterialsRequired] = useState(true)
+  const [isSizesRequired, setIsSizesRequired] = useState(true)
   const imagesPerView = 4
   const imageContainerRef = useRef<HTMLDivElement>(null)
 
@@ -71,15 +78,6 @@ const EditProducts: React.FC = () => {
     "Gray",
     "Teal",
   ]
-
-  // Add this function to toggle color selection
-  const toggleColor = (color: string) => {
-    if (selectedColors.includes(color)) {
-      setSelectedColors(selectedColors.filter((c) => c !== color))
-    } else {
-      setSelectedColors([...selectedColors, color])
-    }
-  }
 
   // Add saveProductWithImage function
   const saveProductWithImage = async (fieldName: "image" | "hoverImage", imagePath: string) => {
@@ -165,6 +163,20 @@ const EditProducts: React.FC = () => {
 
     return () => controller.abort() // Cleanup function to abort request
   }, [fetchProducts])
+
+  // When a product is selected, update the required states based on whether the fields have values
+  useEffect(() => {
+    if (selectedProduct) {
+      // If materials exists and is not empty, set materials as required
+      setIsMaterialsRequired(!!selectedProduct.materials && selectedProduct.materials.trim() !== "")
+      // If sizes exists and has items, set sizes as required
+      setIsSizesRequired(!!selectedProduct.sizes && selectedProduct.sizes.length > 0)
+      // Set product quantity
+      setProductQuantity(selectedProduct.productQuantity || 1)
+      // Check if hover image is the same as main image
+      setUseSameImage(selectedProduct.image === selectedProduct.hoverImage)
+    }
+  }, [selectedProduct])
 
   // Modified to immediately update the image in the database
   const handleFileUpload = async (file: File, fieldName: "image" | "hoverImage", oldImagePath?: string) => {
@@ -287,9 +299,8 @@ const EditProducts: React.FC = () => {
     }
   }
 
-  // Replace the handleAddSize function with this updated version
   const handleAddSize = () => {
-    if (!selectedProduct) return
+    if (!selectedProduct || !isSizesRequired) return
     if (sizeInput.trim() && sizeQuantityInput.trim()) {
       const quantity = Number.parseInt(sizeQuantityInput)
       if (isNaN(quantity) || quantity < 1) {
@@ -297,23 +308,31 @@ const EditProducts: React.FC = () => {
         return
       }
 
+      // Use either the selected color, custom color, or default
+      let finalColor = "Default"
+      if (isCustomColor && customColor.trim()) {
+        finalColor = customColor.trim()
+      } else if (selectedColor) {
+        finalColor = selectedColor
+      }
+
       const newSize = {
         size: sizeInput.trim(),
         quantity,
-        colors: selectedColors.length > 0 ? selectedColors : ["Default"],
+        color: finalColor,
       }
       const updatedSizes = [...(selectedProduct.sizes || []), newSize]
       setSelectedProduct({ ...selectedProduct, sizes: updatedSizes })
       setSizeInput("")
       setSizeQuantityInput("")
-      setSelectedColors([])
+      setSelectedColor("")
+      setCustomColor("")
       setShowColorDropdown(false)
     }
   }
 
-  // Update the handleRemoveSize function to work with the new structure
   const handleRemoveSize = (index: number) => {
-    if (!selectedProduct || !selectedProduct.sizes) return
+    if (!selectedProduct || !selectedProduct.sizes || !isSizesRequired) return
     const updatedSizes = selectedProduct.sizes.filter((_, i) => i !== index)
     setSelectedProduct({ ...selectedProduct, sizes: updatedSizes })
   }
@@ -412,6 +431,13 @@ const EditProducts: React.FC = () => {
     setError("")
 
     try {
+      // Modify the productToUpdate object in the handleUpdate function (around line 400)
+      const productToUpdate = {
+        ...selectedProduct,
+        productQuantity: isSizesRequired ? 0 : productQuantity,
+        hoverImage: useSameImage ? selectedProduct.image : selectedProduct.hoverImage,
+      }
+
       console.log("Updating product with ID:", selectedProduct._id)
       console.log("Update data:", selectedProduct)
 
@@ -421,7 +447,7 @@ const EditProducts: React.FC = () => {
           "Content-Type": "application/json",
         },
         credentials: "include",
-        body: JSON.stringify(selectedProduct),
+        body: JSON.stringify(productToUpdate),
       })
 
       if (response.ok) {
@@ -657,7 +683,7 @@ const EditProducts: React.FC = () => {
                 onChange={(e) => setSelectedProduct({ ...selectedProduct, type: e.target.value as ProductType })}
                 className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3"
               >
-                {(["Shirt", "Pants", "Shoes", "Bracelet", "Collar"] as ProductType[]).map((type) => (
+                {(["Shirt", "Pants", "Shoes", "Bracelet", "Collar", "Other"] as ProductType[]).map((type) => (
                   <option key={type} value={type}>
                     {type}
                   </option>
@@ -673,15 +699,49 @@ const EditProducts: React.FC = () => {
                 className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3"
               />
             </div>
+            {/* Product Quantity */}
             <div>
-              <label className="block text-sm font-medium text-gray-700">Sizes</label>
-              <div className="flex items-center">
+              <label htmlFor="productQuantity" className="block text-sm font-medium text-gray-700">
+                Quantity
+              </label>
+              <input
+                type="number"
+                id="productQuantity"
+                min="0"
+                value={productQuantity}
+                onChange={(e) => setProductQuantity(Number(e.target.value))}
+                disabled={isSizesRequired}
+                className={`mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
+                  isSizesRequired ? "bg-gray-100 cursor-not-allowed" : ""
+                }`}
+              />
+            </div>
+            <div>
+              <div className="flex items-center justify-between">
+                <label className="block text-sm font-medium text-gray-700">Sizes</label>
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="sizesRequired"
+                    checked={isSizesRequired}
+                    onChange={(e) => setIsSizesRequired(e.target.checked)}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="sizesRequired" className="ml-2 text-sm text-gray-600">
+                    Required
+                  </label>
+                </div>
+              </div>
+              <div className="flex items-center mt-1 space-x-2">
                 <input
                   type="text"
+                  placeholder="Enter size"
                   value={sizeInput}
                   onChange={(e) => setSizeInput(e.target.value)}
-                  className="mt-1 block flex-grow border border-gray-300 rounded-md shadow-sm py-2 px-3"
-                  placeholder="Enter a size (e.g., S, M, L, XL)"
+                  className={`block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
+                    !isSizesRequired ? "bg-gray-100 cursor-not-allowed" : ""
+                  }`}
+                  disabled={!isSizesRequired}
                 />
                 <input
                   type="number"
@@ -689,54 +749,100 @@ const EditProducts: React.FC = () => {
                   min="1"
                   value={sizeQuantityInput}
                   onChange={(e) => setSizeQuantityInput(e.target.value)}
-                  className="mt-1 block flex-grow border border-gray-300 rounded-md shadow-sm py-2 px-3 ml-2"
+                  className={`block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
+                    !isSizesRequired ? "bg-gray-100 cursor-not-allowed" : ""
+                  }`}
+                  disabled={!isSizesRequired}
                 />
-                <div className="relative mt-1 block flex-grow ml-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowColorDropdown(!showColorDropdown)}
-                    className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-left focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    {selectedColors.length > 0 ? selectedColors.join(", ") : "Select colors"}
-                  </button>
-                  {showColorDropdown && (
-                    <div className="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base overflow-auto focus:outline-none sm:text-sm">
-                      {availableColors.map((color) => (
-                        <div
-                          key={color}
-                          className="flex items-center justify-between px-4 py-2 hover:bg-gray-100 cursor-pointer"
-                          onClick={() => toggleColor(color)}
-                        >
-                          <div className="flex items-center">
-                            <span
-                              className="w-4 h-4 mr-2 rounded-full"
-                              style={{ backgroundColor: color.toLowerCase() }}
-                            ></span>
-                            <span>{color}</span>
-                          </div>
-                          {selectedColors.includes(color) && (
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              className="h-5 w-5 text-blue-600"
-                              viewBox="0 0 20 20"
-                              fill="currentColor"
+                <div className="relative w-full">
+                  {isCustomColor ? (
+                    <input
+                      type="text"
+                      placeholder="Custom color"
+                      value={customColor}
+                      onChange={(e) => setCustomColor(e.target.value)}
+                      className={`block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
+                        !isSizesRequired ? "bg-gray-100 cursor-not-allowed" : ""
+                      }`}
+                      disabled={!isSizesRequired}
+                    />
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => isSizesRequired && setShowColorDropdown(!showColorDropdown)}
+                        className={`block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-left focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
+                          !isSizesRequired ? "bg-gray-100 cursor-not-allowed" : ""
+                        }`}
+                        disabled={!isSizesRequired}
+                      >
+                        {selectedColor || "Select color"}
+                      </button>
+                      {showColorDropdown && isSizesRequired && (
+                        <div className="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base overflow-auto focus:outline-none sm:text-sm">
+                          {availableColors.map((color) => (
+                            <div
+                              key={color}
+                              className="flex items-center justify-between px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                              onClick={() => {
+                                setSelectedColor(color)
+                                setShowColorDropdown(false)
+                                setIsCustomColor(false)
+                              }}
                             >
-                              <path
-                                fillRule="evenodd"
-                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                clipRule="evenodd"
-                              />
-                            </svg>
-                          )}
+                              <div className="flex items-center">
+                                <span
+                                  className="w-4 h-4 mr-2 rounded-full"
+                                  style={{ backgroundColor: color.toLowerCase() }}
+                                ></span>
+                                <span>{color}</span>
+                              </div>
+                              {selectedColor === color && (
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  className="h-5 w-5 text-blue-600"
+                                  viewBox="0 0 20 20"
+                                  fill="currentColor"
+                                >
+                                  <path
+                                    fillRule="evenodd"
+                                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                    clipRule="evenodd"
+                                  />
+                                </svg>
+                              )}
+                            </div>
+                          ))}
+                          <div
+                            className="flex items-center px-4 py-2 hover:bg-gray-100 cursor-pointer border-t border-gray-200"
+                            onClick={() => setIsCustomColor(true)}
+                          >
+                            <span className="text-blue-600">+ Add custom color</span>
+                          </div>
                         </div>
-                      ))}
-                    </div>
+                      )}
+                    </>
+                  )}
+                  {isCustomColor && isSizesRequired && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCustomColor(false)
+                        setCustomColor("")
+                      }}
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      <X size={16} />
+                    </button>
                   )}
                 </div>
                 <button
                   type="button"
                   onClick={handleAddSize}
-                  className="ml-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md"
+                  disabled={!isSizesRequired}
+                  className={`px-4 py-2 text-sm font-medium text-white ${
+                    !isSizesRequired ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
+                  } rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
                 >
                   Add
                 </button>
@@ -746,17 +852,26 @@ const EditProducts: React.FC = () => {
                   {selectedProduct.sizes.map((sizeObj, index) => (
                     <div
                       key={index}
-                      className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full flex items-center text-sm"
+                      className="inline-flex items-center justify-between bg-gray-100 rounded-md text-gray-700 px-3 py-1 mr-2 mt-2"
                     >
-                      {typeof sizeObj === "string"
-                        ? sizeObj
-                        : `${sizeObj.size} - ${sizeObj.quantity} units - ${Array.isArray(sizeObj.colors) ? sizeObj.colors.join(", ") : sizeObj.colors || "Default"}`}
+                      <div className="flex items-center">
+                        <span
+                          className="w-4 h-4 mr-2 rounded-full"
+                          style={{ backgroundColor: sizeObj.color.toLowerCase() }}
+                        ></span>
+                        <span>
+                          {sizeObj.size} - {sizeObj.quantity} units - {sizeObj.color}
+                        </span>
+                      </div>
                       <button
                         type="button"
                         onClick={() => handleRemoveSize(index)}
-                        className="ml-1 text-blue-600 hover:text-blue-800 focus:outline-none"
+                        disabled={!isSizesRequired}
+                        className={`ml-2 ${
+                          !isSizesRequired ? "text-gray-400 cursor-not-allowed" : "text-red-500 hover:text-red-700"
+                        } focus:outline-none`}
                       >
-                        <X size={14} />
+                        <X size={16} />
                       </button>
                     </div>
                   ))}
@@ -773,12 +888,29 @@ const EditProducts: React.FC = () => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Materials</label>
+              <div className="flex items-center justify-between">
+                <label className="block text-sm font-medium text-gray-700">Materials</label>
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="materialsRequired"
+                    checked={isMaterialsRequired}
+                    onChange={(e) => setIsMaterialsRequired(e.target.checked)}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="materialsRequired" className="ml-2 text-sm text-gray-600">
+                    Required
+                  </label>
+                </div>
+              </div>
               <input
                 type="text"
                 value={selectedProduct.materials || ""}
                 onChange={(e) => setSelectedProduct({ ...selectedProduct, materials: e.target.value })}
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3"
+                className={`mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 ${
+                  !isMaterialsRequired ? "bg-gray-100 cursor-not-allowed" : ""
+                }`}
+                disabled={!isMaterialsRequired}
               />
             </div>
             <div>
@@ -912,21 +1044,38 @@ const EditProducts: React.FC = () => {
                 </button>
               )}
             </div>
+
             <div>
-              <label className="block text-sm font-medium text-gray-700">Hover Image</label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-gray-700">Hover Image</label>
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="useSameImage"
+                    checked={useSameImage}
+                    onChange={(e) => setUseSameImage(e.target.checked)}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="useSameImage" className="ml-2 text-sm text-gray-600">
+                    Use the same as Image
+                  </label>
+                </div>
+              </div>
               <div className="flex items-center">
                 <input
                   type="text"
                   id="hoverImage"
-                  required
-                  value={selectedProduct?.hoverImage || ""}
+                  required={!useSameImage}
+                  value={useSameImage ? "Using main image" : selectedProduct?.hoverImage || ""}
                   readOnly
-                  className="mt-1 block flex-grow border border-gray-300 rounded-md shadow-sm py-2 px-3 bg-gray-100 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  className={`mt-1 block flex-grow border border-gray-300 rounded-md shadow-sm py-2 px-3 ${
+                    useSameImage ? "bg-gray-200 text-gray-500" : "bg-gray-100"
+                  } focus:outline-none focus:ring-blue-500 focus:border-blue-500`}
                 />
                 <button
                   type="button"
                   className={`ml-2 px-4 py-2 text-sm font-medium text-white 
-                  ${uploading ? "bg-gray-500 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"} 
+                  ${uploading || useSameImage ? "bg-gray-500 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"} 
                   rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
                   onClick={() => {
                     const fileInput = document.createElement("input")
@@ -940,11 +1089,11 @@ const EditProducts: React.FC = () => {
                     }
                     fileInput.click()
                   }}
-                  disabled={uploading || deletingImage === selectedProduct?.hoverImage}
+                  disabled={uploading || deletingImage === selectedProduct?.hoverImage || useSameImage}
                 >
                   {uploading ? (
                     "Saving..."
-                  ) : selectedProduct?.hoverImage ? (
+                  ) : selectedProduct?.hoverImage && !useSameImage ? (
                     <span className="flex items-center">
                       <RefreshCw size={16} className="mr-1" /> Change
                     </span>
@@ -955,17 +1104,17 @@ const EditProducts: React.FC = () => {
                 <button
                   type="button"
                   className={`ml-2 px-4 py-2 text-sm font-medium text-white 
-                  ${uploading ? "bg-gray-500 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"} 
+                  ${uploading || useSameImage ? "bg-gray-500 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"} 
                   rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500`}
                   onClick={() => {
                     setSelectedImageField("hoverImage")
                     setIsGalleryModalOpen(true)
                   }}
-                  disabled={uploading}
+                  disabled={uploading || useSameImage}
                 >
                   Gallery
                 </button>
-                {selectedProduct?.hoverImage && (
+                {selectedProduct?.hoverImage && !useSameImage && (
                   <button
                     type="button"
                     onClick={() => {
@@ -981,7 +1130,7 @@ const EditProducts: React.FC = () => {
                   </button>
                 )}
               </div>
-              {selectedProduct?.hoverImage && (
+              {selectedProduct?.hoverImage && !useSameImage && (
                 <button
                   type="button"
                   onClick={() => {
@@ -1019,11 +1168,15 @@ const EditProducts: React.FC = () => {
               {selectedProduct.additionalImages && selectedProduct.additionalImages.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-2">
                   {selectedProduct.additionalImages.map((img, index) => (
-                    <div
-                      key={index}
-                      className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full flex items-center text-sm"
-                    >
-                      {img.split("/").pop() || `Image ${index + 1}`}
+                    <div key={index} className="relative w-20 h-20">
+                      <img
+                        src={getImageUrl(img) || "/placeholder.svg"}
+                        alt={`Additional image ${index + 1}`}
+                        className="w-full h-full object-cover rounded-md"
+                        onError={(e) => {
+                          ;(e.target as HTMLImageElement).src = getPlaceholder(80, 80)
+                        }}
+                      />
                       <button
                         type="button"
                         onClick={async () => {
@@ -1058,7 +1211,7 @@ const EditProducts: React.FC = () => {
                           }
                         }}
                         disabled={deletingImage === img}
-                        className={`ml-1 text-blue-600 hover:text-blue-800 focus:outline-none ${
+                        className={`absolute -top-2 -right-2 p-1 bg-red-600 text-white rounded-full hover:bg-red-700 focus:outline-none ${
                           deletingImage === img ? "opacity-50 cursor-not-allowed" : ""
                         }`}
                       >
@@ -1100,7 +1253,14 @@ const EditProducts: React.FC = () => {
                     }}
                   />
                   <div>
-                    <h3 className="font-semibold">{product.title}</h3>
+                    <a
+                      href={`/product/${product._id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-semibold hover:text-blue-600"
+                    >
+                      {product.title}
+                    </a>
                     <p className="text-gray-600">
                       ${product.price} - {product.type}
                     </p>
