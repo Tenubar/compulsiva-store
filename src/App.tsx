@@ -32,6 +32,10 @@ import Returns from "./components/Returns"
 import SuggestionBox from "./components/SuggestionBox"
 import Orders from "./components/Orders"
 import OrderDetail from "./components/OrderDetail"
+import ThemeProvider from "./components/ThemeProvider"
+// Add the import for AdminSettings component
+import AdminSettings from "./components/admin/AdminSettings"
+
 
 // Add this function to restore scroll position
 function ScrollToTop() {
@@ -60,7 +64,7 @@ function ScrollToTop() {
 export type ViewMode = "grid" | "list"
 export type Currency = "USD" | "EUR" | "VES"
 export type Language = LanguageType
-export type ProductType = "Shirt" | "Pants" | "Shoes" | "Bracelet" | "Collar" | "Other"
+export type ProductType = "Other"
 
 // Create a language context to be used throughout the app
 export const LanguageContext = React.createContext<{
@@ -96,6 +100,36 @@ function App() {
   })
   const [selectedTypes, setSelectedTypes] = useState<ProductType[]>([])
   const [exchangeRate, setExchangeRate] = useState(1)
+  const [siteFilters, setSiteFilters] = useState<ProductType[]>(["Other"])
+
+  useEffect(() => {
+  const setFavicon = async () => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_SITE_URL}/api/page-settings`)
+      if (response.ok) {
+        const data = await response.json()
+        const faviconUrl = data.siteIcon || "/iconPlaceholder.png"
+        let link: HTMLLinkElement | null = document.querySelector("link[rel~='icon']")
+        if (!link) {
+          link = document.createElement("link")
+          link.rel = "icon"
+          document.head.appendChild(link)
+        }
+        link.href = faviconUrl
+        console.log(faviconUrl)
+      }
+    } catch {
+      let link: HTMLLinkElement | null = document.querySelector("link[rel~='icon']")
+      if (!link) {
+        link = document.createElement("link")
+        link.rel = "icon"
+        document.head.appendChild(link)
+      }
+      link.href = "/iconPlaceholder.png"
+    }
+  }
+  setFavicon()
+}, [])
 
   // Save currency and language to localStorage when they change
   useEffect(() => {
@@ -167,7 +201,29 @@ function App() {
     setSelectedTypes([])
   }
 
+  // Fetch siteFilters from API on mount
+  useEffect(() => {
+    const fetchFilters = async () => {
+      try {
+        const response = await fetch(`${import.meta.env.VITE_SITE_URL}/api/page-settings`)
+        if (response.ok) {
+          const data = await response.json()
+          let filters = data.siteFilters || ["Other"]
+          // Always ensure "Other" is present
+          if (!filters.some((f: string) => f.toLowerCase() === "other")) {
+            filters = [...filters, "Other"]
+          }
+          setSiteFilters(filters)
+        }
+      } catch (err) {
+        setSiteFilters(["Other"])
+      }
+    }
+    fetchFilters()
+  }, [])
+
   return (
+    <ThemeProvider>
     <LanguageContext.Provider value={{ language, setLanguage, t, currency, setCurrency }}>
       <ExchangeRateContext.Provider value={{ exchangeRate }}>
         <Router>
@@ -239,6 +295,16 @@ function App() {
                 </AdminRoute>
               }
             />
+            {/* Add the route for AdminSettings in the Routes component (around line 100) */}
+            {/* Find the Admin Routes section and add this route */}
+            <Route
+              path="/admin/settings"
+              element={
+                <AdminRoute>
+                  <AdminSettings />
+                </AdminRoute>
+              }
+            />
 
             <Route path="/product/:id" element={<ProductDetail onBack={() => window.history.back()} />} />
             <Route path="/about" element={<AboutMe />} />
@@ -247,69 +313,85 @@ function App() {
             <Route path="/returns" element={<Returns />} />
             <Route path="/suggestions" element={<SuggestionBox />} />
             <Route
-              path="/"
-              element={
-                <div className="min-h-screen bg-gray-50">
-                  <Header currency={currency} setCurrency={setCurrency} language={language} setLanguage={setLanguage} />
-                  <main className="container mx-auto px-4 py-8 mt-20">
-                    <div className="flex justify-between items-center mb-6">
-                      <div className="flex gap-4">
-                        <button
-                          onClick={() => setViewMode("grid")}
-                          className={`p-2 ${viewMode === "grid" ? "text-blue-600" : "text-gray-600"}`}
-                        >
-                          <Grid size={20} />
-                        </button>
-                        <button
-                          onClick={() => setViewMode("list")}
-                          className={`p-2 ${viewMode === "list" ? "text-blue-600" : "text-gray-600"}`}
-                        >
-                          <List size={20} />
-                        </button>
+                path="/"
+                element={
+                  <div className="min-h-screen" style={{ backgroundColor: "var(--color-background)" }}>
+                    <Header
+                      currency={currency}
+                      setCurrency={setCurrency}
+                      language={language}
+                      setLanguage={setLanguage}
+                    />
+                    <main className="container mx-auto px-4 py-8 mt-20">
+                      <div className="flex justify-between items-center mb-6">
+                        <div className="flex gap-4">
+                          <button
+                            onClick={() => setViewMode("grid")}
+                            className={`p-2 ${viewMode === "grid" ? "text-primary" : "text-gray-600"}`}
+                            style={{ color: viewMode === "grid" ? "var(--color-primary)" : undefined }}
+                          >
+                            <Grid size={20} />
+                          </button>
+                          <button
+                            onClick={() => setViewMode("list")}
+                            className={`p-2 ${viewMode === "list" ? "text-primary" : "text-gray-600"}`}
+                            style={{ color: viewMode === "list" ? "var(--color-primary)" : undefined }}
+                          >
+                            <List size={20} />
+                          </button>
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="flex flex-wrap gap-4 mb-6">
-                      {(["Shirt", "Pants", "Shoes", "Bracelet", "Collar", "Other"] as const).map((type) => (
-                        <button
-                          key={type}
-                          onClick={() => toggleProductType(type)}
-                          className={`px-4 py-2 rounded-full ${
-                            selectedTypes.includes(type) ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-700"
-                          }`}
-                        >
-                          {t(type)}
-                        </button>
-                      ))}
-                      {selectedTypes.length > 0 && (
-                        <button onClick={clearFilters} className="px-4 py-2 rounded-full bg-red-600 text-white">
-                          {t("clearAll")}
-                        </button>
+                      <div className="flex flex-wrap gap-4 mb-6">
+                        {siteFilters.map((type) => (
+                          <button
+                            key={type}
+                            onClick={() => toggleProductType(type)}
+                            className={`px-4 py-2 rounded-full`}
+                            style={{
+                              backgroundColor: selectedTypes.includes(type)
+                                ? "var(--color-primary)"
+                                : "var(--color-secondary)",
+                              color: selectedTypes.includes(type) ? "var(--color-text-white)" : "var(--color-text-white)",
+                            }}
+                          >
+                            {t(type)}
+                          </button>
+                        ))}
+                        {selectedTypes.length > 0 && (
+                          <button
+                            onClick={clearFilters}
+                            className="px-4 py-2 rounded-full"
+                            style={{ backgroundColor: "var(--color-accent)", color: "var(--color-text-white)" }}
+                          >
+                            {t("clearAll")}
+                          </button>
+                        )}
+                      </div>
+
+                      {viewMode === "grid" ? (
+                        <ProductGrid
+                          selectedTypes={selectedTypes}
+                          onProductClick={(productId) => console.log("Product clicked:", productId)}
+                          currency={currency}
+                        />
+                      ) : (
+                        <ProductList
+                          selectedTypes={selectedTypes}
+                          onProductClick={(productId) => console.log("Product clicked:", productId)}
+                          currency={currency}
+                        />
                       )}
-                    </div>
-
-                    {viewMode === "grid" ? (
-                      <ProductGrid
-                        selectedTypes={selectedTypes}
-                        onProductClick={(productId) => console.log("Product clicked:", productId)}
-                        currency={currency}
-                      />
-                    ) : (
-                      <ProductList
-                        selectedTypes={selectedTypes}
-                        onProductClick={(productId) => console.log("Product clicked:", productId)}
-                        currency={currency}
-                      />
-                    )}
-                  </main>
-                  <Footer />
-                </div>
-              }
-            />
-          </Routes>
-        </Router>
-      </ExchangeRateContext.Provider>
-    </LanguageContext.Provider>
+                    </main>
+                    <Footer />
+                  </div>
+                }
+              />
+            </Routes>
+          </Router>
+        </ExchangeRateContext.Provider>
+      </LanguageContext.Provider>
+    </ThemeProvider>
   )
 }
 

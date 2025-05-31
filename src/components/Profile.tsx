@@ -503,8 +503,14 @@ const Profile: React.FC = () => {
               <button
                 onClick={handleProfileUpdate}
                 disabled={loading}
-                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-              >
+                className="mt-3 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50"
+                  style={{
+                    backgroundColor: "var(--color-primary)",
+                    transition: "background-color 0.2s",
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.backgroundColor = "var(--color-secondary)")}
+                  onMouseLeave={e => (e.currentTarget.style.backgroundColor = "var(--color-primary)")}
+                >
                 {loading ? t("saving") : t("saveChanges")}
               </button>
             </div>

@@ -70,9 +70,8 @@ module.exports = {
         sm: "calc(var(--radius) - 4px)",
       },
       fontFamily: {
-        title: ["Inter", "sans-serif"],
-        subtitle: ["IBM Plex Mono", "monospace"],
-        body: ["Oxygen", "sans-serif"],
+        title: ['var(--site-typography-headers)', 'sans-serif'],
+        body: ['var(--site-typography-body)', 'sans-serif'],
       },
     },
   },

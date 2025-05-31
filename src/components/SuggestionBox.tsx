@@ -142,7 +142,11 @@ const SuggestionBox: React.FC = () => {
       <Header currency={currency} setCurrency={setCurrency} language={language} setLanguage={setLanguage} />
       <main className="flex-grow container mx-auto px-4 py-24">
         <div className="max-w-3xl mx-auto">
-          <h1 className="text-3xl font-bold mb-6 text-primary-dark">{t("suggestionBoxTitle")}</h1>
+          <h1 className="text-3xl font-bold mb-6"
+          style = {{
+            color: "var(--color-text-header)"
+          }}
+          >{t("suggestionBoxTitle")}</h1>
 
           <div className="bg-white rounded-lg shadow-md p-6 mb-8">
             <p className="mb-4 text-gray-700">{t("suggestionBoxIntro")}</p>
@@ -170,7 +174,18 @@ const SuggestionBox: React.FC = () => {
                   onChange={(e) => setMessage(e.target.value)}
                   required
                   rows={5}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-dark"
+                   className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    style={{
+                      outline: "none",
+                      boxShadow: "0 0 0 0px var(--color-primary)",
+                      transition: "box-shadow 0.2s",
+                    }}
+                    onFocus={e => {
+                      e.currentTarget.style.boxShadow = "0 0 0 2px var(--color-primary)"
+                    }}
+                    onBlur={e => {
+                      e.currentTarget.style.boxShadow = "0 0 0 0px var(--color-primary)"
+                    }}
                   placeholder={t("suggestionBoxSuggestionPlaceholder")}
                 ></textarea>
               </div>
@@ -178,7 +193,17 @@ const SuggestionBox: React.FC = () => {
               <button
                 type="submit"
                 disabled={isSubmitting || !message.trim()}
-                className="w-full bg-primary-dark text-white py-2 px-4 rounded-md hover:bg-primary-darker transition duration-300 disabled:opacity-50"
+                className="w-full text-white py-2 px-4 rounded-md transition duration-300 disabled:opacity-50"
+                style={{
+                  backgroundColor: "var(--color-primary)",
+                  transition: "background-color 0.3s ease",
+                }}
+                 onMouseEnter={e => {
+                  e.currentTarget.style.backgroundColor = "var(--color-secondary)"
+                  }}
+                  onMouseLeave={e => {
+                  e.currentTarget.style.backgroundColor = "var(--color-primary)"
+                  }}
               >
                 {isSubmitting ? t("suggestionBoxSubmitting") : t("suggestionBoxSubmit")}
               </button>
@@ -186,7 +211,11 @@ const SuggestionBox: React.FC = () => {
           </div>
 
           <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="font-semibold text-lg mb-4 text-primary-dark">{t("suggestionBoxRecentSuggestions")}</h3>
+              <h3 className="font-semibold text-lg mb-4"
+              style = {{
+                color: "var(--color-text-header)"
+              }}
+              >{t("suggestionBoxRecentSuggestions")}</h3>
 
               <div className="space-y-4">
               {suggestions.map((suggestion) => (

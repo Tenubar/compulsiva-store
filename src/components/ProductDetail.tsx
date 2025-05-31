@@ -42,6 +42,7 @@ interface Product {
     quantity: number
     colors?: string[]
     color?: string // Add support for legacy color field
+    sizePrice?: number // Optional price for this size
   }>
   shipping?: Array<{ name: string; price: number }>
   image: string
@@ -195,8 +196,6 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
         },
       })
 
-      console.log("Fetched product data:", response.data)
-
       // Ensure productQuantity is properly parsed as a number
       const productData = {
         ...response.data,
@@ -226,7 +225,6 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
         )
       }
 
-      console.log("Normalized product data:", productData)
       setProduct(productData)
       lastFetchTime.current = timestamp
       isReturningFromPurchase.current = false
@@ -269,7 +267,6 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
 
         // Convert map to array
         const mergedSizes = Array.from(sizeGroups.values())
-        console.log("Merged sizes:", mergedSizes)
 
         // Find first size that has quantity > 0
         const availableSize = mergedSizes.find((sizeObj) => sizeObj.quantity > 0)
@@ -484,19 +481,17 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
     if (!isLoggedIn) return
 
     try {
-      console.log(`Checking purchase history for product ${productId}`)
       const response = await fetch(`${import.meta.env.VITE_SITE_URL}/api/user/has-purchased/${productId}`, {
         credentials: "include",
       })
 
       if (response.ok) {
         const data = await response.json()
-        console.log(`Purchase check result:`, data)
         setHasPurchased(data.hasPurchased)
 
         // If the user has purchased the product, log it for clarity
         if (data.hasPurchased) {
-          console.log(`User has purchased product ${productId}, enabling ratings`)
+         
         }
       }
     } catch (error) {
@@ -695,17 +690,12 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
     const sizeToUse = sizeParam || selectedSize
     if (!sizeToUse) return []
 
-    console.log("Product sizes:", product.sizes)
-    console.log("Selected size:", sizeToUse)
-
     // Find all size objects with the same size name
     const sizeObjs =
       product.sizes?.filter(
         (sizeObj: { size: string; quantity: number; colors?: string[] }) =>
           sizeObj.size.toLowerCase() === sizeToUse.toLowerCase(),
       ) || []
-
-    console.log("Matching size objects:", sizeObjs)
 
     // Create a map to store color and its quantity
     const colorMap = new Map()
@@ -727,10 +717,33 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
       }
     })
 
-    console.log("Color map:", Array.from(colorMap.entries()))
-
     // Convert map to array of objects with color and quantity
     return Array.from(colorMap).map(([color, quantity]) => ({ color, quantity }))
+  }
+
+    const getSelectedSizePrice = () => {
+    if (product && product.sizes && selectedSize) {
+      // Find the size object that matches both size and color
+      const sizeObj = product.sizes.find(
+        (s) =>
+          s.size.toLowerCase() === selectedSize.toLowerCase() &&
+          (
+            (Array.isArray(s.colors) && s.colors.includes(selectedColor)) ||
+            (typeof s.color === "string" && s.color.toLowerCase() === selectedColor.toLowerCase())
+          )
+      )
+      if (sizeObj && typeof sizeObj.sizePrice === "number") {
+        return sizeObj.sizePrice
+      }
+      // fallback: if not found, return the first matching size (legacy behavior)
+      const fallback = product.sizes.find(
+        (s) => s.size.toLowerCase() === selectedSize.toLowerCase()
+      )
+      if (fallback && typeof fallback.sizePrice === "number") {
+        return fallback.sizePrice
+      }
+    }
+    return product?.price || 0
   }
 
   // Add a manual refresh function
@@ -740,7 +753,12 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-primary-light flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center"
+      style = {{
+        backgroundColor: "var(--color-background)",
+        color: "var(--color-text-black)",
+      }}
+      >
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
           <p className="mt-4 font-body text-gray-700">{t("loadingProductDetails")}</p>
@@ -751,13 +769,33 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
 
   if (error || !product) {
     return (
-      <div className="min-h-screen bg-primary-light flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center"
+      style ={{
+        backgroundColor: "var(--color-secondary)",
+        color: "var(--color-text-black)",
+      }}
+      >
         <div className="text-center max-w-md mx-auto p-6 bg-white rounded-lg shadow-md">
-          <h2 className="text-2xl font-title font-bold text-primary-dark mb-4">{t("error")}</h2>
+          <h2 className="text-2xl font-title font-bold mb-4"
+            style={{ color: "var(--color-primary)" }}
+          >{t("error")}</h2>
           <p className="font-body text-gray-700 mb-6">{error || t("productNotFound")}</p>
           <button
             onClick={() => navigate("/")}
-            className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark"
+            className="px-4 py-2 rounded-md"
+            style={{
+              backgroundColor: "var(--color-primary)",
+              color: "var(--color-text-white)",
+              transition: "background-color 0.2s, color 0.2s",
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.backgroundColor = "var(--color-secondary)"
+              e.currentTarget.style.color = "var(--color-text-white)"
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.backgroundColor = "var(--color-primary)"
+              e.currentTarget.style.color = "var(--color-text-white)"
+            }}
           >
             {t("returnToHome")}
           </button>
@@ -876,6 +914,11 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
     )
   }
 
+  const priceToUse =
+  product.sizes && product.sizes.length > 0
+    ? getSelectedSizePrice()
+    : product.price
+
   // Add this function to handle preview form submission
   const handlePreviewSubmit = async () => {
     try {
@@ -980,13 +1023,30 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
   }
 
   return (
-    <div className="min-h-screen bg-primary-light">
+    <div className="min-h-screen"
+    style = {{
+      backgroundColor: "var(--color-background)",
+      color: "var(--color-text-black)",
+    }}
+    >
       <Header currency={currency} setCurrency={setCurrency} language={language} setLanguage={setLanguage} />
 
       <main className="container mx-auto px-4 py-8 mt-16">
         {/* Back button */}
         <div className="mb-8">
-          <button onClick={handleBackToProducts} className="flex items-center text-gray-700 hover:text-primary-dark">
+          <button onClick={handleBackToProducts} className="flex items-center"
+          style = {{
+            color: "var(--color-text-info)",
+            fontWeight: "400",
+            transition: "color 0.2s",
+          }}
+          onMouseEnter={e => {
+            (e.currentTarget as HTMLButtonElement).style.color = "var(--color-primary)"
+          }}
+          onMouseLeave={e => {
+            (e.currentTarget as HTMLButtonElement).style.color = "var(--color-text-info)"
+          }}
+          >
             <ArrowLeft size={20} className="mr-2" /> {t("backToProducts")}
           </button>
         </div>
@@ -997,9 +1057,20 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
               {images.map((img, index) => (
                 <div
                   key={index}
-                  className={`border-2 rounded-md overflow-hidden cursor-pointer flex-shrink-0 w-20 h-20 ${
-                    selectedImage === img ? "border-primary-dark" : "border-gray-200"
-                  }`}
+                  className={`border-2 rounded-md overflow-hidden cursor-pointer flex-shrink-0 w-20 h-20`}
+                  style={{
+                    borderColor: selectedImage === img ? "var(--color-primary)" : "#e5e7eb",
+                    transition: "border-color 0.2s",
+                  }}
+                  onMouseEnter={e => {
+                    if (selectedImage !== img) {
+                      (e.currentTarget as HTMLDivElement).style.borderColor = "var(--color-secondary)"
+                    }
+                  }}
+                  onMouseLeave={e => {
+                    (e.currentTarget as HTMLDivElement).style.borderColor =
+                      selectedImage === img ? "var(--color-primary)" : "#e5e7eb"
+                  }}
                   onClick={() => setSelectedImage(img ?? null)}
                 >
                   <img
@@ -1033,9 +1104,22 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
           </div>
 
           <div>
-            <h1 className="text-3xl font-title font-bold mb-4">{product.title}</h1>
-            <p className="text-2xl font-title font-[800] text-pricetxt text-[1.8rem] mb-6">
-              {formatPrice(product.price, currency)}
+            <h1 className="text-3xl font-title font-bold mb-4"
+            style= {{
+              color: "var(--color-text-header)",
+            }}
+            >{product.title}</h1>
+            <p className="text-2xl font-title font-[800] text-[1.8rem] mb-6"
+              style={{
+                color: "var(--color-text-price)",
+              }}
+            >
+               {formatPrice(
+                product.sizes && product.sizes.length > 0
+                  ? getSelectedSizePrice()
+                  : product.price,
+                currency
+              )}
             </p>
 
             {/* Update the star rating component to allow rating if purchased, regardless of stock */}
@@ -1046,13 +1130,14 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
                     <Star
                       key={star}
                       size={20}
-                      className={`${!isLoggedIn || !hasPurchased ? "cursor-not-allowed opacity-70" : "cursor-pointer"} ${
+                      className={`${!isLoggedIn || !hasPurchased ? "cursor-not-allowed opacity-70" : "cursor-pointer"}`}
+                      style={
                         (hoverRating || userRating) >= star
-                          ? "text-primary-dark fill-primary-dark"
+                          ? { color: "var(--color-text-black)", fill: "var(--color-text-black)" }
                           : averageRating >= star - 0.5
-                            ? "text-primary-dark fill-primary-dark"
-                            : "text-gray-300"
-                      }`}
+                            ? { color: "var(--color-text-black)", fill: "var(--color-text-black)" }
+                            : { color: "#d1d5db", fill: "#d1d5db" }
+                      }
                       onClick={() => handleRatingSubmit(star)}
                       onMouseEnter={() => (isLoggedIn && hasPurchased ? setHoverRating(star) : null)}
                       onMouseLeave={() => (isLoggedIn && hasPurchased ? setHoverRating(0) : null)}
@@ -1066,7 +1151,11 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
 
               {isLoggedIn && !hasPurchased && (
                 <div className="mt-2">
-                  <p className="text-sm text-amber-600">{t("purchaseRequiredForRating")}</p>
+                  <p className="text-sm text-amber-600" 
+                  style={{
+                    color: "var(--color-accent)",
+                  }}
+                  >{t("purchaseRequiredForRating")}</p>
                 </div>
               )}
 
@@ -1179,14 +1268,42 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
               <button
                 onClick={handleAddToCart}
                 disabled={addingToCart}
-                className="flex-1 bg-secondary text-gray-800 py-3 rounded-md hover:bg-secondary-light"
+                className="flex-1 text-gray-800 py-3 rounded-md-light"
+                  style={{
+                  backgroundColor: "var(--color-background)",
+                  color: "var(--color-text-black)",
+                  transition: "background-color 0.2s, color 0.2s",
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.backgroundColor = "var(--color-secondary)"
+                  e.currentTarget.style.color = "var(--color-text-white)"
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.backgroundColor = "var(--color-background)"
+                  e.currentTarget.style.color = "var(--color-text-black)"
+                }}
               >
                 {addingToCart ? t("adding") : t("addToCart")}
               </button>
 
               {/* Update the Buy with PayPal button to be disabled if selected size is out of stock */}
               <button
-                className="flex-1 bg-primary-dark text-primary-light py-3 rounded-md hover:bg-secondary-light hover:text-gray-800 disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:bg-primary-dark disabled:hover:text-primary-light"
+                className="flex-1 py-3 rounded-md disabled:opacity-70 disabled:cursor-not-allowed"
+                style={{
+                  backgroundColor: "var(--color-primary)",
+                  color: "var(--color-text-white)",
+                  transition: "background-color 0.2s, color 0.2s",
+                }}
+                onMouseEnter={e => {
+                  if (!(e.currentTarget as HTMLButtonElement).disabled) {
+                    e.currentTarget.style.backgroundColor = "var(--color-secondary)"
+                    e.currentTarget.style.color = "var(--color-text-white)"
+                  }
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.backgroundColor = "var(--color-primary)"
+                  e.currentTarget.style.color = "var(--color-text-white)"
+                }}
                 onClick={handlePayPalCheckout}
                 disabled={
                   product.sizes && product.sizes.length > 0
@@ -1218,14 +1335,22 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
             <div className="space-y-6">
               {product.materials && (
                 <div>
-                  <h2 className="text-xl font-title font-semibold mb-2">{t("materials")}</h2>
+                  <h2 className="text-xl font-title font-semibold mb-2"
+                  style={{
+                    color: "var(--color-text-header)",
+                  }}
+                  >{t("materials")}</h2>
                   <p className="font-body text-gray-700">{product.materials}</p>
                 </div>
               )}
 
               {product.sizes && product.sizes.length > 0 && (
                 <div>
-                  <h2 className="text-xl font-title font-semibold mb-2">{t("sizes")}</h2>
+                  <h2 className="text-xl font-title font-semibold mb-2"
+                  style={{
+                    color: "var(--color-text-header)",
+                  }}
+                  >{t("sizes")}</h2>
                   <div className="flex flex-wrap gap-2">
                     {(() => {
                       // Group sizes by name (case insensitive)
@@ -1256,11 +1381,20 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
                           key={index}
                           className={`px-4 py-2 rounded-md font-body ${
                             selectedSize.toLowerCase() === sizeObj.size.toLowerCase()
-                              ? "bg-primary-light text-black border-primary border"
+                              ? "border-primary border"
                               : sizeObj.quantity > 0
                                 ? "bg-gray-200 text-gray-700 border border-gray-300 hover:border-primary"
                                 : "bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed"
                           }`}
+                          style={
+                            selectedSize.toLowerCase() === sizeObj.size.toLowerCase()
+                              ? {
+                                  backgroundColor: "var(--color-primary)",
+                                  color: "var(--color-text-white)",
+                                  border: "1px solid var(--color-primary)",
+                                }
+                              : undefined
+                          }
                           onClick={() => {
                             if (sizeObj.quantity > 0) {
                               setSelectedSize(sizeObj.size)
@@ -1305,16 +1439,25 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
 
               {product.sizes && product.sizes.length > 0 && getColorsForSelectedSize().length > 0 && (
                 <div>
-                  <h2 className="text-xl font-title font-semibold mb-2">{t("colors")}</h2>
+                  <h2 className="text-xl font-title font-semibold mb-2"
+                  style={{
+                    color: "var(--color-text-header)",
+                  }}
+                  >{t("colors")}</h2>
                   <div className="flex flex-wrap gap-2">
                     {getColorsForSelectedSize().map((colorObj, index) => (
                       <button
                         key={index}
                         className={`px-4 py-2 rounded-md font-body flex items-center ${
                           selectedColor === colorObj.color
-                            ? "bg-primary-light text-black border-primary border"
+                            ? "text-black border-primary border"
                             : "bg-gray-200 text-gray-700 border border-gray-300 hover:border-primary"
                         }`}
+                        style={
+                          selectedColor === colorObj.color
+                            ? { backgroundColor: "var(--color-background)" }
+                            : undefined
+                        }
                         onClick={() => setSelectedColor(colorObj.color)}
                       >
                         <span
@@ -1333,7 +1476,11 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
               )}
 
               <div>
-                <h2 className="text-xl font-title font-semibold mb-2">{t("shipping")}</h2>
+                <h2 className="text-xl font-title font-semibold mb-2"
+                style={{
+                    color: "var(--color-text-header)",
+                  }}
+                >{t("shipping")}</h2>
                 <div className="mb-4">
                   <select
                     value={selectedShipping ? JSON.stringify(selectedShipping) : ""}
@@ -1362,7 +1509,11 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
               </div>
 
               <div>
-                <h2 className="text-xl font-title font-semibold mb-2">{t("productStats")}</h2>
+                <h2 className="text-xl font-title font-semibold mb-2"
+                style={{
+                    color: "var(--color-text-header)",
+                  }}
+                >{t("productStats")}</h2>
                 <p className="font-body text-gray-700">
                   {t("views")}: {product.visits || 0}
                 </p>
@@ -1373,7 +1524,11 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
 
         {recommended.length > 0 && (
           <div className="mb-12">
-            <h2 className="text-2xl font-title font-bold mb-6">{t("recommendedProducts")}</h2>
+            <h2 className="text-2xl font-title font-bold mb-6"
+            style={{
+              color: "var(--color-text-header)",
+            }}
+            >{t("recommendedProducts")}</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {recommended.map((item) => (
                 <div
@@ -1406,7 +1561,11 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
 
         {/* Comments Section */}
         <div className="mb-12 bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-2xl font-title font-bold mb-6">{t("comments")}</h2>
+          <h2 className="text-2xl font-title font-bold mb-6"
+          style = {{
+            color: "var(--color-text-header)",
+          }}
+          >{t("comments")}</h2>
 
           {isLoggedIn ? (
             <form onSubmit={handleCommentSubmit} className="mb-8">
@@ -1423,17 +1582,46 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
               <button
                 type="submit"
                 disabled={submittingComment || !commentText.trim()}
-                className="px-4 py-2 bg-primary-dark text-white rounded-md hover:bg-secondary-light hover:text-black disabled:opacity-50 font-body"
+                className="px-4 py-2 rounded-md disabled:opacity-80 font-body"
+                style={{
+                  color: "var(--color-text-white)",
+                  backgroundColor: "var(--color-primary)",
+                  transition: "background-color 0.2s, color 0.2s",
+                }}
+                onMouseEnter={e => {
+                  if ((e.currentTarget as HTMLButtonElement).disabled) {
+                    e.currentTarget.style.color = "var(--color-text-black)"
+                    e.currentTarget.style.backgroundColor = "var(--color-primary)"
+                  } else {
+                    e.currentTarget.style.backgroundColor = "var(--color-primary)"
+                    e.currentTarget.style.color = "var(--color-text-black)"
+                  }
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.backgroundColor = "var(--color-primary)"
+                  e.currentTarget.style.color = "var(--color-text-white)"
+                }}
               >
                 {submittingComment ? t("posting") : t("postComment")}
               </button>
             </form>
           ) : (
-            <div className="mb-8 p-4 bg-primary-light rounded-md text-center">
+            <div className="mb-8 p-4 rounded-md text-center"
+            style = {{
+              backgroundColor: "var(--color-background)",
+              color: "var(--color-text-black)",
+            }}
+            >
               <p className="font-body text-gray-700 mb-2">{t("needLogin")}</p>
               <button
                 onClick={() => navigate("/login")}
-                className="px-4 py-2 bg-primary-dark text-white rounded-md hover:bg-secondary-light font-body hover:text-black"
+                className="px-4 py-2 text-white rounded-md font-body hover:text-black"
+                style={{
+                  backgroundColor: "var(--color-primary)",
+                  transition: "background-color 0.2s",
+                }}
+                onMouseEnter={e => (e.currentTarget.style.backgroundColor = "var(--color-secondary)")}
+                onMouseLeave={e => (e.currentTarget.style.backgroundColor = "var(--color-primary)")}
               >
                 {t("login")}
               </button>
@@ -1446,8 +1634,17 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
               <p className="mt-2 font-body text-gray-700">{t("loadingComments")}</p>
             </div>
           ) : comments.length === 0 ? (
-            <div className="text-center py-8 bg-primary-light rounded-md">
-              <MessageSquare className="mx-auto h-12 w-12 text-gray-400" />
+            <div className="text-center py-8 rounded-md"
+            style = {{
+              backgroundColor: "var(--color-background)",
+              color: "var(--color-text-black)",
+            }}
+            >
+              <MessageSquare className="mx-auto h-12 w-12"
+              style = {{
+                color: "var(--color-primary)",
+              }}
+              />
               <p className="mt-2 font-body text-gray-700">{t("noComments")}</p>
             </div>
           ) : (
@@ -1464,7 +1661,9 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
                         userData?.email === import.meta.env.VITE_ADMIN_USER_EMAIL) && (
                         <button
                           onClick={() => handleDeleteComment(comment._id)}
-                          className="text-primary-dark hover:text-primary"
+                          style={{ color: "var(--color-primary)", transition: "color 0.2s" }}
+                            onMouseEnter={e => (e.currentTarget.style.color = "var(--color-secondary)")}
+                            onMouseLeave={e => (e.currentTarget.style.color = "var(--color-primary)")}
                           title="Delete comment"
                         >
                           <Trash2 size={16} />
@@ -1477,8 +1676,11 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
                     <div className="mt-2">
                       <button
                         onClick={() => setReplyingTo(replyingTo === comment._id ? null : comment._id)}
-                        className="text-sm font-body text-primary hover:text-primary-dark flex items-center"
-                      >
+                        className="text-sm font-body flex items-center"
+                        style={{ color: "var(--color-primary)", transition: "color 0.2s" }}
+                          onMouseEnter={e => (e.currentTarget.style.color = "var(--color-secondary)")}
+                          onMouseLeave={e => (e.currentTarget.style.color = "var(--color-primary)")}
+                        >
                         <Reply size={14} className="mr-1" />
                         {replyingTo === comment._id ? t("cancel") : t("reply")}
                       </button>
@@ -1498,7 +1700,13 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
                         <button
                           onClick={() => handleReplySubmit(comment._id)}
                           disabled={submittingComment || !replyText.trim()}
-                          className="px-3 py-1 bg-primary-dark text-white text-sm rounded-md hover:bg-primary-dark hover:text-black disabled:opacity-50 font-body"
+                          className="px-3 py-1 text-white text-sm rounded-md hover:text-black disabled:opacity-50 font-body"
+                          style={{
+                            backgroundColor: "var(--color-primary)",
+                            transition: "background-color 0.2s",
+                          }}
+                          onMouseEnter={e => (e.currentTarget.style.backgroundColor = "var(--color-secondary)")}
+                          onMouseLeave={e => (e.currentTarget.style.backgroundColor = "var(--color-primary)")}
                         >
                           {submittingComment ? t("posting") : t("postReply")}
                         </button>
@@ -1521,7 +1729,12 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
                                 userData?.email === import.meta.env.VITE_ADMIN_USER_EMAIL) && (
                                 <button
                                   onClick={() => handleDeleteComment(reply._id)}
-                                  className="text-primary-dark hover:text-primary"
+                                  style={{
+                                  color: "var(--color-primary)",
+                                  transition: "color 0.2s",
+                                  }}
+                                  onMouseEnter={(e: React.MouseEvent<HTMLButtonElement>) => (e.currentTarget.style.color = "var(--color-secondary)")}
+                                  onMouseLeave={(e: React.MouseEvent<HTMLButtonElement>) => (e.currentTarget.style.color = "var(--color-primary)")}
                                   title="Delete reply"
                                 >
                                   <Trash2 size={14} />
@@ -1613,7 +1826,12 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
             </div>
 
             <div className="text-center mb-6">
-              <h3 className="text-xl font-semibold mb-2">{t("loginRequired")}</h3>
+              <h3 className="text-xl mb-2"
+              style={{
+                fontWeight: "bold",
+                color: "var(--color-text-header)",
+              }}
+              >{t("loginRequired")}</h3>
               <p className="text-gray-600">{t("loginRequiredForPurchase")}</p>
             </div>
 
@@ -1623,14 +1841,31 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
                   setShowLoginPrompt(false)
                   navigate("/login")
                 }}
-                className="w-full flex items-center justify-center gap-2 bg-primary-dark text-white py-3 rounded-md hover:bg-primary"
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-md"
+                style={{
+                  backgroundColor: "var(--color-primary)",
+                  color: "var(--color-text-white)",
+                  transition: "background-color 0.2s, color 0.2s",
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.backgroundColor = "var(--color-secondary)"
+                  e.currentTarget.style.color = "var(--color-text-white)"
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.backgroundColor = "var(--color-primary)"
+                  e.currentTarget.style.color = "var(--color-text-white)"
+                }}
               >
                 <LogIn size={20} />
                 {t("login")}
               </button>
 
               <div className="text-center">
-                <p className="text-sm text-gray-600 mb-2">{t("dontHaveAccount")}</p>
+                <p className="text-sm mb-2"
+                style ={{
+                  color: "var(--color-text-info)",
+                }}
+                >{t("dontHaveAccount")}</p>
                 <button
                   onClick={() => {
                     setShowLoginPrompt(false)
@@ -1654,7 +1889,11 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
             <div className="p-6 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
-                  <FileText className="h-6 w-6 text-primary-dark mr-2" />
+                  <FileText className="h-6 w-6 mr-2" 
+                  style = {{
+                    color: "var(--color-primary)"
+                  }}
+                  />
                   <h2 className="text-2xl font-bold text-gray-900">{t("invoicePreview")}</h2>
                 </div>
                 <div className="flex items-center space-x-4">
@@ -1667,7 +1906,17 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
                   </button>
                   <button
                     onClick={() => setShowPayPalPreview(false)}
-                    className="flex items-center px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
+                    className="flex items-center px-4 py-2 text-sm font-medium text-white rounded-md"
+                    style ={{
+                      backgroundColor: "var(--color-background-danger)",
+                      transition: "filter 0.2s",
+                    }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.filter = "brightness(0.9)"
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.filter = "none"
+                      }}
                   >
                     <X className="h-4 w-4 mr-2" />
                     {t("cancel")}
@@ -1797,7 +2046,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
                   <div className="space-y-4">
                     <div className="flex justify-between">
                       <p className="text-gray-600">{product?.title}</p>
-                      <p className="text-gray-900">{formatPrice(product?.price, currency)}</p>
+                      <p className="text-gray-900">{formatPrice(priceToUse, currency)}</p>
                     </div>
                     <div className="flex justify-between">
                       <p className="text-gray-600">{t("size")}</p>
@@ -1835,9 +2084,9 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
                         <p className="text-lg font-medium text-gray-900">
                           {formatPrice(
                             selectedShipping
-                              ? product?.price * quantity + selectedShipping.price
-                              : product?.price * quantity,
-                            currency,
+                            ? priceToUse * quantity + selectedShipping.price
+                            : priceToUse * quantity,
+                          currency
                           )}
                         </p>
                       </div>
@@ -1847,11 +2096,19 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
                         <button
                           onClick={handlePreviewSubmit}
                           disabled={!isFormValid()}
-                          className={`w-full px-6 py-3 rounded-md ${
-                            isFormValid()
-                              ? "bg-primary-dark text-white hover:bg-secondary-light hover:text-gray-800"
-                              : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                          }`}
+                          className="w-full px-6 py-3 rounded-md text-white"
+                          style={{
+                            backgroundColor: isFormValid() ? "var(--color-primary)" : "#d1d5db", // Tailwind gray-300
+                            color: isFormValid() ? "white" : "#6b7280", // Tailwind gray-500
+                            cursor: isFormValid() ? "pointer" : "not-allowed",
+                            transition: "background-color 0.2s, color 0.2s",
+                          }}
+                          onMouseEnter={e => {
+                            if (isFormValid()) e.currentTarget.style.backgroundColor = "var(--color-secondary)"
+                          }}
+                          onMouseLeave={e => {
+                            if (isFormValid()) e.currentTarget.style.backgroundColor = "var(--color-primary)"
+                          }}
                         >
                           {t("proceedToPayPal")}
                         </button>
@@ -1887,8 +2144,8 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
           name="amount"
           value={
             selectedShipping && selectedShipping.price > 0
-              ? (product.price + selectedShipping.price).toFixed(2)
-              : product.price
+              ? (priceToUse + selectedShipping.price).toFixed(2)
+              : priceToUse
           }
         />
         <input type="hidden" name="quantity" value={quantity} />

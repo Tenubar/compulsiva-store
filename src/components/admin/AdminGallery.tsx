@@ -383,8 +383,14 @@ const AdminGallery: React.FC = () => {
                       ) : (
                         <button
                           onClick={() => setIsChangingImage(true)}
-                          className="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 flex items-center justify-center"
-                        >
+                          className="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 flex items-center justify-center"
+                        style={{
+                          backgroundColor: "var(--color-primary)",
+                          transition: "background-color 0.2s",
+                        }}
+                        onMouseEnter={e => (e.currentTarget.style.backgroundColor = "var(--color-secondary)")}
+                        onMouseLeave={e => (e.currentTarget.style.backgroundColor = "var(--color-primary)")}
+                      >
                           <Upload size={18} className="mr-2" /> {t("changeImage")}
                         </button>
                       )}

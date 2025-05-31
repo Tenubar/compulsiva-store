@@ -1,6 +1,15 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=Oxygen:wght@300;400;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Source+Serif+Pro:wght@400;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Raleway:wght@300;400;500;700&display=swap");
+
 
 @tailwind base;
 @tailwind components;
@@ -9,7 +18,7 @@
 @layer base {
   html {
     color: #210012;
-    font-family: "Oxygen", sans-serif;
+    font-family: var(--site-typography-body);
   }
 
   h1,
@@ -18,12 +27,17 @@
   h4,
   h5,
   h6 {
-    font-family: "Inter", sans-serif;
+    font-family: var(--site-typography-headers);
   }
 
   .subtitle {
     font-family: "IBM Plex Mono", monospace;
   }
+
+  button:disabled:hover {
+    background-color: var(--color-primary) !important;
+    color: var(--color-secondary) !important;
+}
 }
 
 /* Custom utility classes */

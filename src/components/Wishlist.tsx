@@ -103,12 +103,20 @@ const Wishlist: React.FC = () => {
               <h2 className="mt-2 text-lg font-medium text-gray-900">{t("emptyWishlist")}</h2>
               <p className="mt-1 text-sm text-gray-500">{t("startShoppingWishlist")}</p>
               <div className="mt-6">
-                <button
-                  onClick={() => navigate("/")}
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-dark hover:bg-primary-dark/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
-                >
-                  {t("continueShopping")}
-                </button>
+              <button
+                onClick={() => navigate("/")}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+                style={{
+                  backgroundColor: "var(--color-primary)",
+                  color: "var(--color-text-white)",
+                  cursor: "pointer",
+                  transition: "background-color 0.2s, color 0.2s",
+                }}
+                onMouseEnter={e => (e.currentTarget.style.backgroundColor = "var(--color-secondary)")}
+                onMouseLeave={e => (e.currentTarget.style.backgroundColor = "var(--color-primary)")}
+              >
+                {t("continueShopping")}
+              </button>
               </div>
             </div>
           ) : (
@@ -163,7 +171,9 @@ const Wishlist: React.FC = () => {
                   <p>
                     <button
                       type="button"
-                      className="text-primary-dark font-medium hover:text-primary-dark/80"
+                      className="font-medium"
+
+                      style={{ color: "var(--color-text-black)" }}
                       onClick={() => navigate("/")}
                     >
                       {t("continueShopping")}

@@ -21,6 +21,7 @@ import {
   UserCircle,
   Heart,
   ShoppingBag,
+  Cog,
 } from "lucide-react"
 import type { Currency, Language } from "../App"
 import { useNavigate } from "react-router-dom"
@@ -62,6 +63,7 @@ const Header: React.FC<HeaderProps> = ({ currency, setCurrency, language, setLan
   const [draftCount, setDraftCount] = useState(0)
   const [isAdmin, setIsAdmin] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  const [siteLogo, setSiteLogo] = useState<string>("/placeholder.png")
 
   const navigate = useNavigate()
 
@@ -251,9 +253,27 @@ const Header: React.FC<HeaderProps> = ({ currency, setCurrency, language, setLan
     Español: "https://flagcdn.com/w40/ve.png",
   }
 
+  // Fetch siteLogo from page settings
+  useEffect(() => {
+    const fetchLogo = async () => {
+      try {
+        const response = await fetch(`${import.meta.env.VITE_SITE_URL}/api/page-settings`)
+        if (response.ok) {
+          const data = await response.json()
+          if (data.siteLogo) {
+            setSiteLogo(data.siteLogo)
+          }
+        }
+      } catch (err) {
+        setSiteLogo("/placeholder.png")
+      }
+    }
+    fetchLogo()
+  }, [])
+
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-primary-dark shadow-md h-16">
-      <div className="container bg-primary-dark mx-auto px-4 h-full flex items-center justify-between">
+    <header className="fixed top-0 left-0 right-0 z-50 shadow-md h-16" style ={{backgroundColor: "var(--color-primary)"}}>
+      <div className="container mx-auto px-4 h-full flex items-center justify-between">
         <div className="flex items-center space-x-8">
           {isMobile ? (
             <a
@@ -264,7 +284,12 @@ const Header: React.FC<HeaderProps> = ({ currency, setCurrency, language, setLan
             </a>
           ) : (
             <a href="/" className="text-2xl font-bold text-yellow-300">
-              <img src="/logo.png" alt="Logo" className="h-10" />
+              <img
+                src={siteLogo || "/placeholder.png"}
+                alt="Logo"
+                className="h-10 w-40"
+                onError={e => { (e.target as HTMLImageElement).src = "/placeholder.png" }}
+              />
             </a>
           )}
           <nav className="flex space-x-6">
@@ -379,6 +404,12 @@ const Header: React.FC<HeaderProps> = ({ currency, setCurrency, language, setLan
                         >
                           <Users size={16} className="mr-2 flex-shrink-0" /> {t("users")}
                         </button>
+                        <button
+                          onClick={() => navigate("/admin/settings")}
+                          className="flex items-center w-full px-4 py-2 hover:bg-gray-100 whitespace-nowrap"
+                        >
+                          <Cog size={16} className="mr-2 flex-shrink-0" /> {t("settings")}
+                        </button>
                       </div>
                     )}
                   </div>
@@ -389,7 +420,11 @@ const Header: React.FC<HeaderProps> = ({ currency, setCurrency, language, setLan
               <>
                 <a href="/" className="text-textBanner group relative transform transition-transform hover:scale-[1.1]">
                   {t("home")}
-                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary-light transition-all duration-300 group-hover:w-full"></span>
+                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 transition-all duration-300 group-hover:w-full"
+                  style = {{
+                    backgroundColor: "var(--color-background)"
+                  }}
+                  ></span>
                 </a>
 
                 <div className="relative" ref={currencyRef}>
@@ -403,7 +438,11 @@ const Header: React.FC<HeaderProps> = ({ currency, setCurrency, language, setLan
                       className="w-5 h-5 mr-2"
                     />
                     {currency} <ChevronDown size={16} className="ml-1" />
-                    <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary-light transition-all duration-300 group-hover:w-full"></span>
+                    <span className="absolute -bottom-1 left-0 w-0 h-0.5 transition-all duration-300 group-hover:w-full"
+                    style = {{
+                      backgroundColor: "var(--color-background)"
+                    }}
+                    ></span>
                   </button>
                   {showCurrency && (
                     <div className="absolute top-full mt-2 w-24 bg-white shadow-lg rounded-md py-2 z-50">
@@ -439,7 +478,11 @@ const Header: React.FC<HeaderProps> = ({ currency, setCurrency, language, setLan
                       className="w-5 h-auto mr-2"
                     />
                     {language} <ChevronDown size={16} className="ml-1" />
-                    <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary-light transition-all duration-300 group-hover:w-full"></span>
+                    <span className="absolute -bottom-1 left-0 w-0 h-0.5 transition-all duration-300 group-hover:w-full"
+                    style = {{
+                      backgroundColor: "var(--color-background)"
+                    }}
+                    ></span>
                   </button>
                   {showLanguage && (
                     <div className="absolute top-full mt-2 w-32 bg-white shadow-lg rounded-md py-2 z-50">
@@ -471,7 +514,11 @@ const Header: React.FC<HeaderProps> = ({ currency, setCurrency, language, setLan
                       className="flex items-center text-textBanner group relative transform transition-transform hover:scale-[1.1]"
                     >
                       {t("adminTools")} <ChevronDown size={16} className="ml-1" />
-                      <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary-light transition-all duration-300 group-hover:w-full"></span>
+                      <span className="absolute -bottom-1 left-0 w-0 h-0.5 transition-all duration-300 group-hover:w-full"
+                      style = {{
+                        backgroundColor: "var(--color-background)"
+                      }}
+                      ></span>
                     </button>
                     {showAdminMenu && (
                       <div className="absolute top-full mt-2 w-40 bg-white shadow-lg rounded-md py-2 z-50">
@@ -511,6 +558,12 @@ const Header: React.FC<HeaderProps> = ({ currency, setCurrency, language, setLan
                         >
                           <Users size={16} className="mr-2 flex-shrink-0" /> {t("users")}
                         </button>
+                        <button
+                          onClick={() => navigate("/admin/settings")}
+                          className="flex items-center w-full px-4 py-2 hover:bg-gray-100 whitespace-nowrap"
+                        >
+                          <Cog size={16} className="mr-2 flex-shrink-0" /> {t("settings")}
+                        </button>
                       </div>
                     )}
                   </div>
@@ -523,7 +576,11 @@ const Header: React.FC<HeaderProps> = ({ currency, setCurrency, language, setLan
         <div className="flex items-center space-x-6">
           <button className="text-textBanner group relative transform transition-transform hover:scale-[1.1]">
             <Search size={20} />
-            <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary-light transition-all duration-300 group-hover:w-full"></span>
+            <span className="absolute -bottom-1 left-0 w-0 h-0.5 transition-all duration-300 group-hover:w-full"
+            style = {{
+              backgroundColor: "var(--color-background)"
+            }}
+            ></span>
           </button>
 
           {/* Cart with dropdown */}
@@ -538,7 +595,11 @@ const Header: React.FC<HeaderProps> = ({ currency, setCurrency, language, setLan
                   {cartCount}
                 </span>
               )}
-              <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary-light transition-all duration-300 group-hover:w-full"></span>
+              <span className="absolute -bottom-1 left-0 w-0 h-0.5 transition-all duration-300 group-hover:w-full"
+              style = {{
+                backgroundColor: "var(--color-background)"
+              }}
+              ></span>
             </button>
 
             {showCartDropdown && (
@@ -620,7 +681,13 @@ const Header: React.FC<HeaderProps> = ({ currency, setCurrency, language, setLan
                       setShowCartDropdown(false)
                       navigate("/cart")
                     }}
-                    className="mt-3 w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700"
+                    className="mt-3 w-full text-white py-2 px-4 rounded-md"
+                    style={{
+                      backgroundColor: "var(--color-primary)",
+                      transition: "background-color 0.2s",
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.backgroundColor = "var(--color-secondary)")}
+                    onMouseLeave={e => (e.currentTarget.style.backgroundColor = "var(--color-primary)")}
                   >
                     {t("checkout")}
                   </button>
@@ -647,7 +714,11 @@ const Header: React.FC<HeaderProps> = ({ currency, setCurrency, language, setLan
                 ) : (
                   <User size={20} />
                 )}
-                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary-light transition-all duration-300 group-hover:w-full"></span>
+                <span className="absolute -bottom-1 left-0 w-0 h-0.5 transition-all duration-300 group-hover:w-full"
+                style = {{
+                  backgroundColor: "var(--color-secondary)"
+                }}
+                ></span>
               </button>
             ) : (
               <button
@@ -667,7 +738,11 @@ const Header: React.FC<HeaderProps> = ({ currency, setCurrency, language, setLan
                   <UserCircle size={16} className="mr-2" />
                 )}
                 {isLoggedIn ? userName || userEmail : t("login")} <ChevronDown size={16} className="ml-1" />
-                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary-light transition-all duration-300 group-hover:w-full"></span>
+                <span className="absolute -bottom-1 left-0 w-0 h-0.5 transition-all duration-300 group-hover:w-full"
+                style = {{
+                  backgroundColor: "var(--color-background)"
+                }}
+                ></span>
               </button>
             )}
             {showUserMenu && (

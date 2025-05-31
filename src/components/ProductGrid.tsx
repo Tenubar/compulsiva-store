@@ -123,8 +123,16 @@ const ProductGrid: React.FC<ProductGridProps> = ({ onProductClick, selectedTypes
               />
             </div>
             <div className="p-4">
-              <h3 className="text-lg font-semibold mb-2">{product.title}</h3>
-              <p className="text-gray-600 mb-2">{formatPrice(product.price, currency)}</p>
+              <h3 className="text-lg font-semibold mb-2"
+              style ={{
+                color: "var(--color-text-header)",
+              }}
+              >{product.title}</h3>
+              <p className="mb-2"
+              style={{
+                color: "var(--color-text-info)",
+              }}
+              >{formatPrice(product.price, currency)}</p>
             </div>
           </div>
         ))}

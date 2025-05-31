@@ -124,8 +124,16 @@ const ProductList: React.FC<ProductListProps> = ({ onProductClick, selectedTypes
               />
             </div>
             <div className="p-6 flex flex-col justify-center">
-              <h3 className="text-xl font-semibold mb-2">{product.title}</h3>
-              <p className="text-gray-600 mb-4">{formatPrice(product.price, currency)}</p>
+              <h3 className="text-xl font-semibold mb-2"
+              style ={{
+                color: "var(--color-text-header)",
+              }}
+              >{product.title}</h3>
+              <p className="text-gray-600 mb-4"
+              style={{
+                color: "var(--color-text-info)",
+              }}
+              >{formatPrice(product.price, currency)}</p>
               <p className="text-sm text-gray-500">Type: {product.type}</p>
             </div>
           </div>

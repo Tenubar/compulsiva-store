@@ -19,7 +19,7 @@ interface Product {
   hoverImage: string
   description?: string
   materials?: string
-  sizes?: Array<{ size: string; quantity: number; color: string }>
+  sizes?: Array<{ size: string; quantity: number; color: string; sizePrice?: number }>
   shipping?: Array<{ name: string; price: number }>
   productQuantity?: number
   additionalImages?: string[]
@@ -36,7 +36,12 @@ const EditProducts: React.FC = () => {
   // Add state for color input after the sizeQuantityInput state
   const [sizeInput, setSizeInput] = useState("")
   const [sizeQuantityInput, setSizeQuantityInput] = useState("")
+  const [sizePriceInput, setSizePriceInput] = useState("")
   // Replace selectedColors array with selectedColor string
+
+  // Site filters
+  const [siteFilters, setSiteFilters] = useState<string[]>(["Other"])
+
   const [selectedColor, setSelectedColor] = useState("")
   const [customColor, setCustomColor] = useState("")
   const [showColorDropdown, setShowColorDropdown] = useState(false)
@@ -50,7 +55,7 @@ const EditProducts: React.FC = () => {
   // For image carousel
   const [startIndex, setStartIndex] = useState(0)
   const [isMaterialsRequired, setIsMaterialsRequired] = useState(true)
-  const [isSizesRequired, setIsSizesRequired] = useState(true)
+  const [isSizesRequired, setIsSizesRequired] = useState(false)
   const imagesPerView = 4
   const imageContainerRef = useRef<HTMLDivElement>(null)
 
@@ -78,6 +83,37 @@ const EditProducts: React.FC = () => {
     "Gray",
     "Teal",
   ]
+
+  useEffect(() => {
+  const fetchFilters = async () => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_SITE_URL}/api/page-settings`)
+      if (response.ok) {
+        const data = await response.json()
+        let filters = data.siteFilters || ["Other"]
+        // Always ensure "Other" is present
+        if (!filters.some((f: string) => f.toLowerCase() === "other")) {
+          filters = [...filters, "Other"]
+        }
+        setSiteFilters(filters)
+      }
+    } catch (err) {
+      // fallback to default
+      setSiteFilters(["Other"])
+    }
+  }
+  fetchFilters()
+}, [])
+
+useEffect(() => {
+  if (
+    selectedProduct &&
+    selectedProduct.type &&
+    !siteFilters.includes(selectedProduct.type)
+  ) {
+    setSelectedProduct({ ...selectedProduct, type: "Other" })
+  }
+}, [siteFilters, selectedProduct])
 
   // Add saveProductWithImage function
   const saveProductWithImage = async (fieldName: "image" | "hoverImage", imagePath: string) => {
@@ -303,12 +339,12 @@ const EditProducts: React.FC = () => {
     if (!selectedProduct || !isSizesRequired) return
     if (sizeInput.trim() && sizeQuantityInput.trim()) {
       const quantity = Number.parseInt(sizeQuantityInput)
+      const sizePrice = Number(sizePriceInput) || 0
       if (isNaN(quantity) || quantity < 1) {
         setError("Quantity must be a positive number")
         return
       }
 
-      // Use either the selected color, custom color, or default
       let finalColor = "Default"
       if (isCustomColor && customColor.trim()) {
         finalColor = customColor.trim()
@@ -320,21 +356,35 @@ const EditProducts: React.FC = () => {
         size: sizeInput.trim(),
         quantity,
         color: finalColor,
+        sizePrice,
       }
       const updatedSizes = [...(selectedProduct.sizes || []), newSize]
-      setSelectedProduct({ ...selectedProduct, sizes: updatedSizes })
+      // If this is the first size, update the main price to match
+      const updatedProduct = {
+        ...selectedProduct,
+        sizes: updatedSizes,
+        price: updatedSizes.length === 1 ? sizePrice : selectedProduct.price,
+      }
+      setSelectedProduct(updatedProduct)
       setSizeInput("")
       setSizeQuantityInput("")
+      setSizePriceInput("")
       setSelectedColor("")
       setCustomColor("")
       setShowColorDropdown(false)
     }
   }
 
-  const handleRemoveSize = (index: number) => {
+const handleRemoveSize = (index: number) => {
     if (!selectedProduct || !selectedProduct.sizes || !isSizesRequired) return
     const updatedSizes = selectedProduct.sizes.filter((_, i) => i !== index)
-    setSelectedProduct({ ...selectedProduct, sizes: updatedSizes })
+    // If sizes remain, update the main price to the first size's price
+    const updatedProduct = {
+      ...selectedProduct,
+      sizes: updatedSizes,
+      price: updatedSizes.length > 0 ? updatedSizes[0].sizePrice || 0 : 0,
+    }
+    setSelectedProduct(updatedProduct)
   }
 
   // Update the handleAddAdditionalImage function to save images immediately
@@ -432,10 +482,16 @@ const EditProducts: React.FC = () => {
 
     try {
       // Modify the productToUpdate object in the handleUpdate function (around line 400)
-      const productToUpdate = {
+         const productToUpdate = {
         ...selectedProduct,
         productQuantity: isSizesRequired ? 0 : productQuantity,
         hoverImage: useSameImage ? selectedProduct.image : selectedProduct.hoverImage,
+        sizes: selectedProduct.sizes
+          ? selectedProduct.sizes.map((s) => ({
+              ...s,
+              sizePrice: typeof s.sizePrice === "number" ? s.sizePrice : 0,
+            }))
+          : [],
       }
 
       console.log("Updating product with ID:", selectedProduct._id)
@@ -575,6 +631,10 @@ const EditProducts: React.FC = () => {
     }
   }
 
+  function setType(newType: string): void {
+    if (!selectedProduct) return
+    setSelectedProduct({ ...selectedProduct, type: newType as ProductType })
+  }
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <button
@@ -679,13 +739,15 @@ const EditProducts: React.FC = () => {
             <div>
               <label className="block text-sm font-medium text-gray-700">Type</label>
               <select
+                id="type"
                 value={selectedProduct.type}
-                onChange={(e) => setSelectedProduct({ ...selectedProduct, type: e.target.value as ProductType })}
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3"
+                onChange={(e) => setType(e.target.value as ProductType)}
+                // ...other props...
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               >
-                {(["Shirt", "Pants", "Shoes", "Bracelet", "Collar", "Other"] as ProductType[]).map((type) => (
-                  <option key={type} value={type}>
-                    {type}
+                {siteFilters.map((filter) => (
+                  <option key={filter} value={filter}>
+                    {filter}
                   </option>
                 ))}
               </select>
@@ -694,9 +756,16 @@ const EditProducts: React.FC = () => {
               <label className="block text-sm font-medium text-gray-700">Price</label>
               <input
                 type="number"
-                value={selectedProduct.price}
-                onChange={(e) => setSelectedProduct({ ...selectedProduct, price: Number(e.target.value) })}
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3"
+                value={isSizesRequired && selectedProduct.sizes && selectedProduct.sizes.length > 0
+                  ? selectedProduct.sizes[0].sizePrice
+                  : selectedProduct.price}
+                onChange={(e) => {
+                  if (!isSizesRequired) setSelectedProduct({ ...selectedProduct, price: Number(e.target.value) })
+                }}
+                disabled={isSizesRequired}
+                className={`mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 ${
+                  isSizesRequired ? "bg-gray-100 cursor-not-allowed" : ""
+                }`}
               />
             </div>
             {/* Product Quantity */}
@@ -749,6 +818,18 @@ const EditProducts: React.FC = () => {
                   min="1"
                   value={sizeQuantityInput}
                   onChange={(e) => setSizeQuantityInput(e.target.value)}
+                  className={`block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
+                    !isSizesRequired ? "bg-gray-100 cursor-not-allowed" : ""
+                  }`}
+                  disabled={!isSizesRequired}
+                />
+                <input
+                  type="number"
+                  placeholder="Price"
+                  min="0"
+                  step="0.01"
+                  value={sizePriceInput}
+                  onChange={(e) => setSizePriceInput(e.target.value)}
                   className={`block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
                     !isSizesRequired ? "bg-gray-100 cursor-not-allowed" : ""
                   }`}
@@ -861,6 +942,11 @@ const EditProducts: React.FC = () => {
                         ></span>
                         <span>
                           {sizeObj.size} - {sizeObj.quantity} units - {sizeObj.color}
+                          {typeof sizeObj.sizePrice === "number" && (
+                            <span className="ml-2 text-green-700 font-semibold">
+                              ${sizeObj.sizePrice.toFixed(2)}
+                            </span>
+                          )}
                         </span>
                       </div>
                       <button

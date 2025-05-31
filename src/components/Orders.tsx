@@ -141,7 +141,10 @@ const Orders: React.FC = () => {
                 </div>
                 <button
                   onClick={() => fetchOrders()}
-                  className="flex items-center text-blue-600 hover:text-blue-800"
+                  className="flex items-center"
+                   style={{ color: "var(--color-primary)", transition: "color 0.2s" }}
+                    onMouseEnter={e => (e.currentTarget.style.color = "var(--color-secondary)")}
+                    onMouseLeave={e => (e.currentTarget.style.color = "var(--color-primary)")}
                   title={t("refreshOrders")}
                 >
                   <RefreshCw size={20} className={loading ? "animate-spin" : ""} />
@@ -210,7 +213,13 @@ const Orders: React.FC = () => {
                   <div className="mt-6">
                     <button
                       onClick={() => navigate("/")}
-                      className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                      className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                      style={{
+                        backgroundColor: "var(--color-primary)",
+                        transition: "background-color 0.2s",
+                      }}
+                      onMouseEnter={e => (e.currentTarget.style.backgroundColor = "var(--color-secondary)")}
+                      onMouseLeave={e => (e.currentTarget.style.backgroundColor = "var(--color-primary)")}                      
                     >
                       {t("startShopping")}
                     </button>

@@ -27,7 +27,7 @@ interface DraftData {
 const EditDraft: React.FC = () => {
   const { id } = useParams<{ id: string }>()
   const [title, setTitle] = useState("")
-  const [type, setType] = useState<ProductType>("Shirt")
+  const [type, setType] = useState<ProductType>("Other")
   const [price, setPrice] = useState("")
   const [image, setImage] = useState("")
   const [hoverImage, setHoverImage] = useState("")
@@ -37,10 +37,11 @@ const EditDraft: React.FC = () => {
   const [sizeInput, setSizeInput] = useState("")
   const [sizeQuantityInput, setSizeQuantityInput] = useState("")
   const [sizeColorInput, setSizeColorInput] = useState("")
+  const [sizePriceInput, setSizePriceInput] = useState("")
   const [selectedColors, setSelectedColors] = useState<string[]>([])
   const [customColor, setCustomColor] = useState("")
   const [isCustomColor, setIsCustomColor] = useState(false)
-  const [sizes, setSizes] = useState<Array<{ size: string; quantity: number; colors: string[] }>>([])
+  const [sizes, setSizes] = useState<Array<{ size: string; quantity: number; colors: string[]; sizePrice?: number }>>([])
   const [shippingName, setShippingName] = useState("")
   const [shippingPrice, setShippingPrice] = useState("")
   const [shippingOptions, setShippingOptions] = useState<Array<{ name: string; price: number }>>([])
@@ -51,6 +52,8 @@ const EditDraft: React.FC = () => {
   const [deletingImage, setDeletingImage] = useState<string | null>(null)
   const [draftId, setDraftId] = useState<string | null>(null)
   const [savingDraft, setSavingDraft] = useState(false)
+  const [siteFilters, setSiteFilters] = useState<string[]>(["Other"])
+
   const navigate = useNavigate()
 
   // For image carousel
@@ -70,7 +73,7 @@ const EditDraft: React.FC = () => {
 
   // Add two new state variables after the existing state declarations (around line 50)
   const [isMaterialsRequired, setIsMaterialsRequired] = useState(true)
-  const [isSizesRequired, setIsSizesRequired] = useState(true)
+  const [isSizesRequired, setIsSizesRequired] = useState(false)
   const [productQuantity, setProductQuantity] = useState<number>(1)
 
   // Add a new state variable for the "Use same image" checkbox after the other state declarations (around line 50)
@@ -89,6 +92,31 @@ const EditDraft: React.FC = () => {
       }
     }
   }, [id, navigate])
+
+  useEffect(() => {
+    const fetchFilters = async () => {
+      try {
+        const response = await fetch(`${import.meta.env.VITE_SITE_URL}/api/page-settings`)
+        if (response.ok) {
+          const data = await response.json()
+          let filters = data.siteFilters || ["Other"]
+          if (!filters.some((f: string) => f.toLowerCase() === "other")) {
+            filters = [...filters, "Other"]
+          }
+          setSiteFilters(filters)
+        }
+      } catch (err) {
+        setSiteFilters(["Other"])
+      }
+    }
+    fetchFilters()
+  }, [])
+
+  useEffect(() => {
+    if (type && !siteFilters.includes(type)) {
+      setType("Other")
+    }
+  }, [siteFilters, type])
 
   // Set up auto-save timer
   useEffect(() => {
@@ -218,6 +246,7 @@ const EditDraft: React.FC = () => {
         size: sizeObj.size,
         quantity: sizeObj.quantity,
         color: sizeObj.colors && sizeObj.colors.length > 0 ? sizeObj.colors[0] : "Default",
+        sizePrice: sizeObj.sizePrice || 0, // NEW
       }))
 
       console.log("Converted sizes for MongoDB:", convertedSizes)
@@ -232,7 +261,7 @@ const EditDraft: React.FC = () => {
         materials,
         sizes: convertedSizes, // Use the converted sizes
         shipping: shippingOptions,
-        productQuantity: isSizesRequired ? 0 : productQuantity,
+        productQuantity: isSizesRequired ? 1 : productQuantity,
         additionalImages,
       }
 
@@ -271,6 +300,7 @@ const EditDraft: React.FC = () => {
         size: sizeObj.size,
         quantity: sizeObj.quantity,
         color: sizeObj.colors && sizeObj.colors.length > 0 ? sizeObj.colors[0] : "Default",
+        sizePrice: sizeObj.sizePrice || 0, // NEW
       }))
 
       const draftData: DraftData = {
@@ -283,7 +313,7 @@ const EditDraft: React.FC = () => {
         materials,
         sizes: convertedSizes, // Use the converted sizes
         shipping: shippingOptions,
-        productQuantity: isSizesRequired ? 0 : productQuantity,
+        productQuantity: isSizesRequired ? 1 : productQuantity,
         additionalImages,
       }
 
@@ -322,6 +352,7 @@ const EditDraft: React.FC = () => {
         size: sizeObj.size,
         quantity: sizeObj.quantity,
         color: sizeObj.colors && sizeObj.colors.length > 0 ? sizeObj.colors[0] : "Default",
+        sizePrice: sizeObj.sizePrice || 0, // NEW
       }))
 
       const draftData: DraftData = {
@@ -334,7 +365,7 @@ const EditDraft: React.FC = () => {
         materials,
         sizes: convertedSizes, // Use the converted sizes
         shipping: shippingOptions,
-        productQuantity: isSizesRequired ? 0 : productQuantity,
+        productQuantity: isSizesRequired ? 1 : productQuantity,
         additionalImages: newAdditionalImages,
       }
 
@@ -571,34 +602,32 @@ const EditDraft: React.FC = () => {
   const handleAddSize = () => {
     if (sizeInput.trim() && sizeQuantityInput.trim()) {
       const quantity = Number.parseInt(sizeQuantityInput)
+      const sizePrice = Number(sizePriceInput) || 0
       if (isNaN(quantity) || quantity < 1) {
         setError("Quantity must be a positive number")
         return
       }
-
-      // Use either the custom color or selected colors
       let finalColors = ["Default"]
       if (isCustomColor && customColor.trim()) {
         finalColors = [customColor.trim()]
       } else if (selectedColors.length > 0) {
         finalColors = selectedColors
       }
-
       const newSize = {
         size: sizeInput.trim(),
         quantity,
         colors: finalColors,
+        sizePrice, // NEW
       }
       const newSizes = [...sizes, newSize]
       setSizes(newSizes)
       setSizeInput("")
       setSizeQuantityInput("")
+      setSizePriceInput("") // Reset
       setSelectedColors([])
       setCustomColor("")
       setIsCustomColor(false)
       setShowColorDropdown(false)
-
-      // Save draft immediately after adding a size
       if (draftId) {
         formChangedRef.current = true
         saveDraft()
@@ -645,18 +674,18 @@ const EditDraft: React.FC = () => {
     // Replace the existing validation with this:
     // Validate that all required fields have a value.
     if (
-      !title.trim() ||
-      !price.trim() ||
-      !image.trim() ||
-      (!hoverImage.trim() && !useSameImage) ||
-      !description.trim() ||
-      (isMaterialsRequired && !materials.trim()) ||
-      (isSizesRequired && sizes.length === 0) ||
-      shippingOptions.length === 0
-    ) {
-      setError("Please fill all the required inputs and add at least one shipping option")
-      return
-    }
+    !title.trim() ||
+    (!isSizesRequired && !price.trim()) ||
+    !image.trim() ||
+    (!hoverImage.trim() && !useSameImage) ||
+    !description.trim() ||
+    (isMaterialsRequired && !materials.trim()) ||
+    (isSizesRequired && sizes.length === 0) ||
+    shippingOptions.length === 0
+  ) {
+    setError("Please fill all the required inputs and add at least one shipping option")
+    return
+  }
 
     setLoading(true)
     setError("")
@@ -667,6 +696,7 @@ const EditDraft: React.FC = () => {
         size: sizeObj.size,
         quantity: sizeObj.quantity,
         color: sizeObj.colors && sizeObj.colors.length > 0 ? sizeObj.colors[0] : "Default",
+        sizePrice: typeof sizeObj.sizePrice === "number" ? sizeObj.sizePrice : 0, // <-- ADD THIS
       }))
 
       console.log("Creating product with sizes:", convertedSizes)
@@ -681,14 +711,16 @@ const EditDraft: React.FC = () => {
         body: JSON.stringify({
           title,
           type,
-          price: Number(price),
+          price: isSizesRequired && sizes.length > 0
+            ? Number(sizes[0].sizePrice)
+            : Number(price),
           image,
           hoverImage: useSameImage ? image : hoverImage,
           description,
           materials,
           sizes: convertedSizes, // Use the converted sizes
           shipping: shippingOptions,
-          productQuantity: isSizesRequired ? 0 : productQuantity,
+          productQuantity: isSizesRequired ? 1 : productQuantity,
           additionalImages,
         }),
       })
@@ -718,7 +750,7 @@ const EditDraft: React.FC = () => {
                   materials,
                   sizes: convertedSizes, // Use the converted sizes
                   shipping: [],
-                  productQuantity: isSizesRequired ? 0 : productQuantity,
+                  productQuantity: isSizesRequired ? 1 : productQuantity,
                   additionalImages: [],
                 },
               }),
@@ -794,6 +826,9 @@ const EditDraft: React.FC = () => {
       </div>
     )
   }
+
+  // Inside your component
+  const firstSizePrice = isSizesRequired && sizes.length > 0 ? sizes[0].sizePrice : price;
 
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -892,10 +927,8 @@ const EditDraft: React.FC = () => {
             <select
               id="type"
               value={type}
-              onChange={(e) => {
-                setType(e.target.value as ProductType)
-                formChangedRef.current = true
-              }}
+              onChange={(e) => setType(e.target.value as ProductType)}
+              
               onBlur={() => {
                 if (draftId && formChangedRef.current) {
                   saveDraft()
@@ -904,11 +937,11 @@ const EditDraft: React.FC = () => {
               }}
               className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
             >
-              {(["Shirt", "Pants", "Shoes", "Bracelet", "Collar", "Other"] as ProductType[]).map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
+            {siteFilters.map((filter) => (
+              <option key={filter} value={filter}>
+                {filter}
+              </option>
+            ))}
             </select>
           </div>
           <div>
@@ -921,18 +954,14 @@ const EditDraft: React.FC = () => {
               required
               min="0"
               step="0.01"
-              value={price}
+              value={isSizesRequired && sizes.length > 0 ? sizes[0].sizePrice : price}
               onChange={(e) => {
-                setPrice(e.target.value)
-                formChangedRef.current = true
+                if (!isSizesRequired) setPrice(e.target.value)
               }}
-              onBlur={() => {
-                if (draftId && formChangedRef.current) {
-                  saveDraft()
-                  formChangedRef.current = false
-                }
-              }}
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              disabled={isSizesRequired}
+              className={`mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
+                isSizesRequired ? "bg-gray-100 cursor-not-allowed" : ""
+              }`}
             />
           </div>
           {/* Product Quantity */}
@@ -1188,6 +1217,16 @@ const EditDraft: React.FC = () => {
                   !isSizesRequired ? "bg-gray-100 cursor-not-allowed" : ""
                 }`}
               />
+              <input
+                type="number"
+                placeholder="Price"
+                min="0"
+                step="0.01"
+                value={sizePriceInput}
+                onChange={e => setSizePriceInput(e.target.value)}
+                disabled={!isSizesRequired}
+                className={`block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${!isSizesRequired ? "bg-gray-100 cursor-not-allowed" : ""}`}
+              />
               <div className="relative w-full">
                 {isCustomColor ? (
                   <input
@@ -1317,6 +1356,11 @@ const EditDraft: React.FC = () => {
                       {Array.isArray(sizeObj.colors) && sizeObj.colors.length > 0
                         ? sizeObj.colors.join(", ")
                         : "Default"}
+                        {typeof sizeObj.sizePrice === "number" && (
+                        <span className="ml-2 text-green-700 font-semibold">
+                          ${sizeObj.sizePrice.toFixed(2)}
+                        </span>
+                      )}
                     </span>
                   </div>
                   <button

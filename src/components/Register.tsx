@@ -96,7 +96,13 @@ const Register: React.FC = () => {
       <div className="flex flex-col justify-center py-28 sm:px-6 lg:px-8">
         <button
           onClick={() => navigate("/")}
-          className="absolute top-20 left-4 flex items-center text-gray-600 hover:text-primary-dark"
+          className="absolute top-20 left-4 flex items-center"
+          style = {{
+            color: "var(--color-text-info)",
+            transition: "color 0.2s"
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = "var(--color-text-black)")}
+          onMouseLeave={(e) => (e.currentTarget.style.color = "var(--color-text-info)")}
         >
           <ArrowLeft size={20} className="mr-2" /> {t("backToHome")}
         </button>
@@ -187,7 +193,13 @@ const Register: React.FC = () => {
               <div>
                 <button
                   type="submit"
-                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-dark hover:bg-primary-dark/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+                  style={{ 
+                    backgroundColor: "var(--color-primary)", 
+                    transition: "background-color 0.1s"
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--color-secondary)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "var(--color-primary)")}
                 >
                   {t("register")}
                 </button>
@@ -207,7 +219,14 @@ const Register: React.FC = () => {
               <div className="mt-6">
                 <button
                   onClick={() => navigate("/login")}
-                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-primary-dark bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+                  style = {{
+                    color: "var(--color-text-black)",
+                    backgroundColor: "var(--color-background)",
+                    transition: "color 0.1s"
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = "var(--color-text-info)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = "var(--color-text-black)")}
                 >
                   {t("signIn")}
                 </button>

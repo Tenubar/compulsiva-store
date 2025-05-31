@@ -129,6 +129,7 @@ const productSchema = new mongoose.Schema(
           size: String,
           quantity: Number,
           color: { type: String, default: "Default" }, // Changed from colors array to color string
+          sizePrice: { type: Number, default: 0 },
         },
       ],
       default: [],
@@ -223,6 +224,40 @@ const ipnLogSchema = new mongoose.Schema(
 )
 
 const IPNLog = mongoose.model("IPNLog", ipnLogSchema)
+
+// Add this new schema after the IPNLog schema and before the route definitions
+
+// Page Settings Schema
+const pageSettingsSchema = new mongoose.Schema(
+  {
+    siteIcon: { type: String, default: "" },
+    siteLogo: { type: String, default: "" },
+    siteTypographyHeaders: { type: String, default: "Inter, sans-serif" },
+    siteTypographyBody: { type: String, default: "Oxygen, sans-serif" },
+    siteColors: {
+      type: [
+        {
+          name: { type: String, required: true },
+          value: { type: String, required: true },
+        },
+      ],
+      default: [
+        { name: "primary", value: "#3b82f6" },
+        { name: "secondary", value: "#10b981" },
+        { name: "accent", value: "#f59e0b" },
+        { name: "background", value: "#ffffff" },
+        { name: "text", value: "#111827" },
+      ],
+    },
+    siteFilters: {
+      type: [String],
+      default: [""],
+    },
+  },
+  { timestamps: true },
+)
+
+const PageSettings = mongoose.model("PageSettings", pageSettingsSchema)
 
 // Route for uploading image to GridFS
 app.post("/api/upload/productImage", upload.single("image"), async (req, res) => {
@@ -862,7 +897,7 @@ app.patch("/api/products/:id/update-image", authenticateToken, isAdmin, async (r
     }
 
     // Only allow updating specific image fields
-    if (field !== "image" && field !== "hoverImage") {
+    if (field !== "" && field !== "hoverImage") {
       return res.status(400).json({ message: "Invalid field. Only 'image' or 'hoverImage' are allowed" })
     }
 
@@ -1070,9 +1105,6 @@ app.get("/products/:id", async (req, res) => {
       return res.status(404).json({ message: "Product not found" })
     }
 
-    // Log the product data for debugging
-    console.log(`Serving product ${req.params.id} with quantity: ${product.productQuantity}`)
-
     // Calculate average rating
     const averageRating = product.ratingCount > 0 ? product.ratingSum / product.ratingCount : 0
 
@@ -1140,6 +1172,7 @@ const draftSchema = new mongoose.Schema(
             size: { type: String, default: "" },
             quantity: { type: Number, default: 0 },
             color: { type: String, default: "Default" }, // Single color string to match productSchema
+            sizePrice: { type: Number, default: 0 },
           },
         ],
         default: [],
@@ -1739,7 +1772,6 @@ async function createOrderFromIPN(ipnData) {
     // Check if an order with this transaction ID already exists
     const existingOrder = await Order.findOne({ paypalTransactionId: ipnData.txn_id })
     if (existingOrder) {
-      console.log(`Order already exists for transaction ID: ${ipnData.txn_id}`)
       return existingOrder
     }
 
@@ -1813,14 +1845,12 @@ async function createOrderFromIPN(ipnData) {
 
     // Update inventory
     const purchaseQuantity = Number.parseInt(ipnData.quantity || 1)
-    console.log(`Updating stock for product ${productId}, size ${selectedSize}. Purchase quantity: ${purchaseQuantity}`)
 
     const sizeIndex = product.sizes.findIndex((s) => s.size === selectedSize)
     if (sizeIndex >= 0) {
       const newQuantity = Math.max(0, product.sizes[sizeIndex].quantity - purchaseQuantity)
       product.sizes[sizeIndex].quantity = newQuantity
       await Product.findByIdAndUpdate(productId, { sizes: product.sizes }, { new: true })
-      console.log(`Stock updated for product ${productId}, size ${selectedSize}. New quantity: ${newQuantity}`)
     }
 
     // Remove the item from the user's cart if it exists
@@ -1839,8 +1869,7 @@ async function createOrderFromIPN(ipnData) {
 }
 
 // Check if user has purchased a specific product
-app.get("/api/user/has-purchased/:productId", authenticateToken, async (req, res) =>
-{
+app.get("/api/user/has-purchased/:productId", authenticateToken, async (req, res) => {
   try {
     const productId = req.params.productId
     const userId = req.user.userId
@@ -1860,12 +1889,10 @@ app.get("/api/user/has-purchased/:productId", authenticateToken, async (req, res
     console.error("Error checking purchase history:", error)
     res.status(500).json({ message: "Error checking purchase history", error: error.message })
   }
-}
-)
+})
 
 // Suggestion Routes
-app.post("/api/suggestions", authenticateToken, async (req, res) =>
-{
+app.post("/api/suggestions", authenticateToken, async (req, res) => {
   try {
     const { message } = req.body
     const user = await User.findById(req.user.userId)
@@ -1886,11 +1913,9 @@ app.post("/api/suggestions", authenticateToken, async (req, res) =>
     console.error("Error creating suggestion:", error)
     res.status(500).json({ message: "Error creating suggestion", error: error.message })
   }
-}
-)
+})
 
-app.get("/api/suggestions", async (req, res) =>
-{
+app.get("/api/suggestions", async (req, res) => {
   try {
     const page = Number.parseInt(req.query.page) || 1
     const limit = Number.parseInt(req.query.limit) || 5
@@ -1910,11 +1935,9 @@ app.get("/api/suggestions", async (req, res) =>
     console.error("Error fetching suggestions:", error)
     res.status(500).json({ message: "Error fetching suggestions", error: error.message })
   }
-}
-)
+})
 
-app.delete("/api/suggestions/:id", authenticateToken, async (req, res) =>
-{
+app.delete("/api/suggestions/:id", authenticateToken, async (req, res) => {
   try {
     const suggestion = await Suggestion.findById(req.params.id)
 
@@ -1933,19 +1956,15 @@ app.delete("/api/suggestions/:id", authenticateToken, async (req, res) =>
     console.error("Error deleting suggestion:", error)
     res.status(500).json({ message: "Error deleting suggestion", error: error.message })
   }
-}
-)
+})
 
 // Make sure this route is accessible without authentication for testing
-app.get("/api/test-route", (req, res) =>
-{
+app.get("/api/test-route", (req, res) => {
   res.json({ message: "API is working" })
-}
-)
+})
 
 // check admin status
-app.get("/api/check-admin", authenticateToken, async (req, res) =>
-{
+app.get("/api/check-admin", authenticateToken, async (req, res) => {
   try {
     const user = await User.findById(req.user.userId)
     if (user && user.email === process.env.VITE_ADMIN_USER_EMAIL) {
@@ -1956,8 +1975,96 @@ app.get("/api/check-admin", authenticateToken, async (req, res) =>
   } catch (error) {
     res.status(500).json({ message: "Error checking admin status", error: error.message })
   }
-}
-)
+})
+
+// Add these routes before the server.listen line
+
+// Get page settings
+app.get("/api/page-settings", async (req, res) => {
+  try {
+    // Find the first document or create a default one if none exists
+    let settings = await PageSettings.findOne()
+
+    if (!settings) {
+      settings = new PageSettings()
+      await settings.save()
+    }
+
+    res.json(settings)
+  } catch (error) {
+    console.error("Error fetching page settings:", error)
+    res.status(500).json({ message: "Error fetching page settings", error: error.message })
+  }
+})
+
+// Update page settings - Admin only
+app.put("/api/page-settings", authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const {
+      siteIcon,
+      siteLogo,
+      siteTypographyHeaders,
+      siteTypographyBody,
+      siteColors,
+      siteFilters,
+    } = req.body;
+
+    // Find the first document or create a default one if none exists
+    let settings = await PageSettings.findOne();
+
+    if (!settings) {
+      settings = new PageSettings();
+    }
+
+    // Update fields if provided
+    if (siteIcon !== undefined) settings.siteIcon = siteIcon;
+    if (siteLogo !== undefined) settings.siteLogo = siteLogo;
+    if (siteTypographyHeaders !== undefined) settings.siteTypographyHeaders = siteTypographyHeaders;
+    if (siteTypographyBody !== undefined) settings.siteTypographyBody = siteTypographyBody;
+    if (siteColors !== undefined) settings.siteColors = siteColors;
+    if (siteFilters !== undefined) settings.siteFilters = siteFilters;
+
+    await settings.save();
+
+    res.json(settings);
+  } catch (error) {
+    console.error("Error updating page settings:", error);
+    res.status(500).json({ message: "Error updating page settings", error: error.message });
+  }
+});
+
+// Update a specific page setting field - Admin only
+app.patch("/api/page-settings/:field", authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const { field } = req.params
+    const { value } = req.body
+
+    if (value === undefined) {
+      return res.status(400).json({ message: "Value is required" })
+    }
+
+    // Find the first document or create a default one if none exists
+    let settings = await PageSettings.findOne()
+
+    if (!settings) {
+      settings = new PageSettings()
+    }
+
+    // Check if the field exists in the schema
+    if (!(field in settings.schema.paths)) {
+      return res.status(400).json({ message: "Invalid field" })
+    }
+
+    // Update the specific field
+    settings[field] = value
+    await settings.save()
+
+    res.json(settings)
+  } catch (error) {
+    console.error("Error updating page setting:", error)
+    res.status(500).json({ message: "Error updating page setting", error: error.message })
+  }
+})
 
 const PORT = process.env.VITE_PORT || 3000
 app.listen(PORT, () => {

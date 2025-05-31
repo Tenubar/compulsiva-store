@@ -25,7 +25,7 @@ interface DraftData {
 
 const CreateProduct: React.FC = () => {
   const [title, setTitle] = useState("")
-  const [type, setType] = useState<ProductType>("Shirt")
+  const [type, setType] = useState<ProductType>("Other")
   const [price, setPrice] = useState("")
   const [image, setImage] = useState("")
   const [hoverImage, setHoverImage] = useState("")
@@ -33,11 +33,13 @@ const CreateProduct: React.FC = () => {
   const [materials, setMaterials] = useState("")
   const [sizeInput, setSizeInput] = useState("")
   const [sizeQuantityInput, setSizeQuantityInput] = useState("")
+  const [sizePriceInput, setSizePriceInput] = useState("")
+  const [siteFilters, setSiteFilters] = useState<string[]>(["Other"])
   // Changed from selectedColors array to selectedColor string
   const [selectedColor, setSelectedColor] = useState("")
   const [customColor, setCustomColor] = useState("")
   const [showColorDropdown, setShowColorDropdown] = useState(false)
-  const [sizes, setSizes] = useState<Array<{ size: string; quantity: number; color: string }>>([])
+  const [sizes, setSizes] = useState<Array<{ size: string; quantity: number; color: string; sizePrice: number }>>([])
   const [shippingName, setShippingName] = useState("")
   const [shippingPrice, setShippingPrice] = useState("")
   const [shippingOptions, setShippingOptions] = useState<Array<{ name: string; price: number }>>([])
@@ -54,7 +56,7 @@ const CreateProduct: React.FC = () => {
   // Add two new state variables after the existing state declarations (around line 50)
   const [productQuantity, setProductQuantity] = useState<number>(1)
   const [isMaterialsRequired, setIsMaterialsRequired] = useState(true)
-  const [isSizesRequired, setIsSizesRequired] = useState(true)
+  const [isSizesRequired, setIsSizesRequired] = useState(false)
   // Add a new state variable for the "Use same image" checkbox after the other state declarations (around line 50)
   const [useSameImage, setUseSameImage] = useState(false)
 
@@ -88,6 +90,25 @@ const CreateProduct: React.FC = () => {
     }
   }, [])
 
+    useEffect(() => {
+    const fetchFilters = async () => {
+      try {
+        const response = await fetch(`${import.meta.env.VITE_SITE_URL}/api/page-settings`)
+        if (response.ok) {
+          const data = await response.json()
+          let filters = data.siteFilters || ["Other"]
+          if (!filters.some((f: string) => f.toLowerCase() === "other")) {
+            filters = [...filters, "Other"]
+          }
+          setSiteFilters(filters)
+        }
+      } catch (err) {
+        setSiteFilters(["Other"])
+      }
+    }
+    fetchFilters()
+  }, [])
+
   // Mark form as changed when any field updates
   useEffect(() => {
     formChangedRef.current = true
@@ -104,6 +125,13 @@ const CreateProduct: React.FC = () => {
     additionalImages,
     productQuantity,
   ])
+
+  // Update type when siteFilters change
+  useEffect(() => {
+    if (type && !siteFilters.includes(type)) {
+      setType("Other")
+    }
+  }, [siteFilters, type])
 
   const createNewDraft = async () => {
     try {
@@ -569,12 +597,12 @@ const CreateProduct: React.FC = () => {
   const handleAddSize = () => {
     if (sizeInput.trim() && sizeQuantityInput.trim()) {
       const quantity = Number.parseInt(sizeQuantityInput)
+      const sizePrice = Number(sizePriceInput) || 0
       if (isNaN(quantity) || quantity < 1) {
         setError("Quantity must be a positive number")
         return
       }
 
-      // Use either the selected color, custom color, or default
       let finalColor = "Default"
       if (isCustomColor && customColor.trim()) {
         finalColor = customColor.trim()
@@ -586,15 +614,22 @@ const CreateProduct: React.FC = () => {
         size: sizeInput.trim(),
         quantity,
         color: finalColor,
+        sizePrice,
       }
 
       const newSizes = [...sizes, newSize]
       setSizes(newSizes)
       setSizeInput("")
       setSizeQuantityInput("")
+      setSizePriceInput("")
       setSelectedColor("")
       setCustomColor("")
       setShowColorDropdown(false)
+
+      // If this is the first size, update the main price to match
+      if (newSizes.length === 1) {
+        setPrice(sizePrice.toString())
+      }
 
       if (draftId) {
         formChangedRef.current = true
@@ -608,7 +643,13 @@ const CreateProduct: React.FC = () => {
     const newSizes = sizes.filter((_, i) => i !== index)
     setSizes(newSizes)
 
-    // Save draft immediately after removing a size
+    // If sizes remain, update the main price to the first size's price
+    if (newSizes.length > 0) {
+      setPrice(newSizes[0].sizePrice?.toString() || "")
+    } else {
+      setPrice("")
+    }
+
     if (draftId) {
       formChangedRef.current = true
       saveDraft()
@@ -659,6 +700,15 @@ const CreateProduct: React.FC = () => {
     setError("")
 
     try {
+
+        // Convert sizes to the format expected by the server
+        const convertedSizes = sizes.map((sizeObj) => ({
+          size: sizeObj.size,
+          quantity: sizeObj.quantity,
+          color: sizeObj.color,
+          sizePrice: typeof sizeObj.sizePrice === "number" ? sizeObj.sizePrice : 0,
+        }))
+
       // Modify the form submission data to use the main image as hover image when checkbox is checked
       const response = await fetch(`${import.meta.env.VITE_SITE_URL}/api/products`, {
         method: "POST",
@@ -669,12 +719,14 @@ const CreateProduct: React.FC = () => {
         body: JSON.stringify({
           title,
           type,
-          price: Number(price),
+          price: isSizesRequired && convertedSizes.length > 0
+            ? Number(convertedSizes[0].sizePrice)
+            : Number(price),
           image,
           hoverImage: useSameImage ? image : hoverImage,
           description,
           materials,
-          sizes,
+          sizes: convertedSizes,
           shipping: shippingOptions,
           productQuantity: isSizesRequired ? 1 : productQuantity,
           additionalImages,
@@ -885,9 +937,9 @@ const CreateProduct: React.FC = () => {
               }}
               className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
             >
-              {(["Shirt", "Pants", "Shoes", "Bracelet", "Collar", "Other"] as ProductType[]).map((t) => (
-                <option key={t} value={t}>
-                  {t}
+              {siteFilters.map((filter) => (
+                <option key={filter} value={filter}>
+                  {filter}
                 </option>
               ))}
             </select>
@@ -904,9 +956,9 @@ const CreateProduct: React.FC = () => {
               required
               min="0"
               step="0.01"
-              value={price}
+              value={isSizesRequired && sizes.length > 0 ? sizes[0].sizePrice : price}
               onChange={(e) => {
-                setPrice(e.target.value)
+                if (!isSizesRequired) setPrice(e.target.value)
                 formChangedRef.current = true
               }}
               onBlur={() => {
@@ -915,7 +967,10 @@ const CreateProduct: React.FC = () => {
                   formChangedRef.current = false
                 }
               }}
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              disabled={isSizesRequired}
+              className={`mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
+                isSizesRequired ? "bg-gray-100 cursor-not-allowed" : ""
+              }`}
             />
           </div>
 
@@ -966,26 +1021,38 @@ const CreateProduct: React.FC = () => {
               </div>
             </div>
             <div className="flex items-center mt-1 space-x-2">
-              <input
-                type="text"
-                placeholder="Enter size"
-                value={sizeInput}
-                onChange={(e) => setSizeInput(e.target.value)}
-                disabled={!isSizesRequired}
-                className={`block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
-                  !isSizesRequired ? "bg-gray-100 cursor-not-allowed" : ""
-                }`}
-              />
-              <input
-                type="number"
-                placeholder="Quantity"
-                min="1"
-                value={sizeQuantityInput}
-                onChange={(e) => setSizeQuantityInput(e.target.value)}
-                disabled={!isSizesRequired}
-                className={`block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
-                  !isSizesRequired ? "bg-gray-100 cursor-not-allowed" : ""
-                }`}
+                <input
+                  type="text"
+                  placeholder="Enter size"
+                  value={sizeInput}
+                  onChange={(e) => setSizeInput(e.target.value)}
+                  disabled={!isSizesRequired}
+                  className={`block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
+                    !isSizesRequired ? "bg-gray-100 cursor-not-allowed" : ""
+                  }`}
+                />
+                <input
+                  type="number"
+                  placeholder="Quantity"
+                  min="1"
+                  value={sizeQuantityInput}
+                  onChange={(e) => setSizeQuantityInput(e.target.value)}
+                  disabled={!isSizesRequired}
+                  className={`block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
+                    !isSizesRequired ? "bg-gray-100 cursor-not-allowed" : ""
+                  }`}
+                />
+                <input
+                  type="number"
+                  placeholder="Price"
+                  min="0"
+                  step="0.01"
+                  value={sizePriceInput}
+                  onChange={(e) => setSizePriceInput(e.target.value)}
+                  disabled={!isSizesRequired}
+                  className={`block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
+                    !isSizesRequired ? "bg-gray-100 cursor-not-allowed" : ""
+                  }`}
               />
               <div className="relative w-full">
                 {isCustomColor ? (
@@ -1086,16 +1153,16 @@ const CreateProduct: React.FC = () => {
                 >
                   <span>
                     {sizeObj.size} - {sizeObj.quantity} units - {sizeObj.color}
+                    {typeof sizeObj.sizePrice === "number" && (
+                      <span className="ml-2 text-green-700 font-semibold">
+                        ${sizeObj.sizePrice.toFixed(2)}
+                      </span>
+                    )}
                   </span>
                   <button
                     type="button"
                     onClick={() => handleRemoveSize(index)}
-                    disabled={!isSizesRequired}
-                    className={`ml-2 ${
-                      !isSizesRequired
-                        ? "text-gray-400 cursor-not-allowed"
-                        : "text-red-500 hover:text-red-700 focus:outline-none"
-                    }`}
+                    className="ml-2 text-red-500 hover:text-red-700 focus:outline-none"
                   >
                     <X size={16} />
                   </button>

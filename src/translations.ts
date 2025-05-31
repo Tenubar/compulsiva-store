@@ -28,6 +28,7 @@ export const translations = {
     remaining: "remaining",
     subtotal: "Subtotal",
     checkout: "Checkout",
+    settings: "Settings",
 
     // Profile
     backToHome: "Back to Home",
@@ -488,6 +489,7 @@ export const translations = {
     remaining: "restantes",
     subtotal: "Subtotal",
     checkout: "Pagar",
+    settings: "Configuración",
 
     // Profile
     backToHome: "Volver al Inicio",
