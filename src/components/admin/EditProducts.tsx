@@ -56,6 +56,7 @@ const EditProducts: React.FC = () => {
   const [startIndex, setStartIndex] = useState(0)
   const [isMaterialsRequired, setIsMaterialsRequired] = useState(true)
   const [isSizesRequired, setIsSizesRequired] = useState(false)
+  const [isShippingRequired, setIsShippingRequired] = useState(true)
   const imagesPerView = 4
   const imageContainerRef = useRef<HTMLDivElement>(null)
 
@@ -211,6 +212,9 @@ useEffect(() => {
       setProductQuantity(selectedProduct.productQuantity || 1)
       // Check if hover image is the same as main image
       setUseSameImage(selectedProduct.image === selectedProduct.hoverImage)
+      setIsShippingRequired(
+        !!selectedProduct.shipping && Array.isArray(selectedProduct.shipping) && selectedProduct.shipping.length > 0
+      )
     }
   }, [selectedProduct])
 
@@ -474,62 +478,58 @@ const handleRemoveSize = (index: number) => {
   }
 
   const handleUpdate = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!selectedProduct) return
+  e.preventDefault()
+  if (!selectedProduct) return
 
-    setLoading(true)
-    setError("")
+  setLoading(true)
+  setError("")
 
-    try {
-      // Modify the productToUpdate object in the handleUpdate function (around line 400)
-         const productToUpdate = {
-        ...selectedProduct,
-        productQuantity: isSizesRequired ? 0 : productQuantity,
-        hoverImage: useSameImage ? selectedProduct.image : selectedProduct.hoverImage,
-        sizes: selectedProduct.sizes
-          ? selectedProduct.sizes.map((s) => ({
-              ...s,
-              sizePrice: typeof s.sizePrice === "number" ? s.sizePrice : 0,
-            }))
-          : [],
-      }
-
-      console.log("Updating product with ID:", selectedProduct._id)
-      console.log("Update data:", selectedProduct)
-
-      const response = await fetch(`${import.meta.env.VITE_SITE_URL}/api/products/${selectedProduct._id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify(productToUpdate),
-      })
-
-      if (response.ok) {
-        const updatedProduct = await response.json()
-        console.log("Product updated successfully:", updatedProduct)
-
-        // Update the products list with the updated product
-        setProducts(products.map((p) => (p._id === updatedProduct._id ? updatedProduct : p)))
-
-        // Clear the newly added images list since they're now part of the product
-        setNewlyAddedImages([])
-
-        // Clear selected product
-        setSelectedProduct(null)
-        setOriginalProduct(null)
-      } else {
-        const errorData = await response.json()
-        throw new Error(errorData.message || "Failed to update product")
-      }
-    } catch (err: any) {
-      console.error("Update error:", err)
-      setError(err.message || "An error occurred while updating the product")
-    } finally {
-      setLoading(false)
+  try {
+    const productToUpdate = {
+      ...selectedProduct,
+      sizes: isSizesRequired
+        ? (selectedProduct.sizes
+            ? selectedProduct.sizes.map((s) => ({
+                ...s,
+                sizePrice: typeof s.sizePrice === "number" ? s.sizePrice : 0,
+              }))
+            : [])
+        : [],
+      productQuantity: isSizesRequired ? 0 : productQuantity,
+      hoverImage: useSameImage ? selectedProduct.image : selectedProduct.hoverImage,
+      materials: isMaterialsRequired ? selectedProduct.materials : "",
+      shipping: isShippingRequired ? selectedProduct.shipping : [], // <-- Make shipping an empty array if not required
     }
+
+    if (!isSizesRequired) {
+      productToUpdate.productQuantity = productQuantity
+    }
+
+    const response = await fetch(`${import.meta.env.VITE_SITE_URL}/api/products/${selectedProduct._id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+      body: JSON.stringify(productToUpdate),
+    })
+
+    if (response.ok) {
+      const updatedProduct = await response.json()
+      setProducts(products.map((p) => (p._id === updatedProduct._id ? updatedProduct : p)))
+      setNewlyAddedImages([])
+      setSelectedProduct(null)
+      setOriginalProduct(null)
+    } else {
+      const errorData = await response.json()
+      throw new Error(errorData.message || "Failed to update product")
+    }
+  } catch (err: any) {
+    setError(err.message || "An error occurred while updating the product")
+  } finally {
+    setLoading(false)
   }
+}
 
   // Update the handleCancel function to properly revert changes
   const handleCancel = async () => {
@@ -1000,7 +1000,21 @@ const handleRemoveSize = (index: number) => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Shipping Options</label>
+              <div className="flex items-center justify-between">
+                <label className="block text-sm font-medium text-gray-700">Shipping Options</label>
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="shippingRequired"
+                    checked={isShippingRequired}
+                    onChange={(e) => setIsShippingRequired(e.target.checked)}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="shippingRequired" className="ml-2 text-sm text-gray-600">
+                    Required
+                  </label>
+                </div>
+              </div>
               <div className="flex items-center mt-1">
                 <input
                   type="text"
@@ -1008,6 +1022,7 @@ const handleRemoveSize = (index: number) => {
                   value={shippingName}
                   onChange={(e) => setShippingName(e.target.value)}
                   className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  disabled={!isShippingRequired}
                 />
                 <input
                   type="number"
@@ -1015,17 +1030,19 @@ const handleRemoveSize = (index: number) => {
                   value={shippingPrice}
                   onChange={(e) => setShippingPrice(e.target.value)}
                   className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 ml-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  disabled={!isShippingRequired}
                 />
                 <button
                   type="button"
                   onClick={handleAddShipping}
                   className="ml-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  disabled={!isShippingRequired}
                 >
                   Add
                 </button>
               </div>
               <ul className="mt-2">
-                {(selectedProduct?.shipping || []).map((option, index) => (
+                {(isShippingRequired && selectedProduct?.shipping ? selectedProduct.shipping : []).map((option, index) => (
                   <li
                     key={index}
                     className="inline-flex items-center justify-between bg-gray-100 rounded-md text-gray-700 px-3 py-1 mr-2 mt-2"

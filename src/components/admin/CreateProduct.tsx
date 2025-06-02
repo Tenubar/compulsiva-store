@@ -43,6 +43,8 @@ const CreateProduct: React.FC = () => {
   const [shippingName, setShippingName] = useState("")
   const [shippingPrice, setShippingPrice] = useState("")
   const [shippingOptions, setShippingOptions] = useState<Array<{ name: string; price: number }>>([])
+  const [isShippingRequired, setIsShippingRequired] = useState(true)
+  const [selectedProduct, setSelectedProduct] = useState<any>(null)
   const [additionalImages, setAdditionalImages] = useState<string[]>([])
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
@@ -378,6 +380,22 @@ const CreateProduct: React.FC = () => {
     }
   }
 
+    useEffect(() => {
+      if (selectedProduct) {
+        // If materials exists and is not empty, set materials as required
+        setIsMaterialsRequired(!!selectedProduct.materials && selectedProduct.materials.trim() !== "")
+        // If sizes exists and has items, set sizes as required
+        setIsSizesRequired(!!selectedProduct.sizes && selectedProduct.sizes.length > 0)
+        // Set product quantity
+        setProductQuantity(selectedProduct.productQuantity || 1)
+        // Check if hover image is the same as main image
+        setUseSameImage(selectedProduct.image === selectedProduct.hoverImage)
+        setIsShippingRequired(
+          !!selectedProduct.shipping && Array.isArray(selectedProduct.shipping) && selectedProduct.shipping.length > 0
+        )
+      }
+    }, [selectedProduct])
+
   const handleFileUpload = async (
     file: File,
     fieldName: string,
@@ -690,9 +708,9 @@ const CreateProduct: React.FC = () => {
       !description.trim() ||
       (isMaterialsRequired && !materials.trim()) ||
       (isSizesRequired && sizes.length === 0) ||
-      shippingOptions.length === 0
+      (isShippingRequired && shippingOptions.length === 0) // <-- only required if checked
     ) {
-      setError("Please fill all the required inputs and add at least one shipping option")
+      setError("Please fill all the required inputs" + (isShippingRequired ? " and add at least one shipping option" : ""))
       return
     }
 
@@ -727,7 +745,7 @@ const CreateProduct: React.FC = () => {
           description,
           materials,
           sizes: convertedSizes,
-          shipping: shippingOptions,
+          shipping: isShippingRequired ? shippingOptions : [], // <-- only if required
           productQuantity: isSizesRequired ? 1 : productQuantity,
           additionalImages,
         }),
@@ -1240,13 +1258,28 @@ const CreateProduct: React.FC = () => {
 
           {/* Shipping Options */}
           <div>
-            <label className="block text-sm font-medium text-gray-700">Shipping Options</label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-gray-700">Shipping Options</label>
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="shippingRequired"
+                  checked={isShippingRequired}
+                  onChange={(e) => setIsShippingRequired(e.target.checked)}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label htmlFor="shippingRequired" className="ml-2 text-sm text-gray-600">
+                  Required
+                </label>
+              </div>
+            </div>
             <div className="flex items-center mt-1">
               <input
                 type="text"
                 placeholder="Shipping name"
                 value={shippingName}
                 onChange={(e) => setShippingName(e.target.value)}
+                disabled={!isShippingRequired}
                 className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               />
               <input
@@ -1254,34 +1287,37 @@ const CreateProduct: React.FC = () => {
                 placeholder="Price"
                 value={shippingPrice}
                 onChange={(e) => setShippingPrice(e.target.value)}
+                disabled={!isShippingRequired}
                 className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 ml-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               />
               <button
                 type="button"
                 onClick={handleAddShipping}
+                disabled={!isShippingRequired}
                 className="ml-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               >
                 Add
               </button>
             </div>
             <ul className="mt-2">
-              {shippingOptions.map((option, index) => (
-                <li
-                  key={index}
-                  className="inline-flex items-center justify-between bg-gray-100 rounded-md text-gray-700 px-3 py-1 mr-2 mt-2"
-                >
-                  <span>
-                    {option.name} - ${option.price}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveShipping(index)}
-                    className="ml-2 text-red-500 hover:text-red-700 focus:outline-none"
+              {isShippingRequired &&
+                shippingOptions.map((option, index) => (
+                  <li
+                    key={index}
+                    className="inline-flex items-center justify-between bg-gray-100 rounded-md text-gray-700 px-3 py-1 mr-2 mt-2"
                   >
-                    <X size={16} />
-                  </button>
-                </li>
-              ))}
+                    <span>
+                      {option.name} - ${option.price}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveShipping(index)}
+                      className="ml-2 text-red-500 hover:text-red-700 focus:outline-none"
+                    >
+                      <X size={16} />
+                    </button>
+                  </li>
+                ))}
             </ul>
           </div>
 

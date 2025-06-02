@@ -886,7 +886,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
   const description = product.description || "No description available."
   // Remove the materials default
   // Remove the sizes default
-  const shipping = product.shipping || []
+  const shipping = Array.isArray(product.shipping) ? product.shipping : []
   const reviews = product.reviews || []
   const recommended = product.recommended || []
   const productQuantity = product.productQuantity || 1
@@ -1404,6 +1404,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
                               setSelectedColor(
                                 firstAvailableColor ? firstAvailableColor.color : colorOptions[0]?.color || "",
                               )
+                              setQuantity(1)
                             }
                           }}
                           disabled={sizeObj.quantity <= 0}
@@ -1458,7 +1459,10 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
                             ? { backgroundColor: "var(--color-background)" }
                             : undefined
                         }
-                        onClick={() => setSelectedColor(colorObj.color)}
+                        onClick={() => {
+                          setSelectedColor(colorObj.color)
+                          setQuantity(1)
+                        }}
                       >
                         <span
                           className="w-4 h-4 rounded-full mr-2"
@@ -1475,38 +1479,41 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
                 </div>
               )}
 
-              <div>
-                <h2 className="text-xl font-title font-semibold mb-2"
-                style={{
-                    color: "var(--color-text-header)",
-                  }}
-                >{t("shipping")}</h2>
-                <div className="mb-4">
-                  <select
-                    value={selectedShipping ? JSON.stringify(selectedShipping) : ""}
-                    onChange={(e) => setSelectedShipping(e.target.value ? JSON.parse(e.target.value) : null)}
-                    className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary font-body"
-                  >
-                    {product.shipping?.map((option, index) => (
-                      <option key={index} value={JSON.stringify(option)}>
-                        {option.name} (${option.price})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                {selectedShipping && (
-                  <div className="flex items-center justify-between bg-gray-50 p-3 rounded-md">
-                    <span className="font-body text-gray-700">{selectedShipping.name}</span>
-                    <div
-                      className={`px-3 py-1 rounded-md ${selectedShipping.price === 0 ? "bg-green-500" : "bg-orange-500"}`}
+              {/* Only show shipping if shipping array is not empty */}
+              {shipping.length > 0 && (
+                <div>
+                  <h2 className="text-xl font-title font-semibold mb-2"
+                  style={{
+                      color: "var(--color-text-header)",
+                    }}
+                  >{t("shipping")}</h2>
+                  <div className="mb-4">
+                    <select
+                      value={selectedShipping ? JSON.stringify(selectedShipping) : ""}
+                      onChange={(e) => setSelectedShipping(e.target.value ? JSON.parse(e.target.value) : null)}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary font-body"
                     >
-                      <span className="text-white font-medium">
-                        {selectedShipping.price === 0 ? t("free") : `$${selectedShipping.price}`}
-                      </span>
-                    </div>
+                      {shipping.map((option, index) => (
+                        <option key={index} value={JSON.stringify(option)}>
+                          {option.name} (${option.price})
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                )}
-              </div>
+                  {selectedShipping && (
+                    <div className="flex items-center justify-between bg-gray-50 p-3 rounded-md">
+                      <span className="font-body text-gray-700">{selectedShipping.name}</span>
+                      <div
+                        className={`px-3 py-1 rounded-md ${selectedShipping.price === 0 ? "bg-green-500" : "bg-orange-500"}`}
+                      >
+                        <span className="text-white font-medium">
+                          {selectedShipping.price === 0 ? t("free") : `$${selectedShipping.price}`}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div>
                 <h2 className="text-xl font-title font-semibold mb-2"
@@ -1583,25 +1590,20 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
                 type="submit"
                 disabled={submittingComment || !commentText.trim()}
                 className="px-4 py-2 rounded-md disabled:opacity-80 font-body"
-                style={{
-                  color: "var(--color-text-white)",
-                  backgroundColor: "var(--color-primary)",
-                  transition: "background-color 0.2s, color 0.2s",
-                }}
-                onMouseEnter={e => {
-                  if ((e.currentTarget as HTMLButtonElement).disabled) {
-                    e.currentTarget.style.color = "var(--color-text-black)"
+                 style={{
+                    color: "var(--color-text-white)",
+                    backgroundColor: "var(--color-primary)",
+                    transition: "background-color 0.2s",
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.backgroundColor = "var(--color-secondary)"
+                    e.currentTarget.style.color = "var(--color-text-white)"
+                  }}
+                  onMouseLeave={e => {
                     e.currentTarget.style.backgroundColor = "var(--color-primary)"
-                  } else {
-                    e.currentTarget.style.backgroundColor = "var(--color-primary)"
-                    e.currentTarget.style.color = "var(--color-text-black)"
-                  }
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.backgroundColor = "var(--color-primary)"
-                  e.currentTarget.style.color = "var(--color-text-white)"
-                }}
-              >
+                    e.currentTarget.style.color = "var(--color-text-white)"
+                  }}
+                >
                 {submittingComment ? t("posting") : t("postComment")}
               </button>
             </form>
@@ -1885,49 +1887,61 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
       {/* PayPal Preview Form */}
       {showPayPalPreview && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 transition-opacity duration-300">
-          <div className="bg-white rounded-lg shadow-xl w-[90%] max-w-4xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <FileText className="h-6 w-6 mr-2" 
-                  style = {{
-                    color: "var(--color-primary)"
-                  }}
-                  />
-                  <h2 className="text-2xl font-bold text-gray-900">{t("invoicePreview")}</h2>
-                </div>
-                <div className="flex items-center space-x-4">
-                  <button
-                    onClick={() => navigate("/profile")}
-                    className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
-                  >
-                    <Edit className="h-4 w-4 mr-2" />
-                    {t("modify")}
-                  </button>
-                  <button
-                    onClick={() => setShowPayPalPreview(false)}
-                    className="flex items-center px-4 py-2 text-sm font-medium text-white rounded-md"
-                    style ={{
-                      backgroundColor: "var(--color-background-danger)",
-                      transition: "filter 0.2s",
-                    }}
-                      onMouseEnter={e => {
-                        e.currentTarget.style.filter = "brightness(0.9)"
+          <div className="bg-white rounded-lg shadow-xl w-[90%] max-w-4xl max-h-[90vh] overflow-y-auto relative">
+            {/* Cancel button always on top right */}
+            <button
+              onClick={() => setShowPayPalPreview(false)}
+              className="absolute top-4 right-4 flex items-center px-3 py-2 text-sm font-medium text-white rounded-md z-10"
+              style={{
+                backgroundColor: "var(--color-background-danger)",
+                transition: "filter 0.2s",
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.filter = "brightness(0.9)"
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.filter = "none"
+              }}
+            >
+              <X className="h-4 w-4 mr-2" />
+              {t("cancel")}
+            </button>
+
+            {/* Only show Invoice Preview title and grid if shipping is not empty */}
+            {(shipping.length > 0) && (
+              <div className="p-6 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <FileText className="h-6 w-6 mr-2" 
+                      style = {{
+                        color: "var(--color-primary)"
                       }}
-                      onMouseLeave={e => {
-                        e.currentTarget.style.filter = "none"
-                      }}
-                  >
-                    <X className="h-4 w-4 mr-2" />
-                    {t("cancel")}
-                  </button>
+                    />
+                    <h2 className="text-2xl font-bold text-gray-900">{t("invoicePreview")}</h2>
+                  </div>
+                  <div className="flex items-center space-x-4">
+                    <button
+                      onClick={() => navigate("/profile")}
+                      className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+                    >
+                      <Edit className="h-4 w-4 mr-2" />
+                      {t("modify")}
+                    </button>
+                    {/* Remove duplicate cancel button here */}
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
-            <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Shipping Information */}
+            <div className={
+
+              // Change grid columns based on shipping array
+              shipping.length > 0
+                ? "p-6 grid grid-cols-1 md:grid-cols-2 gap-6"
+                : "p-6 grid grid-cols-1 gap-6"
+            }>
+              {/* Shipping Information - only show if shipping is not empty */}
+              {shipping.length > 0 && (
                 <div>
                   <h3 className="text-lg font-medium text-gray-900 mb-4">{t("shippingInformation")}</h3>
                   <div className="space-y-4">
@@ -2039,80 +2053,82 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
                     </div>
                   </div>
                 </div>
+              )}
 
-                {/* Order Summary */}
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">{t("orderSummary")}</h3>
-                  <div className="space-y-4">
-                    <div className="flex justify-between">
-                      <p className="text-gray-600">{product?.title}</p>
-                      <p className="text-gray-900">{formatPrice(priceToUse, currency)}</p>
-                    </div>
+              {/* Order Summary */}
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">{t("orderSummary")}</h3>
+                <div className="space-y-4">
+                  <div className="flex justify-between">
+                    <p className="text-gray-600">{product?.title}</p>
+                    <p className="text-gray-900">{formatPrice(priceToUse, currency)}</p>
+                  </div>
+                  {/* Only show size if product has sizes */}
+                  {product.sizes && product.sizes.length > 0 && (
                     <div className="flex justify-between">
                       <p className="text-gray-600">{t("size")}</p>
                       <p className="text-gray-900">{selectedSize}</p>
                     </div>
-                    {selectedColor && (
-                      <div className="flex justify-between">
-                        <p className="text-gray-600">{t("color")}</p>
-                        <div className="flex items-center">
-                          <span
-                            className="w-4 h-4 rounded-full mr-2"
-                            style={{
-                              backgroundColor: selectedColor.toLowerCase(),
-                              border: "1px solid #ccc",
-                              boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.1)",
-                            }}
-                          ></span>
-                          <p className="text-gray-900">{selectedColor}</p>
-                        </div>
-                      </div>
-                    )}
+                  )}
+                  {selectedColor && (
                     <div className="flex justify-between">
-                      <p className="text-gray-600">{t("quantity")}</p>
-                      <p className="text-gray-900">{quantity}</p>
-                    </div>
-                    {selectedShipping && (
-                      <div className="flex justify-between">
-                        <p className="text-gray-600">{selectedShipping.name}</p>
-                        <p className="text-gray-900">{formatPrice(selectedShipping.price, currency)}</p>
-                      </div>
-                    )}
-                    <div className="border-t border-gray-200 pt-4">
-                      <div className="flex justify-between">
-                        <p className="text-lg font-medium text-gray-900">{t("total")}</p>
-                        <p className="text-lg font-medium text-gray-900">
-                          {formatPrice(
-                            selectedShipping
-                            ? priceToUse * quantity + selectedShipping.price
-                            : priceToUse * quantity,
-                          currency
-                          )}
-                        </p>
-                      </div>
-
-                      {/* PayPal Button */}
-                      <div className="mt-4">
-                        <button
-                          onClick={handlePreviewSubmit}
-                          disabled={!isFormValid()}
-                          className="w-full px-6 py-3 rounded-md text-white"
+                      <p className="text-gray-600">{t("color")}</p>
+                      <div className="flex items-center">
+                        <span
+                          className="w-4 h-4 rounded-full mr-2"
                           style={{
-                            backgroundColor: isFormValid() ? "var(--color-primary)" : "#d1d5db", // Tailwind gray-300
-                            color: isFormValid() ? "white" : "#6b7280", // Tailwind gray-500
-                            cursor: isFormValid() ? "pointer" : "not-allowed",
-                            transition: "background-color 0.2s, color 0.2s",
+                            backgroundColor: selectedColor.toLowerCase(),
+                            border: "1px solid #ccc",
+                            boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.1)",
                           }}
-                          onMouseEnter={e => {
-                            if (isFormValid()) e.currentTarget.style.backgroundColor = "var(--color-secondary)"
-                          }}
-                          onMouseLeave={e => {
-                            if (isFormValid()) e.currentTarget.style.backgroundColor = "var(--color-primary)"
-                          }}
-                        >
-                          {t("proceedToPayPal")}
-                        </button>
+                        ></span>
+                        <p className="text-gray-900">{selectedColor}</p>
                       </div>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <p className="text-gray-600">{t("quantity")}</p>
+                    <p className="text-gray-900">{quantity}</p>
+                  </div>
+                  {selectedShipping && (
+                    <div className="flex justify-between">
+                      <p className="text-gray-600">Shipping: {selectedShipping.name}</p>
+                      <p className="text-gray-900">{formatPrice(selectedShipping.price, currency)}</p>
+                    </div>
+                  )}
+                  <div className="border-t border-gray-200 pt-4">
+                    <div className="flex justify-between">
+                      <p className="text-lg font-medium text-gray-900">{t("total")}</p>
+                      <p className="text-lg font-medium text-gray-900">
+                        {formatPrice(
+                          selectedShipping
+                          ? priceToUse * quantity + selectedShipping.price
+                          : priceToUse * quantity,
+                        currency
+                        )}
+                      </p>
+                    </div>
+                    {/* PayPal Button */}
+                    <div className="mt-4">
+                      <button
+                        onClick={handlePreviewSubmit}
+                        disabled={!isFormValid()}
+                        className="w-full px-6 py-3 rounded-md text-white"
+                        style={{
+                          backgroundColor: isFormValid() ? "var(--color-primary)" : "#d1d5db", // Tailwind gray-300
+                          color: isFormValid() ? "white" : "#6b7280", // Tailwind gray-500
+                          cursor: isFormValid() ? "pointer" : "not-allowed",
+                          transition: "background-color 0.2s, color 0.2s",
+                        }}
+                        onMouseEnter={e => {
+                          if (isFormValid()) e.currentTarget.style.backgroundColor = "var(--color-secondary)"
+                        }}
+                        onMouseLeave={e => {
+                          if (isFormValid()) e.currentTarget.style.backgroundColor = "var(--color-primary)"
+                        }}
+                      >
+                        {t("proceedToPayPal")}
+                      </button>
                     </div>
                   </div>
                 </div>

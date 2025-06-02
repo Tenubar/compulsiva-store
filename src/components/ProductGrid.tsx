@@ -105,7 +105,13 @@ const ProductGrid: React.FC<ProductGridProps> = ({ onProductClick, selectedTypes
             onMouseEnter={() => setHoveredProduct(product._id)}
             onMouseLeave={() => setHoveredProduct(null)}
           >
-            <div className="relative aspect-square h-[300px]">
+            <div className="relative aspect-square h-[300px] "
+            style={{
+              position: "relative",
+              left: "50%",
+              transform: "translateX(-50%)",
+            }}
+            >
               <img
                 src={getImageUrl(
                   hoveredProduct === product._id
@@ -115,7 +121,7 @@ const ProductGrid: React.FC<ProductGridProps> = ({ onProductClick, selectedTypes
                     : product.image,
                 )}
                 alt={product.title}
-                className="w-full h-full object-cover cursor-pointer"
+                className="h-full object-contain cursor-pointer"
                 onClick={() => navigate(`/product/${product._id}`)}
                 onError={(e) => {
                   ;(e.target as HTMLImageElement).src = getPlaceholder(300, 300)

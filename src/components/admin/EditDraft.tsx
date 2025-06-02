@@ -79,6 +79,9 @@ const EditDraft: React.FC = () => {
   // Add a new state variable for the "Use same image" checkbox after the other state declarations (around line 50)
   const [useSameImage, setUseSameImage] = useState(false)
 
+  // Add state for shipping required
+  const [isShippingRequired, setIsShippingRequired] = useState(true)
+
   useEffect(() => {
     if (id) {
       loadDraft(id)
@@ -260,7 +263,7 @@ const EditDraft: React.FC = () => {
         description,
         materials,
         sizes: convertedSizes, // Use the converted sizes
-        shipping: shippingOptions,
+        shipping: isShippingRequired ? shippingOptions : [], // <-- here
         productQuantity: isSizesRequired ? 1 : productQuantity,
         additionalImages,
       }
@@ -312,7 +315,7 @@ const EditDraft: React.FC = () => {
         description,
         materials,
         sizes: convertedSizes, // Use the converted sizes
-        shipping: shippingOptions,
+        shipping: isShippingRequired ? shippingOptions : [], // <-- here
         productQuantity: isSizesRequired ? 1 : productQuantity,
         additionalImages,
       }
@@ -364,7 +367,7 @@ const EditDraft: React.FC = () => {
         description,
         materials,
         sizes: convertedSizes, // Use the converted sizes
-        shipping: shippingOptions,
+        shipping: isShippingRequired ? shippingOptions : [], // <-- here
         productQuantity: isSizesRequired ? 1 : productQuantity,
         additionalImages: newAdditionalImages,
       }
@@ -674,18 +677,18 @@ const EditDraft: React.FC = () => {
     // Replace the existing validation with this:
     // Validate that all required fields have a value.
     if (
-    !title.trim() ||
-    (!isSizesRequired && !price.trim()) ||
-    !image.trim() ||
-    (!hoverImage.trim() && !useSameImage) ||
-    !description.trim() ||
-    (isMaterialsRequired && !materials.trim()) ||
-    (isSizesRequired && sizes.length === 0) ||
-    shippingOptions.length === 0
-  ) {
-    setError("Please fill all the required inputs and add at least one shipping option")
-    return
-  }
+      !title.trim() ||
+      (!isSizesRequired && !price.trim()) ||
+      !image.trim() ||
+      (!hoverImage.trim() && !useSameImage) ||
+      !description.trim() ||
+      (isMaterialsRequired && !materials.trim()) ||
+      (isSizesRequired && sizes.length === 0) ||
+      (isShippingRequired && shippingOptions.length === 0) // <-- only require if checked
+    ) {
+      setError("Please fill all the required inputs and add at least one shipping option")
+      return
+    }
 
     setLoading(true)
     setError("")
@@ -718,8 +721,8 @@ const EditDraft: React.FC = () => {
           hoverImage: useSameImage ? image : hoverImage,
           description,
           materials,
-          sizes: convertedSizes, // Use the converted sizes
-          shipping: shippingOptions,
+          sizes: convertedSizes,
+          shipping: isShippingRequired ? shippingOptions : [], // <-- here
           productQuantity: isSizesRequired ? 1 : productQuantity,
           additionalImages,
         }),
@@ -1443,13 +1446,28 @@ const EditDraft: React.FC = () => {
             ></textarea>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700">Shipping Options</label>
+            <div className="flex items-center justify-between">
+              <label className="block text-sm font-medium text-gray-700">Shipping Options</label>
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="shippingRequired"
+                  checked={isShippingRequired}
+                  onChange={(e) => setIsShippingRequired(e.target.checked)}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label htmlFor="shippingRequired" className="ml-2 text-sm text-gray-600">
+                  Required
+                </label>
+              </div>
+            </div>
             <div className="flex items-center mt-1">
               <input
                 type="text"
                 placeholder="Shipping name"
                 value={shippingName}
                 onChange={(e) => setShippingName(e.target.value)}
+                disabled={!isShippingRequired}
                 className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               />
               <input
@@ -1457,12 +1475,18 @@ const EditDraft: React.FC = () => {
                 placeholder="Price"
                 value={shippingPrice}
                 onChange={(e) => setShippingPrice(e.target.value)}
+                disabled={!isShippingRequired}
                 className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 ml-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               />
               <button
                 type="button"
                 onClick={handleAddShipping}
-                className="ml-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                disabled={!isShippingRequired}
+                className={`ml-2 px-4 py-2 text-sm font-medium text-white ${
+                  !isShippingRequired
+                    ? "bg-gray-400 cursor-not-allowed"
+                    : "bg-blue-600 hover:bg-blue-700"
+                } rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
               >
                 Add
               </button>
@@ -1479,7 +1503,12 @@ const EditDraft: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => handleRemoveShipping(index)}
-                    className="ml-2 text-red-500 hover:text-red-700 focus:outline-none"
+                    disabled={!isShippingRequired}
+                    className={`ml-2 ${
+                      !isShippingRequired
+                        ? "text-gray-400 cursor-not-allowed"
+                        : "text-red-500 hover:text-red-700 focus:outline-none"
+                    }`}
                   >
                     <X size={16} />
                   </button>

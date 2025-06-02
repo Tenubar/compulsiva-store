@@ -61,18 +61,18 @@ const COLOR_PRESETS = [
     label: "Red/Purple/White",
     colors: {
       primary: "#e11d48",         // Red
-      secondary: "#a21caf",       // Purple
+      secondary: "#6e2ad5",       // Purple
       accent: "#f59e0b",          // Orange accent (can adjust)
       background: "#ffffff",      // White
       text: "#2d133b",            // Deep purple for text
-      textHeader: "#a21caf",      // Purple for headers
-      textInfo: "#b91c1c",        // Red for info
+      textHeader: "#2d133b",      // Purple for headers
+      textInfo: "#433f46",        // Red for info
       textDanger: "#d32f2f",      // Red for danger
       textWhite: "#ffffff",
       textBlack: "#000000",
       textPrice: "#e11d48",       // Red for price
-      backgroundSuccess: "#a7f3d0",
-      backgroundDanger: "#fee2e2",
+      backgroundSuccess: "#01b768",
+      backgroundDanger: "#d32f2f",
     },
   },
   {
@@ -90,7 +90,7 @@ const COLOR_PRESETS = [
       textBlack: "#000000",
       textPrice: "#232F3B",       
       backgroundSuccess: "#35b135", 
-      backgroundDanger: "#FC2100", 
+      backgroundDanger: "#e52406", 
     },
   },
 ]
@@ -283,8 +283,11 @@ const AdminSettings: React.FC = () => {
         throw new Error(errorData.message || "Failed to save settings")
       }
 
-      setSuccess("Settings saved successfully!")
-      setTimeout(() => setSuccess(""), 3000)
+      setSuccess("Settings saved successfully! Refreshing the page...")
+      setTimeout(() => {
+        setSuccess("")
+        window.location.reload()
+      }, 3000)
     } catch (err) {
       console.error("Error saving settings:", err)
       setError(err instanceof Error ? err.message : "Failed to save settings")

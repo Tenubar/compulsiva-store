@@ -119,7 +119,17 @@ const Drafts: React.FC = () => {
             <p className="mt-1 text-gray-500">Start creating a product to automatically save drafts.</p>
             <button
               onClick={() => navigate("/admin/create-product")}
-              className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
+              className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm "
+              // text-white bg-blue-600 hover:bg-blue-700
+              style = {{
+                backgroundColor: "var(--color-primary)",
+                color: "var(--color-text-white)",
+                transition: "background-color 0.2s",
+              }}
+              onMouseEnter={(e) => {(e.currentTarget as HTMLButtonElement).style.backgroundColor = "var(--color-secondary)"
+              }}
+              onMouseLeave={(e) => {(e.currentTarget as HTMLButtonElement).style.backgroundColor = "var(--color-primary)"
+              }}
             >
               Create New Product
             </button>
