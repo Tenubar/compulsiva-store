@@ -1677,73 +1677,57 @@ app.delete("/api/product/:id", authenticateToken, isAdmin, async (req, res) => {
   }
 })
 
-// PayPal IPN Webhook
+// Update the PayPal IPN Webhook
 app.post("/api/paypal/ipn", express.raw({ type: "application/x-www-form-urlencoded" }), async (req, res) => {
-  // Convert the raw body to a string
-  const body = req.body.toString("utf8")
+  const body = req.body.toString("utf8");
+  const verificationBody = `cmd=_notify-validate&${body}`;
+  const ipnData = querystring.parse(body);
 
-  // Prepare the verification message by adding 'cmd=_notify-validate'
-  const verificationBody = `cmd=_notify-validate&${body}`
+  // Log IPN data for debugging
+  console.log("Received IPN data:", ipnData);
 
-  // Parse the original IPN message for our use
-  const ipnData = querystring.parse(body)
-
-  // Create a new IPN log entry
   const ipnLog = new IPNLog({
     ipnMessage: ipnData,
     verified: false,
-  })
+  });
 
   try {
-    // Verify with PayPal that this is a legitimate IPN message
-    const verificationResult = await verifyIPN(verificationBody)
-
-    // Update the IPN log with verification result
-    ipnLog.verified = verificationResult === "VERIFIED"
+    const verificationResult = await verifyIPN(verificationBody);
+    ipnLog.verified = verificationResult === "VERIFIED";
 
     if (ipnLog.verified) {
-      // Process the payment if it's completed
       if (ipnData.payment_status === "Completed") {
         try {
-          // Create a new order from the IPN data
-          const order = await createOrderFromIPN(ipnData)
-
+          const order = await createOrderFromIPN(ipnData);
           if (order) {
-            ipnLog.orderCreated = true
-            ipnLog.orderId = order._id
-            ipnLog.processed = true
+            ipnLog.orderCreated = true;
+            ipnLog.orderId = order._id;
+            ipnLog.processed = true;
           }
         } catch (orderError) {
-          console.error("Error creating order from IPN:", orderError)
-          ipnLog.error = orderError.message
+          console.error("Error creating order from IPN:", orderError);
+          ipnLog.error = orderError.message;
         }
       } else {
-        ipnLog.processed = true
+        ipnLog.processed = true;
       }
     } else {
-      console.error("PayPal IPN verification failed")
-      ipnLog.error = "IPN verification failed"
+      console.error("PayPal IPN verification failed");
+      ipnLog.error = "IPN verification failed";
     }
   } catch (error) {
-    console.error("Error processing PayPal IPN:", error)
-    ipnLog.error = error.message
+    console.error("Error processing PayPal IPN:", error);
+    ipnLog.error = error.message;
   }
 
-  // Save the IPN log regardless of the outcome
-  await ipnLog.save()
+  await ipnLog.save();
+  res.status(200).send("OK");
+});
 
-  // Always respond with 200 OK to PayPal
-  res.status(200).send("OK")
-})
-
-// Function to verify IPN with PayPal
+// Update the verifyIPN function
 function verifyIPN(verificationBody) {
   return new Promise((resolve, reject) => {
-    // Use sandbox URL for testing, production URL for live
-    // const paypalHost = process.env.VITE_NODE_ENV === "production" ? "www.paypal.com" : "www.sandbox.paypal.com"
-    // const paypalHost = "www.paypal.com"
-    const paypalHost = "www.sandbox.paypal.com"
-
+    const paypalHost = "www.sandbox.paypal.com"; // Use sandbox for testing
     const options = {
       host: paypalHost,
       path: "/cgi-bin/webscr",
@@ -1752,83 +1736,58 @@ function verifyIPN(verificationBody) {
         "Content-Type": "application/x-www-form-urlencoded",
         "Content-Length": verificationBody.length,
       },
-    }
+    };
 
     const req = https.request(options, (res) => {
-      let data = ""
-
+      let data = "";
       res.on("data", (chunk) => {
-        data += chunk
-      })
-
+        data += chunk;
+      });
       res.on("end", () => {
-        if (data === "VERIFIED") {
-          resolve("VERIFIED")
-        } else {
-          resolve("INVALID")
-        }
-      })
-    })
+        console.log("IPN verification response:", data); // Log verification response
+        resolve(data);
+      });
+    });
 
     req.on("error", (error) => {
-      reject(error)
-    })
+      reject(error);
+    });
 
-    req.write(verificationBody)
-    req.end()
-  })
+    req.write(verificationBody);
+    req.end();
+  });
 }
 
-// Update the createOrderFromIPN function to handle sizes
+// Update the createOrderFromIPN function
 async function createOrderFromIPN(ipnData) {
   try {
-    // Check if an order with this transaction ID already exists
-    const existingOrder = await Order.findOne({ paypalTransactionId: ipnData.txn_id })
+    const existingOrder = await Order.findOne({ paypalTransactionId: ipnData.txn_id });
     if (existingOrder) {
-      return existingOrder
+      console.log("Order already exists:", existingOrder);
+      return existingOrder;
     }
 
-    // Extract the user ID, size, and color from the custom field (format: "userId|size|color")
-    const customParts = ipnData.custom.split("|")
-    const userId = customParts[0]
-    const selectedSize = customParts.length > 1 ? customParts[1] : ""
-    const selectedColor = customParts.length > 2 ? customParts[2] : ""
+    const customParts = ipnData.custom.split("|");
+    const userId = customParts[0];
+    const selectedSize = customParts.length > 1 ? customParts[1] : "";
+    const selectedColor = customParts.length > 2 ? customParts[2] : "";
 
-    // Check if user exists and get their address
-    const user = await User.findById(userId)
+    const user = await User.findById(userId);
     if (!user) {
-      throw new Error(`User not found with ID: ${userId}`)
+      throw new Error(`User not found with ID: ${userId}`);
     }
 
-    // Extract product ID from item_number
-    const productId = ipnData.item_number
-
-    // Check if product exists
-    const product = await Product.findById(productId)
+    const productId = ipnData.item_number;
+    const product = await Product.findById(productId);
     if (!product) {
-      throw new Error(`Product not found with ID: ${productId}`)
+      throw new Error(`Product not found with ID: ${productId}`);
     }
 
-    // Get shipping method from product
-    const shippingMethod =
-      product.shipping && product.shipping.length > 0
-        ? product.shipping[0] // Get the first shipping method
-        : { name: "Standard", price: 0 }
+    const shippingMethod = product.shipping?.[0] || { name: "Standard", price: 0 };
 
-    // Create address string from user's address
-    const addressParts = []
-    if (user.address.street) addressParts.push(user.address.street)
-    if (user.address.city) addressParts.push(user.address.city)
-    if (user.address.state) addressParts.push(user.address.state)
-    if (user.address.postalCode) addressParts.push(user.address.postalCode)
-    if (user.address.country) addressParts.push(user.address.country)
-
-    const addressString = addressParts.join(", ")
-
-    // Create the order
     const order = new Order({
-      userId: userId,
-      productId: productId,
+      userId,
+      productId,
       title: ipnData.item_name || product.title,
       price: Number.parseFloat(ipnData.mc_gross) / Number.parseInt(ipnData.quantity || 1),
       quantity: Number.parseInt(ipnData.quantity || 1),
@@ -1846,38 +1805,26 @@ async function createOrderFromIPN(ipnData) {
         postalCode: user.address.postalCode,
         country: user.address.country,
       },
-      shippingMethod: {
-        name: `${addressString} (${shippingMethod.name})`,
-        price: shippingMethod.price,
-      },
+      shippingMethod,
       status: "completed",
       paymentDetails: ipnData,
-    })
+    });
 
-    await order.save()
+    await order.save();
+    console.log("Order created successfully:", order);
 
-    // Update inventory
-    const purchaseQuantity = Number.parseInt(ipnData.quantity || 1)
-
-    const sizeIndex = product.sizes.findIndex((s) => s.size === selectedSize)
+    const purchaseQuantity = Number.parseInt(ipnData.quantity || 1);
+    const sizeIndex = product.sizes.findIndex((s) => s.size === selectedSize);
     if (sizeIndex >= 0) {
-      const newQuantity = Math.max(0, product.sizes[sizeIndex].quantity - purchaseQuantity)
-      product.sizes[sizeIndex].quantity = newQuantity
-      await Product.findByIdAndUpdate(productId, { sizes: product.sizes }, { new: true })
+      product.sizes[sizeIndex].quantity = Math.max(0, product.sizes[sizeIndex].quantity - purchaseQuantity);
+      await Product.findByIdAndUpdate(productId, { sizes: product.sizes });
     }
 
-    // Remove the item from the user's cart if it exists
-    await CartItem.deleteMany({
-      userId: userId,
-      productId: productId,
-      size: selectedSize,
-      color: selectedColor,
-    })
-
-    return order
+    await CartItem.deleteMany({ userId, productId, size: selectedSize, color: selectedColor });
+    return order;
   } catch (error) {
-    console.error("Error creating order from IPN:", error)
-    throw error
+    console.error("Error creating order from IPN:", error);
+    throw error;
   }
 }
 
