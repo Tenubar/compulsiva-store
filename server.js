@@ -1695,6 +1695,7 @@ app.post("/api/paypal/ipn", express.raw({ type: "application/x-www-form-urlencod
     const verificationResult = await verifyIPN(verificationBody);
     ipnLog.verified = verificationResult === "VERIFIED";
 
+
     if (ipnLog.verified) {
       if (ipnData.payment_status === "Completed") {
         try {
@@ -1704,6 +1705,7 @@ app.post("/api/paypal/ipn", express.raw({ type: "application/x-www-form-urlencod
             ipnLog.orderId = order._id;
             ipnLog.processed = true;
           }
+          console.log("Order created from IPN:", order);
         } catch (orderError) {
           console.error("Error creating order from IPN:", orderError);
           ipnLog.error = orderError.message;
@@ -1721,6 +1723,7 @@ app.post("/api/paypal/ipn", express.raw({ type: "application/x-www-form-urlencod
   }
 
   await ipnLog.save();
+  console.log("IPN Log saved:", ipnLog);
   res.status(200).send("OK");
 });
 
@@ -1771,6 +1774,8 @@ async function createOrderFromIPN(ipnData) {
     const userId = customParts[0];
     const selectedSize = customParts.length > 1 ? customParts[1] : "";
     const selectedColor = customParts.length > 2 ? customParts[2] : "";
+
+    console.log("Creating order for user:", userId, "with size:", selectedSize, "and color:", selectedColor);
 
     const user = await User.findById(userId);
     if (!user) {

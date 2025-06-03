@@ -2138,8 +2138,9 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
         </div>
       )}
 
-      {/* PayPal form with updated invoice fields */}
+      {/* PayPal form with return URL that redirects to orders page */}
       <form
+        // action="https://www.paypal.com/cgi-bin/webscr"
         action="https://www.sandbox.paypal.com/cgi-bin/webscr"
         method="post"
         target="_top"
@@ -2159,30 +2160,22 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
           name="amount"
           value={
             selectedShipping && selectedShipping.price > 0
-              ? (priceToUse * quantity + selectedShipping.price).toFixed(2)
-              : (priceToUse * quantity).toFixed(2)
+              ? (priceToUse + selectedShipping.price).toFixed(2)
+              : priceToUse
           }
         />
         <input type="hidden" name="quantity" value={quantity} />
         <input type="hidden" name="currency_code" value="USD" />
-        <input
-          type="hidden"
-          name="custom"
-          value={`${userData ? userData._id : ""}|${selectedSize}|${selectedColor}|${previewFirstName}|${previewLastName}|${previewPhone}|${previewAddress.street}|${previewAddress.city}|${previewAddress.state}|${previewAddress.postalCode}|${previewAddress.country}`}
-        />
+        <input type="hidden" name="custom" value={`${userData ? userData._id : ""}|${selectedSize}|${selectedColor}`} />
         <input type="hidden" name="no_shipping" value="1" />
         <input type="hidden" name="no_note" value="1" />
         <input type="hidden" name="tax" value="0" />
         <input
           type="hidden"
           name="return"
-          value={`${window.location.origin}/orders?success=true&productId=${product._id}&title=${encodeURIComponent(product.title)}&price=${priceToUse}&quantity=${quantity}&shipping=${selectedShipping ? selectedShipping.price : 0}&size=${selectedSize}&color=${encodeURIComponent(selectedColor)}&firstName=${encodeURIComponent(previewFirstName)}&lastName=${encodeURIComponent(previewLastName)}&phone=${encodeURIComponent(previewPhone)}&street=${encodeURIComponent(previewAddress.street)}&city=${encodeURIComponent(previewAddress.city)}&state=${encodeURIComponent(previewAddress.state)}&postalCode=${encodeURIComponent(previewAddress.postalCode)}&country=${encodeURIComponent(previewAddress.country)}`}
+          value={`${window.location.origin}/orders?success=true&productId=${product._id}&title=${encodeURIComponent(product.title)}&price=${product.price}&quantity=${quantity}&shipping=${selectedShipping ? selectedShipping.price : 0}&size=${selectedSize}&color=${encodeURIComponent(selectedColor)}`}
         />
-        <input
-          type="hidden"
-          name="cancel_return"
-          value={`${window.location.origin}/product/${product._id}`}
-        />
+        <input type="hidden" name="cancel_return" value={`${window.location.origin}/product/${product._id}`} />
         <input
           type="image"
           src="https://www.paypalobjects.com/en_US/i/btn/btn_buynow_LG.gif"
