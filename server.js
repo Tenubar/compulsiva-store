@@ -181,10 +181,20 @@ const orderSchema = new mongoose.Schema(
     userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     productId: { type: String, required: true },
     title: { type: String, required: true },
+    type: { type: String, required: true }, // Matches productSchema's type field
     price: { type: Number, required: true },
     quantity: { type: Number, required: true, default: 1 },
-    size: { type: String, default: "" }, // Size field
-    color: { type: String, default: "" }, // Add color field
+    size: { type: String, default: "" }, // Matches productSchema's sizes array
+    color: { type: String, default: "" }, // Matches productSchema's sizes array
+    materials: { type: String }, // Matches productSchema's materials field
+    description: { type: String }, // Matches productSchema's description field
+    image: { type: String, required: true }, // Matches productSchema's image field
+    hoverImage: { type: String }, // Matches productSchema's hoverImage field
+    additionalImages: { type: [String], default: [] }, // Matches productSchema's additionalImages field
+    shippingMethod: {
+      name: { type: String },
+      price: { type: Number, default: 0 },
+    }, // Matches productSchema's shipping array
     paypalTransactionId: { type: String, required: true },
     paypalOrderId: { type: String },
     payerEmail: { type: String },
@@ -198,17 +208,13 @@ const orderSchema = new mongoose.Schema(
       postalCode: { type: String },
       country: { type: String },
     },
-    shippingMethod: {
-      name: { type: String },
-      price: { type: Number, default: 0 },
-    },
     status: { type: String, default: "completed" },
     paymentDetails: { type: Object },
   },
-  { timestamps: true },
-)
+  { timestamps: true }
+);
 
-const Order = mongoose.model("Order", orderSchema)
+const Order = mongoose.model("Order", orderSchema);
 
 // PayPal IPN Log Schema - New schema to log all IPN messages
 const ipnLogSchema = new mongoose.Schema(
@@ -1760,11 +1766,15 @@ async function createOrderFromIPN(ipnData) {
 
     const shippingMethod = product.shipping?.[0] || { name: "Standard", price: 0 };
 
+    const sizeObj = product.sizes.find(
+      (s) => s.size === selectedSize && s.color === selectedColor
+    );
+
     const order = new Order({
       userId,
       productId,
       title: ipnData.item_name || product.title,
-      price: Number.parseFloat(ipnData.mc_gross) / Number.parseInt(ipnData.quantity || 1),
+      price: sizeObj?.sizePrice || product.price,
       quantity: Number.parseInt(ipnData.quantity || 1),
       size: selectedSize,
       color: selectedColor,
