@@ -179,7 +179,7 @@ const OrderDetail: React.FC = () => {
                         </div>
                       </div>
                       <div className="text-sm font-medium text-gray-900">
-                        {formatPrice(order.price * order.quantity)}
+                        {formatPrice(order.price * order.quantity, currency)}
                       </div>
                     </div>
                   </div>
@@ -242,7 +242,7 @@ const OrderDetail: React.FC = () => {
                         </div>
                         {order.shippingMethod ? (
                           <p className="text-sm text-gray-500 ml-7">
-                            {order.shippingMethod.name} ({formatPrice(order.shippingMethod.price)})
+                            {order.shippingMethod.name} ({formatPrice(order.shippingMethod.price, currency)})
                           </p>
                         ) : (
                           <p className="text-sm text-gray-500 ml-7">{t("standardShipping")}</p>

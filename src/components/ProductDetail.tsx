@@ -921,6 +921,16 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
 
   // Add this function to handle preview form submission
   const handlePreviewSubmit = async () => {
+    console.log("Submitting preview form with user data:", {
+      name: userData?.name,
+      email: userData?.email,
+      phone: previewPhone,
+      id: previewId,
+      firstName: previewFirstName,
+      lastName: previewLastName,
+      address: previewAddress,
+    });
+
     try {
       const response = await fetch(getApiUrl("update-user"), {
         method: "PUT",
@@ -938,55 +948,61 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
           lastName: previewLastName,
           address: previewAddress,
         }),
-      })
+      });
 
       if (response.ok) {
-        const updatedUser = await response.json()
-        setUserData(updatedUser)
-        // Submit the PayPal form
-        const form = document.getElementById("paypal-form") as HTMLFormElement
+        const updatedUser = await response.json();
+        console.log("User data updated successfully:", updatedUser);
+
+        const form = document.getElementById("paypal-form") as HTMLFormElement;
         if (form) {
-          form.submit()
+          console.log("Submitting PayPal form.");
+          form.submit();
         }
+      } else {
+        console.error("Failed to update user data.");
       }
     } catch (error) {
-      console.error("Error updating user data:", error)
+      console.error("Error updating user data:", error);
     }
   }
 
-  // Update the handlePayPalCheckout function
+  // Add console logs to handlePayPalCheckout
   const handlePayPalCheckout = () => {
     if (!isLoggedIn) {
-      setShowLoginPrompt(true)
-      return
+      console.log("User not logged in. Showing login prompt.");
+      setShowLoginPrompt(true);
+      return;
     }
+
+    console.log("Initiating PayPal checkout for product:", product);
 
     // Check stock based on whether sizes are used or not
     if (product.sizes && product.sizes.length > 0) {
-      // Check if selected size is available
       const selectedSizeObj = product.sizes?.find(
-        (sizeObj: { size: string; quantity: number; colors?: string[] }) => sizeObj.size === selectedSize,
-      )
+        (sizeObj) => sizeObj.size === selectedSize
+      );
       if (!selectedSizeObj || selectedSizeObj.quantity <= 0) {
-        setCartMessage(t("sizeOutOfStock"))
-        setTimeout(() => setCartMessage(""), 3000)
-        return
+        console.log("Selected size is out of stock:", selectedSize);
+        setCartMessage(t("sizeOutOfStock"));
+        setTimeout(() => setCartMessage(""), 3000);
+        return;
       }
     } else {
-      // Check if product is in stock when not using sizes
       if ((product.productQuantity || 0) <= 0) {
-        setCartMessage(t("productOutOfStock"))
-        setTimeout(() => setCartMessage(""), 3000)
-        return
+        console.log("Product is out of stock:", product.title);
+        setCartMessage(t("productOutOfStock"));
+        setTimeout(() => setCartMessage(""), 3000);
+        return;
       }
     }
 
-    // Initialize preview form with current user data
+    console.log("PayPal checkout passed stock checks. Showing preview form.");
     if (userData) {
-      setPreviewFirstName(userData.firstName || "")
-      setPreviewLastName(userData.lastName || "")
-      setPreviewPhone(userData.phone || "")
-      setPreviewId(userData.id || "")
+      setPreviewFirstName(userData.firstName || "");
+      setPreviewLastName(userData.lastName || "");
+      setPreviewPhone(userData.phone || "");
+      setPreviewId(userData.id || "");
       setPreviewAddress(
         userData.address || {
           street: "",
@@ -994,11 +1010,11 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
           state: "",
           postalCode: "",
           country: "",
-        },
-      )
+        }
+      );
     }
 
-    setShowPayPalPreview(true)
+    setShowPayPalPreview(true);
   }
 
   // Update the onBack function to use the stored scroll position

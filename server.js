@@ -1683,7 +1683,6 @@ app.post("/api/paypal/ipn", express.raw({ type: "application/x-www-form-urlencod
   const verificationBody = `cmd=_notify-validate&${body}`;
   const ipnData = querystring.parse(body);
 
-  // Log IPN data for debugging
   console.log("Received IPN data:", ipnData);
 
   const ipnLog = new IPNLog({
@@ -1695,26 +1694,29 @@ app.post("/api/paypal/ipn", express.raw({ type: "application/x-www-form-urlencod
     const verificationResult = await verifyIPN(verificationBody);
     ipnLog.verified = verificationResult === "VERIFIED";
 
+    console.log("IPN verification result:", verificationResult);
 
     if (ipnLog.verified) {
       if (ipnData.payment_status === "Completed") {
+        console.log("Payment status is completed. Creating order.");
         try {
           const order = await createOrderFromIPN(ipnData);
           if (order) {
+            console.log("Order created successfully:", order);
             ipnLog.orderCreated = true;
             ipnLog.orderId = order._id;
             ipnLog.processed = true;
           }
-          console.log("Order created from IPN:", order);
         } catch (orderError) {
           console.error("Error creating order from IPN:", orderError);
           ipnLog.error = orderError.message;
         }
       } else {
+        console.log("Payment status is not completed:", ipnData.payment_status);
         ipnLog.processed = true;
       }
     } else {
-      console.error("PayPal IPN verification failed");
+      console.error("IPN verification failed.");
       ipnLog.error = "IPN verification failed";
     }
   } catch (error) {
@@ -1727,42 +1729,10 @@ app.post("/api/paypal/ipn", express.raw({ type: "application/x-www-form-urlencod
   res.status(200).send("OK");
 });
 
-// Update the verifyIPN function
-function verifyIPN(verificationBody) {
-  return new Promise((resolve, reject) => {
-    const paypalHost = "www.sandbox.paypal.com"; // Use sandbox for testing
-    const options = {
-      host: paypalHost,
-      path: "/cgi-bin/webscr",
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        "Content-Length": verificationBody.length,
-      },
-    };
-
-    const req = https.request(options, (res) => {
-      let data = "";
-      res.on("data", (chunk) => {
-        data += chunk;
-      });
-      res.on("end", () => {
-        console.log("IPN verification response:", data); // Log verification response
-        resolve(data);
-      });
-    });
-
-    req.on("error", (error) => {
-      reject(error);
-    });
-
-    req.write(verificationBody);
-    req.end();
-  });
-}
-
 // Update the createOrderFromIPN function
 async function createOrderFromIPN(ipnData) {
+  console.log("Creating order from IPN data:", ipnData);
+
   try {
     const existingOrder = await Order.findOne({ paypalTransactionId: ipnData.txn_id });
     if (existingOrder) {
@@ -1775,7 +1745,7 @@ async function createOrderFromIPN(ipnData) {
     const selectedSize = customParts.length > 1 ? customParts[1] : "";
     const selectedColor = customParts.length > 2 ? customParts[2] : "";
 
-    console.log("Creating order for user:", userId, "with size:", selectedSize, "and color:", selectedColor);
+    console.log("Parsed custom data:", { userId, selectedSize, selectedColor });
 
     const user = await User.findById(userId);
     if (!user) {
@@ -1816,16 +1786,19 @@ async function createOrderFromIPN(ipnData) {
     });
 
     await order.save();
-    console.log("Order created successfully:", order);
+    console.log("Order saved successfully:", order);
 
     const purchaseQuantity = Number.parseInt(ipnData.quantity || 1);
     const sizeIndex = product.sizes.findIndex((s) => s.size === selectedSize);
     if (sizeIndex >= 0) {
       product.sizes[sizeIndex].quantity = Math.max(0, product.sizes[sizeIndex].quantity - purchaseQuantity);
       await Product.findByIdAndUpdate(productId, { sizes: product.sizes });
+      console.log("Updated product stock:", product.sizes);
     }
 
     await CartItem.deleteMany({ userId, productId, size: selectedSize, color: selectedColor });
+    console.log("Deleted cart items for user:", userId);
+
     return order;
   } catch (error) {
     console.error("Error creating order from IPN:", error);

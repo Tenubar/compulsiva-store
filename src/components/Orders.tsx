@@ -49,64 +49,62 @@ const Orders: React.FC = () => {
 
   // Check for query parameters (from PayPal success)
   useEffect(() => {
-    const queryParams = new URLSearchParams(location.search)
-    const success = queryParams.get("success")
+    const queryParams = new URLSearchParams(location.search);
+    const success = queryParams.get("success");
 
     if (success === "true") {
-      // Extract payment information from URL
       const paymentData = {
         productId: queryParams.get("productId") || undefined,
         title: queryParams.get("title") ? decodeURIComponent(queryParams.get("title")!) : undefined,
         price: queryParams.get("price") || undefined,
         quantity: queryParams.get("quantity") || undefined,
-        txnId: queryParams.get("tx") || undefined, // PayPal transaction ID
-      }
+        txnId: queryParams.get("tx") || undefined,
+      };
 
       console.log("Payment data from URL:", paymentData);
 
-      setPaymentInfo(paymentData)
+      setPaymentInfo(paymentData);
+      setWaitingForIPN(true);
+      setSuccessMessage(t("paymentSuccessful"));
 
-      // Show waiting for IPN message
-      setWaitingForIPN(true)
-      setSuccessMessage(t("paymentSuccessful"))
+      navigate("/orders", { replace: true });
 
-      // Clear the URL parameters
-      navigate("/orders", { replace: true })
-
-      // Wait a reasonable time for IPN to process (5 seconds)
-      // This gives the IPN webhook time to create the order
       setTimeout(() => {
-        fetchOrders()
-        setWaitingForIPN(false)
-      }, 5000)
+        console.log("Fetching orders after IPN processing.");
+        fetchOrders();
+        setWaitingForIPN(false);
+      }, 5000);
     } else {
-      // If not coming from PayPal success, just fetch orders normally
-      fetchOrders()
+      console.log("Fetching orders normally.");
+      fetchOrders();
     }
   }, [location, navigate, t])
 
   // Fetch user's orders
   const fetchOrders = async () => {
+    console.log("Fetching orders for the user.");
     try {
-      setLoading(true)
+      setLoading(true);
       const response = await fetch(getApiUrl("api/orders"), {
         credentials: "include",
-      })
+      });
 
       if (response.ok) {
-        const data = await response.json()
-        setOrders(data.orders || [])
+        const data = await response.json();
+        console.log("Orders fetched successfully:", data.orders);
+        setOrders(data.orders || []);
       } else if (response.status === 401) {
-        // If not logged in, redirect to login
-        navigate("/login")
+        console.log("User not logged in. Redirecting to login.");
+        navigate("/login");
       } else {
-        setError(t("errorFetchingOrders"))
+        console.error("Error fetching orders:", response.statusText);
+        setError(t("errorFetchingOrders"));
       }
     } catch (error) {
-      console.error("Error fetching orders:", error)
-      setError(t("errorFetchingOrders"))
+      console.error("Error fetching orders:", error);
+      setError(t("errorFetchingOrders"));
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
