@@ -62,6 +62,8 @@ const Orders: React.FC = () => {
         txnId: queryParams.get("tx") || undefined, // PayPal transaction ID
       }
 
+      console.log("Payment data from URL:", paymentData);
+
       setPaymentInfo(paymentData)
 
       // Show waiting for IPN message
