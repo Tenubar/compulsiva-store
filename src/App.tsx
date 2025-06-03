@@ -101,6 +101,7 @@ function App() {
   const [selectedTypes, setSelectedTypes] = useState<ProductType[]>([])
   const [exchangeRate, setExchangeRate] = useState(1)
   const [siteFilters, setSiteFilters] = useState<ProductType[]>(["Other"])
+  const [isChatOpen, setIsChatOpen] = useState(false)
 
   useEffect(() => {
   const setFavicon = async () => {
@@ -222,97 +223,101 @@ function App() {
     fetchFilters()
   }, [])
 
+  const toggleChat = () => {
+    setIsChatOpen((prev) => !prev)
+  }
+
   return (
     <ThemeProvider>
-    <LanguageContext.Provider value={{ language, setLanguage, t, currency, setCurrency }}>
-      <ExchangeRateContext.Provider value={{ exchangeRate }}>
-        <Router>
-          <ScrollToTop />
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/cart" element={<Cart />} />
-            <Route path="/wishlist" element={<Wishlist />} />
-            <Route path="/unauthorized" element={<Unauthorized />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/orders" element={<Orders />} />
-            <Route path="/orders/:id" element={<OrderDetail />} />
+      <LanguageContext.Provider value={{ language, setLanguage, t, currency, setCurrency }}>
+        <ExchangeRateContext.Provider value={{ exchangeRate }}>
+          <Router>
+            <ScrollToTop />
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/cart" element={<Cart />} />
+              <Route path="/wishlist" element={<Wishlist />} />
+              <Route path="/unauthorized" element={<Unauthorized />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/orders" element={<Orders />} />
+              <Route path="/orders/:id" element={<OrderDetail />} />
 
-            {/* Admin Routes */}
-            <Route
-              path="/admin/gallery"
-              element={
-                <AdminRoute>
-                  <AdminGallery />
-                </AdminRoute>
-              }
-            />
-            <Route
-              path="/admin/users"
-              element={
-                <AdminRoute>
-                  <AdminUsers />
-                </AdminRoute>
-              }
-            />
-            <Route
-              path="/admin/create-product"
-              element={
-                <AdminRoute>
-                  <CreateProduct />
-                </AdminRoute>
-              }
-            />
-            <Route
-              path="/admin/edit-products"
-              element={
-                <AdminRoute>
-                  <EditProducts />
-                </AdminRoute>
-              }
-            />
-            <Route
-              path="/admin/delete-products"
-              element={
-                <AdminRoute>
-                  <DeleteProducts />
-                </AdminRoute>
-              }
-            />
-            <Route
-              path="/admin/drafts"
-              element={
-                <AdminRoute>
-                  <Drafts />
-                </AdminRoute>
-              }
-            />
-            <Route
-              path="/admin/edit-draft/:id"
-              element={
-                <AdminRoute>
-                  <EditDraft />
-                </AdminRoute>
-              }
-            />
-            {/* Add the route for AdminSettings in the Routes component (around line 100) */}
-            {/* Find the Admin Routes section and add this route */}
-            <Route
-              path="/admin/settings"
-              element={
-                <AdminRoute>
-                  <AdminSettings />
-                </AdminRoute>
-              }
-            />
+              {/* Admin Routes */}
+              <Route
+                path="/admin/gallery"
+                element={
+                  <AdminRoute>
+                    <AdminGallery />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/admin/users"
+                element={
+                  <AdminRoute>
+                    <AdminUsers />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/admin/create-product"
+                element={
+                  <AdminRoute>
+                    <CreateProduct />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/admin/edit-products"
+                element={
+                  <AdminRoute>
+                    <EditProducts />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/admin/delete-products"
+                element={
+                  <AdminRoute>
+                    <DeleteProducts />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/admin/drafts"
+                element={
+                  <AdminRoute>
+                    <Drafts />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/admin/edit-draft/:id"
+                element={
+                  <AdminRoute>
+                    <EditDraft />
+                  </AdminRoute>
+                }
+              />
+              {/* Add the route for AdminSettings in the Routes component (around line 100) */}
+              {/* Find the Admin Routes section and add this route */}
+              <Route
+                path="/admin/settings"
+                element={
+                  <AdminRoute>
+                    <AdminSettings />
+                  </AdminRoute>
+                }
+              />
 
-            <Route path="/product/:id" element={<ProductDetail onBack={() => window.history.back()} />} />
-            <Route path="/about" element={<AboutMe />} />
-            <Route path="/contact" element={<Contact />} />
-            <Route path="/shipping" element={<ShippingPolicy />} />
-            <Route path="/returns" element={<Returns />} />
-            <Route path="/suggestions" element={<SuggestionBox />} />
-            <Route
+              <Route path="/product/:id" element={<ProductDetail onBack={() => window.history.back()} />} />
+              <Route path="/about" element={<AboutMe />} />
+              <Route path="/contact" element={<Contact />} />
+              <Route path="/shipping" element={<ShippingPolicy />} />
+              <Route path="/returns" element={<Returns />} />
+              <Route path="/suggestions" element={<SuggestionBox />} />
+              <Route
                 path="/"
                 element={
                   <div className="min-h-screen" style={{ backgroundColor: "var(--color-background)" }}>
@@ -388,6 +393,119 @@ function App() {
                 }
               />
             </Routes>
+
+            {/* Chat Bubble */}
+            <div
+              style={{
+                position: "fixed",
+                bottom: "20px",
+                right: "20px",
+                zIndex: 1000,
+              }}
+            >
+              {/* Chat Bubble Icon */}
+              <button
+                onClick={toggleChat}
+                style={{
+                  backgroundColor: "var(--color-primary)",
+                  borderRadius: "50%",
+                  width: "60px",
+                  height: "60px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
+                  border: "none",
+                  cursor: "pointer",
+                }}
+              >
+                <img
+                  src="/chat_icon.png" // Replace with your chat icon path
+                  alt="Chat"
+                  style={{ width: "30px", height: "30px" }}
+                />
+              </button>
+
+              {/* Chat Form */}
+              {isChatOpen && (
+                <div
+                  style={{
+                    position: "absolute",
+                    bottom: "80px",
+                    right: "0",
+                    width: "300px",
+                    backgroundColor: "white",
+                    borderRadius: "10px",
+                    boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
+                    padding: "20px",
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <h4 style={{ margin: 0, fontSize: "16px", fontWeight: "bold" }}>Have a question?</h4>
+                    <button
+                      onClick={toggleChat}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        fontSize: "16px",
+                        cursor: "pointer",
+                      }}
+                    >
+                      ✖
+                    </button>
+                  </div>
+                  <form>
+                    <input
+                      type="text"
+                      placeholder="Name"
+                      style={{
+                        width: "100%",
+                        padding: "10px",
+                        margin: "10px 0",
+                        borderRadius: "5px",
+                        border: "1px solid #ccc",
+                      }}
+                    />
+                    <input
+                      type="email"
+                      placeholder="Email"
+                      style={{
+                        width: "100%",
+                        padding: "10px",
+                        margin: "10px 0",
+                        borderRadius: "5px",
+                        border: "1px solid #ccc",
+                      }}
+                    />
+                    <textarea
+                      placeholder="Message"
+                      rows={4}
+                      style={{
+                        width: "100%",
+                        padding: "10px",
+                        margin: "10px 0",
+                        borderRadius: "5px",
+                        border: "1px solid #ccc",
+                      }}
+                    ></textarea>
+                    <button
+                      type="submit"
+                      style={{
+                        width: "100%",
+                        padding: "10px",
+                        backgroundColor: "var(--color-primary)",
+                        color: "white",
+                        border: "none",
+                        borderRadius: "5px",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Send
+                    </button>
+                  </form>
+                </div>
+              )}
+            </div>
           </Router>
         </ExchangeRateContext.Provider>
       </LanguageContext.Provider>

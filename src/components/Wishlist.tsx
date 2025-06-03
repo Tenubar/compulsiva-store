@@ -150,7 +150,14 @@ const Wishlist: React.FC = () => {
                         <div className="mt-4 flex justify-between">
                           <button
                             onClick={() => navigate(`/product/${item.productId}`)}
-                            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                            className="text-sm font-medium"
+                            style = {{
+                              color: "var(--color-primary)",
+                              cursor: "pointer",
+                              transition: "color 0.2s",
+                            }}
+                            onMouseEnter={e => (e.currentTarget.style.color = "var(--color-secondary)")}
+                            onMouseLeave={e => (e.currentTarget.style.color = "var(--color-primary)")}
                           >
                             {t("viewProduct")}
                           </button>

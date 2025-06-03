@@ -832,6 +832,19 @@ app.get("/products", async (req, res) => {
   }
 })
 
+app.get("/api/products", async (req, res) => {
+  try {
+    const searchQuery = req.query.search || ""
+    const products = await Product.find({
+      title: { $regex: searchQuery, $options: "i" }, // Case-insensitive search
+    }).select("title price image")
+
+    res.json({ products })
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching products", error: error.message })
+  }
+})
+
 app.post("/api/products", async (req, res) => {
   try {
     if (req.body.productQuantity) {

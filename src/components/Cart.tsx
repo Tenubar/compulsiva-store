@@ -114,7 +114,17 @@ const Cart: React.FC = () => {
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <button
         onClick={() => navigate("/")}
-        className="absolute top-4 left-4 flex items-center text-gray-600 hover:text-blue-600"
+        className="absolute top-4 left-4 flex items-center"
+        style = {{
+          color: "var(--color-text-info)",
+          transition: "color 0.3s",
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.color = "var(--primary-color)"
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.color = "var(--color-text-info)"
+        }}
       >
         <ArrowLeft size={20} className="mr-2" /> Back to Shopping
       </button>
@@ -132,7 +142,18 @@ const Cart: React.FC = () => {
             <div className="mt-6">
               <button
                 onClick={() => navigate("/")}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                style = {{
+                  backgroundColor: "var(--primary-color)",
+                  color: "var(--color-text-white)",
+                  transition: "background-color 0.3s",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = "var(--color-secondary)"
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = "var(--color-primary)"
+                }}
               >
                 Continue Shopping
               </button>
@@ -215,7 +236,19 @@ const Cart: React.FC = () => {
               </div>
               <p className="mt-0.5 text-sm text-gray-500">Shipping and taxes calculated at checkout.</p>
               <div className="mt-6">
-                <button className="w-full bg-blue-600 border border-transparent rounded-md py-3 px-8 flex items-center justify-center text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                <button className="w-full border border-transparent rounded-md py-3 px-8 flex items-center justify-center text-base font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                style = {{
+                  backgroundColor: "var(--color-primary)",
+                  color: "var(--color-text-white)",
+                  transition: "background-color 0.3s",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = "var(--color-secondary)"
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = "var(--color-primary)"
+                }}
+                >
                   Checkout
                 </button>
               </div>

@@ -127,7 +127,14 @@ const Orders: React.FC = () => {
       <main className="container mx-auto px-4 py-8 mt-16">
         <div className="max-w-4xl mx-auto">
           <div className="mb-8 flex items-center">
-            <button onClick={() => navigate("/")} className="flex items-center text-gray-600 hover:text-blue-600">
+            <button onClick={() => navigate("/")} className="flex items-center"
+              style = {{
+                color: "var(--color-text-info)",
+                transition: "color 0.2s",
+              }}
+              onMouseEnter={e => (e.currentTarget.style.color = "var(--color-primary)")}
+              onMouseLeave={e => (e.currentTarget.style.color = "var(--color-text-info)")}
+              >
               <ArrowLeft size={20} className="mr-2" /> {t("backToHome")}
             </button>
           </div>
