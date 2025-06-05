@@ -59,6 +59,13 @@ const Orders: React.FC = () => {
         price: queryParams.get("price") || undefined,
         quantity: queryParams.get("quantity") || undefined,
         txnId: queryParams.get("tx") || undefined,
+        type: queryParams.get("type") || undefined, // Added type field
+        sizes: queryParams.get("sizes") ? JSON.parse(decodeURIComponent(queryParams.get("sizes")!)) : undefined, // Added sizes field
+        shipping: queryParams.get("shipping") ? JSON.parse(decodeURIComponent(queryParams.get("shipping")!)) : undefined, // Added shipping field
+        description: queryParams.get("description") ? decodeURIComponent(queryParams.get("description")!) : undefined, // Added description field
+        image: queryParams.get("image") ? decodeURIComponent(queryParams.get("image")!) : undefined, // Added image field
+        hoverImage: queryParams.get("hoverImage") ? decodeURIComponent(queryParams.get("hoverImage")!) : undefined, // Added hoverImage field
+        additionalImages: queryParams.get("additionalImages") ? JSON.parse(decodeURIComponent(queryParams.get("additionalImages")!)) : undefined, // Added additionalImages field
       };
 
       console.log("Payment data from URL:", paymentData);

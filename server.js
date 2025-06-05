@@ -183,18 +183,26 @@ const orderSchema = new mongoose.Schema(
     title: { type: String, required: true },
     type: { type: String, required: true }, // Matches productSchema's type field
     price: { type: Number, required: true },
-    quantity: { type: Number, required: true, default: 1 },
-    size: { type: String, default: "" }, // Matches productSchema's sizes array
-    color: { type: String, default: "" }, // Matches productSchema's sizes array
-    materials: { type: String }, // Matches productSchema's materials field
+    // size: { type: String, default: "" }, // Matches productSchema's sizes array
+    // color: { type: String, default: "" }, // Matches productSchema's sizes array
+    materials: { type: String }, // Matches productSchema's materials field    
+     sizes: {
+      type: [
+        {
+          size: String,
+          quantity: Number,
+          color: { type: String, default: "Default" }, // Changed from colors array to color string
+          sizePrice: { type: Number, default: 0 },
+        },
+      ],
+      default: [],
+    },
+    shipping: { type: [{ name: String, price: Number }], default: [] },
+    productQuantity: { type: Number, default: 1, min: 1 },
     description: { type: String }, // Matches productSchema's description field
     image: { type: String, required: true }, // Matches productSchema's image field
     hoverImage: { type: String }, // Matches productSchema's hoverImage field
     additionalImages: { type: [String], default: [] }, // Matches productSchema's additionalImages field
-    shippingMethod: {
-      name: { type: String },
-      price: { type: Number, default: 0 },
-    }, // Matches productSchema's shipping array
     paypalTransactionId: { type: String, required: true },
     paypalOrderId: { type: String },
     payerEmail: { type: String },
@@ -1774,10 +1782,15 @@ async function createOrderFromIPN(ipnData) {
       userId,
       productId,
       title: ipnData.item_name || product.title,
+      type: product.type, // Matches the new Order schema
       price: sizeObj?.sizePrice || product.price,
-      quantity: Number.parseInt(ipnData.quantity || 1),
-      size: selectedSize,
-      color: selectedColor,
+      sizes: product.sizes, // Matches the new Order schema
+      shipping: product.shipping, // Matches the new Order schema
+      productQuantity: Number.parseInt(ipnData.quantity || 1), // Matches the new Order schema
+      description: product.description, // Matches the new Order schema
+      image: product.image, // Matches the new Order schema
+      hoverImage: product.hoverImage, // Matches the new Order schema
+      additionalImages: product.additionalImages, // Matches the new Order schema
       paypalTransactionId: ipnData.txn_id,
       paypalOrderId: ipnData.parent_txn_id || ipnData.txn_id,
       payerEmail: ipnData.payer_email,
@@ -1790,7 +1803,6 @@ async function createOrderFromIPN(ipnData) {
         postalCode: user.address.postalCode,
         country: user.address.country,
       },
-      shippingMethod,
       status: "completed",
       paymentDetails: ipnData,
     });

@@ -2182,14 +2182,18 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
         />
         <input type="hidden" name="quantity" value={quantity} />
         <input type="hidden" name="currency_code" value="USD" />
-        <input type="hidden" name="custom" value={`${userData ? userData._id : ""}|${selectedSize}|${selectedColor}`} />
+        <input
+          type="hidden"
+          name="custom"
+          value={`${userData ? userData._id : ""}|${selectedSize}|${selectedColor}`}
+        />
         <input type="hidden" name="no_shipping" value="1" />
         <input type="hidden" name="no_note" value="1" />
         <input type="hidden" name="tax" value="0" />
         <input
           type="hidden"
           name="return"
-          value={`${window.location.origin}/orders?success=true&productId=${product._id}&title=${encodeURIComponent(product.title)}&price=${product.price}&quantity=${quantity}&shipping=${selectedShipping ? selectedShipping.price : 0}&size=${selectedSize}&color=${encodeURIComponent(selectedColor)}`}
+          value={`${window.location.origin}/orders?success=true&productId=${product._id}&title=${encodeURIComponent(product.title || "")}&price=${product.price}&quantity=${quantity}&type=${product.type || ""}&sizes=${encodeURIComponent(JSON.stringify(product.sizes || []))}&shipping=${encodeURIComponent(JSON.stringify(selectedShipping || {}))}&description=${encodeURIComponent(product.description || "")}&image=${encodeURIComponent(product.image || "")}&hoverImage=${encodeURIComponent(product.hoverImage || "")}&additionalImages=${encodeURIComponent(JSON.stringify((product as any).additionalImages || []))}`}
         />
         <input type="hidden" name="cancel_return" value={`${window.location.origin}/product/${product._id}`} />
         <input
