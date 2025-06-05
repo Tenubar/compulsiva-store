@@ -1747,6 +1747,8 @@ app.post("/api/paypal/ipn", express.raw({ type: "application/x-www-form-urlencod
 async function createOrderFromIPN(ipnData) {
   console.log("Creating order from IPN data:", ipnData);
 
+  console.log("IPN item_number:", ipnData.item_number);
+
   try {
     const existingOrder = await Order.findOne({ paypalTransactionId: ipnData.txn_id });
     if (existingOrder) {
@@ -1761,15 +1763,19 @@ async function createOrderFromIPN(ipnData) {
 
     console.log("Parsed custom data:", { userId, selectedSize, selectedColor });
 
-    const user = await User.findById(userId);
+     const user = await User.findById(userId);
     if (!user) {
       throw new Error(`User not found with ID: ${userId}`);
     }
 
     const productId = ipnData.item_number;
+    console.log("IPN item_number:", productId);
     const product = await Product.findById(productId);
     if (!product) {
-      throw new Error(`Product not found with ID: ${productId}`);
+      console.error(`Product not found with ID: ${ipnData.item_number}`);
+      ipnLog.error = `Product not found with ID: ${ipnData.item_number}`;
+      await ipnLog.save();
+      return null; // Stop further processing
     }
 
     const shippingMethod = product.shipping?.[0] || { name: "Standard", price: 0 };
@@ -1782,15 +1788,15 @@ async function createOrderFromIPN(ipnData) {
       userId,
       productId,
       title: ipnData.item_name || product.title,
-      type: product.type, // Matches the new Order schema
+      type: product.type,
       price: sizeObj?.sizePrice || product.price,
-      sizes: product.sizes, // Matches the new Order schema
-      shipping: product.shipping, // Matches the new Order schema
-      productQuantity: Number.parseInt(ipnData.quantity || 1), // Matches the new Order schema
-      description: product.description, // Matches the new Order schema
-      image: product.image, // Matches the new Order schema
-      hoverImage: product.hoverImage, // Matches the new Order schema
-      additionalImages: product.additionalImages, // Matches the new Order schema
+      sizes: product.sizes,
+      shipping: product.shipping,
+      productQuantity: Number.parseInt(ipnData.quantity || 1),
+      description: product.description,
+      image: product.image,
+      hoverImage: product.hoverImage,
+      additionalImages: product.additionalImages,
       paypalTransactionId: ipnData.txn_id,
       paypalOrderId: ipnData.parent_txn_id || ipnData.txn_id,
       payerEmail: ipnData.payer_email,
