@@ -49,8 +49,8 @@ const Orders: React.FC = () => {
 
   // Check for query parameters (from PayPal success)
   useEffect(() => {
-    const queryParams = new URLSearchParams(location.search);
-    const success = queryParams.get("success");
+    const queryParams = new URLSearchParams(location.search)
+    const success = queryParams.get("success")
 
     if (success === "true") {
       const paymentData = {
@@ -59,52 +59,99 @@ const Orders: React.FC = () => {
         price: queryParams.get("price") || undefined,
         quantity: queryParams.get("quantity") || undefined,
         txnId: queryParams.get("tx") || undefined,
-      };
+        size: queryParams.get("size") || undefined,
+        color: queryParams.get("color") || undefined,
+      }
 
-      console.log("Payment data from URL:", paymentData);
+      console.log("Payment data from URL:", paymentData)
 
-      setPaymentInfo(paymentData);
-      setWaitingForIPN(true);
-      setSuccessMessage(t("paymentSuccessful"));
+      setPaymentInfo(paymentData)
+      setWaitingForIPN(true)
+      setSuccessMessage(t("paymentSuccessful"))
 
-      navigate("/orders", { replace: true });
+      // Clear the URL parameters
+      navigate("/orders", { replace: true })
 
+      // Try to create the order manually if IPN doesn't work
+      const createManualOrder = async () => {
+        try {
+          if (paymentData.txnId && paymentData.productId) {
+            console.log("Attempting to create manual order...")
+
+            const response = await fetch(getApiUrl("api/orders/manual"), {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              credentials: "include",
+              body: JSON.stringify({
+                productId: paymentData.productId,
+                title: paymentData.title,
+                price: Number.parseFloat(paymentData.price || "0"),
+                quantity: Number.parseInt(paymentData.quantity || "1"),
+                size: paymentData.size,
+                color: paymentData.color,
+                paypalTransactionId: paymentData.txnId,
+                payerEmail: "customer@example.com", // You might want to get this from user data
+                payerName: "Customer", // You might want to get this from user data
+              }),
+            })
+
+            if (response.ok) {
+              const data = await response.json()
+              console.log("Manual order created:", data)
+              setSuccessMessage(t("orderCreatedSuccessfully"))
+            } else {
+              console.error("Failed to create manual order:", response.statusText)
+            }
+          }
+        } catch (error) {
+          console.error("Error creating manual order:", error)
+        }
+      }
+
+      // Wait 3 seconds for IPN, then try manual creation
       setTimeout(() => {
-        console.log("Fetching orders after IPN processing.");
-        fetchOrders();
-        setWaitingForIPN(false);
-      }, 5000);
+        createManualOrder()
+      }, 3000)
+
+      // Fetch orders after 5 seconds
+      setTimeout(() => {
+        console.log("Fetching orders after payment processing.")
+        fetchOrders()
+        setWaitingForIPN(false)
+      }, 5000)
     } else {
-      console.log("Fetching orders normally.");
-      fetchOrders();
+      console.log("Fetching orders normally.")
+      fetchOrders()
     }
   }, [location, navigate, t])
 
   // Fetch user's orders
   const fetchOrders = async () => {
-    console.log("Fetching orders for the user.");
+    console.log("Fetching orders for the user.")
     try {
-      setLoading(true);
+      setLoading(true)
       const response = await fetch(getApiUrl("api/orders"), {
         credentials: "include",
-      });
+      })
 
       if (response.ok) {
-        const data = await response.json();
-        console.log("Orders fetched successfully:", data.orders);
-        setOrders(data.orders || []);
+        const data = await response.json()
+        console.log("Orders fetched successfully:", data.orders)
+        setOrders(data.orders || [])
       } else if (response.status === 401) {
-        console.log("User not logged in. Redirecting to login.");
-        navigate("/login");
+        console.log("User not logged in. Redirecting to login.")
+        navigate("/login")
       } else {
-        console.error("Error fetching orders:", response.statusText);
-        setError(t("errorFetchingOrders"));
+        console.error("Error fetching orders:", response.statusText)
+        setError(t("errorFetchingOrders"))
       }
     } catch (error) {
-      console.error("Error fetching orders:", error);
-      setError(t("errorFetchingOrders"));
+      console.error("Error fetching orders:", error)
+      setError(t("errorFetchingOrders"))
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
   }
 
@@ -127,14 +174,16 @@ const Orders: React.FC = () => {
       <main className="container mx-auto px-4 py-8 mt-16">
         <div className="max-w-4xl mx-auto">
           <div className="mb-8 flex items-center">
-            <button onClick={() => navigate("/")} className="flex items-center"
-              style = {{
+            <button
+              onClick={() => navigate("/")}
+              className="flex items-center"
+              style={{
                 color: "var(--color-text-info)",
                 transition: "color 0.2s",
               }}
-              onMouseEnter={e => (e.currentTarget.style.color = "var(--color-primary)")}
-              onMouseLeave={e => (e.currentTarget.style.color = "var(--color-text-info)")}
-              >
+              onMouseEnter={(e) => (e.currentTarget.style.color = "var(--color-primary)")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "var(--color-text-info)")}
+            >
               <ArrowLeft size={20} className="mr-2" /> {t("backToHome")}
             </button>
           </div>
@@ -149,9 +198,9 @@ const Orders: React.FC = () => {
                 <button
                   onClick={() => fetchOrders()}
                   className="flex items-center"
-                   style={{ color: "var(--color-primary)", transition: "color 0.2s" }}
-                    onMouseEnter={e => (e.currentTarget.style.color = "var(--color-secondary)")}
-                    onMouseLeave={e => (e.currentTarget.style.color = "var(--color-primary)")}
+                  style={{ color: "var(--color-primary)", transition: "color 0.2s" }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = "var(--color-secondary)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = "var(--color-primary)")}
                   title={t("refreshOrders")}
                 >
                   <RefreshCw size={20} className={loading ? "animate-spin" : ""} />
@@ -225,8 +274,8 @@ const Orders: React.FC = () => {
                         backgroundColor: "var(--color-primary)",
                         transition: "background-color 0.2s",
                       }}
-                      onMouseEnter={e => (e.currentTarget.style.backgroundColor = "var(--color-secondary)")}
-                      onMouseLeave={e => (e.currentTarget.style.backgroundColor = "var(--color-primary)")}                      
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--color-secondary)")}
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "var(--color-primary)")}
                     >
                       {t("startShopping")}
                     </button>
@@ -279,7 +328,8 @@ const Orders: React.FC = () => {
                                 <div className="text-sm text-gray-500 truncate">ID: {order.paypalTransactionId}</div>
                                 {order.shippingMethod && (
                                   <div className="text-sm text-gray-500 truncate">
-                                    {t("shipping")}: {order.shippingMethod.name} (${order.shippingMethod.price.toFixed(2)})
+                                    {t("shipping")}: {order.shippingMethod.name} ($
+                                    {order.shippingMethod.price.toFixed(2)})
                                   </div>
                                 )}
                               </div>

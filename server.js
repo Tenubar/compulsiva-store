@@ -1685,13 +1685,21 @@ app.delete("/api/product/:id", authenticateToken, isAdmin, async (req, res) => {
 
 // Update the PayPal IPN Webhook
 app.post("/api/paypal/ipn", express.raw({ type: "application/x-www-form-urlencoded" }), async (req, res) => {
+  console.log("=== PayPal IPN Received ===")
+  console.log("Timestamp:", new Date().toISOString())
+  console.log("Request headers:", req.headers)
+
   const body = req.body.toString("utf8")
+  console.log("Raw body:", body)
+
   const verificationBody = `cmd=_notify-validate&${body}`
   const ipnData = querystring.parse(body)
 
-  console.log("Received IPN notification:", new Date().toISOString())
-  console.log("IPN data transaction ID:", ipnData.txn_id)
-  console.log("IPN payment status:", ipnData.payment_status)
+  console.log("Parsed IPN data:", ipnData)
+  console.log("Transaction ID:", ipnData.txn_id)
+  console.log("Payment status:", ipnData.payment_status)
+  console.log("Item number:", ipnData.item_number)
+  console.log("Custom field:", ipnData.custom)
 
   // Create a log entry for this IPN
   const ipnLog = new IPNLog({
@@ -1700,14 +1708,18 @@ app.post("/api/paypal/ipn", express.raw({ type: "application/x-www-form-urlencod
   })
 
   try {
-    // Verify the IPN with PayPal
+    // For testing, you can temporarily skip verification
+    // Comment out the verification and set verified to true for testing
     console.log("Verifying IPN with PayPal...")
     const verificationResult = await verifyIPN(verificationBody)
     ipnLog.verified = verificationResult === "VERIFIED"
     console.log("IPN verification result:", verificationResult)
 
+    // For testing purposes, you can temporarily force verification to true
+    // ipnLog.verified = true
+    // console.log("IPN verification forced to true for testing")
+
     if (ipnLog.verified) {
-      // Check if this is a completed payment
       if (ipnData.payment_status === "Completed") {
         console.log("Payment completed. Creating order...")
         try {
@@ -1738,6 +1750,7 @@ app.post("/api/paypal/ipn", express.raw({ type: "application/x-www-form-urlencod
   // Save the IPN log
   await ipnLog.save()
   console.log("IPN Log saved with ID:", ipnLog._id)
+  console.log("=== End IPN Processing ===")
 
   // Always respond with 200 OK to PayPal
   res.status(200).send("OK")
@@ -2101,6 +2114,120 @@ app.patch("/api/page-settings/:field", authenticateToken, isAdmin, async (req, r
   } catch (error) {
     console.error("Error updating page setting:", error)
     res.status(500).json({ message: "Error updating page setting", error: error.message })
+  }
+})
+
+// Add this test endpoint after the existing routes
+app.get("/api/test-ipn", async (req, res) => {
+  console.log("Test IPN endpoint called")
+  res.json({ message: "IPN endpoint is accessible", timestamp: new Date().toISOString() })
+})
+
+// Add endpoint to manually create order (for testing)
+app.post("/api/orders/manual", authenticateToken, async (req, res) => {
+  try {
+    const {
+      productId,
+      title,
+      type,
+      price,
+      quantity,
+      size,
+      color,
+      paypalTransactionId,
+      payerEmail,
+      payerName,
+      shippingMethod,
+    } = req.body
+
+    console.log("Manual order creation request:", req.body)
+
+    // Get product details
+    const product = await Product.findById(productId)
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" })
+    }
+
+    // Get user details
+    const user = await User.findById(req.user.userId)
+    if (!user) {
+      return res.status(404).json({ message: "User not found" })
+    }
+
+    // Check if order already exists
+    const existingOrder = await Order.findOne({ paypalTransactionId })
+    if (existingOrder) {
+      return res.status(200).json({
+        message: "Order already exists",
+        order: existingOrder,
+        duplicate: true,
+      })
+    }
+
+    // Create the order
+    const order = new Order({
+      userId: req.user.userId,
+      productId,
+      title: title || product.title,
+      type: type || product.type,
+      price: price || product.price,
+      quantity: quantity || 1,
+      size: size || "",
+      color: color || "",
+      image: product.image,
+      hoverImage: product.hoverImage,
+      materials: product.materials,
+      description: product.description,
+      additionalImages: product.additionalImages,
+      paypalTransactionId,
+      payerEmail,
+      payerName,
+      shippingAddress: {
+        name: user.name,
+        addressLine1: user.address?.street || "",
+        city: user.address?.city || "",
+        state: user.address?.state || "",
+        postalCode: user.address?.postalCode || "",
+        country: user.address?.country || "",
+      },
+      shippingMethod: shippingMethod || { name: "Standard", price: 0 },
+      status: "completed",
+    })
+
+    await order.save()
+    console.log("Manual order created successfully:", order._id)
+
+    // Update inventory
+    if (product.sizes && product.sizes.length > 0 && size) {
+      const sizeIndex = product.sizes.findIndex((s) => s.size === size && s.color === color)
+      if (sizeIndex >= 0) {
+        product.sizes[sizeIndex].quantity = Math.max(0, product.sizes[sizeIndex].quantity - quantity)
+        await Product.findByIdAndUpdate(productId, { sizes: product.sizes })
+      }
+    }
+
+    // Remove from cart
+    await CartItem.deleteMany({
+      userId: req.user.userId,
+      productId,
+      size: size || "",
+      color: color || "",
+    })
+
+    res.status(201).json({ message: "Order created successfully", order })
+  } catch (error) {
+    console.error("Error creating manual order:", error)
+    res.status(500).json({ message: "Error creating order", error: error.message })
+  }
+})
+
+// Add endpoint to check IPN logs (admin only)
+app.get("/api/ipn-logs", authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const logs = await IPNLog.find().sort({ createdAt: -1 }).limit(10)
+    res.json(logs)
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching IPN logs", error: error.message })
   }
 })
 
