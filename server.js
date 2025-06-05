@@ -211,10 +211,10 @@ const orderSchema = new mongoose.Schema(
     status: { type: String, default: "completed" },
     paymentDetails: { type: Object },
   },
-  { timestamps: true },
-)
+  { timestamps: true }
+);
 
-const Order = mongoose.model("Order", orderSchema)
+const Order = mongoose.model("Order", orderSchema);
 
 // PayPal IPN Log Schema - New schema to log all IPN messages
 const ipnLogSchema = new mongoose.Schema(
@@ -1685,244 +1685,134 @@ app.delete("/api/product/:id", authenticateToken, isAdmin, async (req, res) => {
 
 // Update the PayPal IPN Webhook
 app.post("/api/paypal/ipn", express.raw({ type: "application/x-www-form-urlencoded" }), async (req, res) => {
-  console.log("=== PayPal IPN Received ===")
-  console.log("Timestamp:", new Date().toISOString())
-  console.log("Request headers:", req.headers)
+  const body = req.body.toString("utf8");
+  const verificationBody = `cmd=_notify-validate&${body}`;
+  const ipnData = querystring.parse(body);
 
-  const body = req.body.toString("utf8")
-  console.log("Raw body:", body)
+  console.log("Received IPN data:", ipnData);
 
-  const verificationBody = `cmd=_notify-validate&${body}`
-  const ipnData = querystring.parse(body)
-
-  console.log("Parsed IPN data:", ipnData)
-  console.log("Transaction ID:", ipnData.txn_id)
-  console.log("Payment status:", ipnData.payment_status)
-  console.log("Item number:", ipnData.item_number)
-  console.log("Custom field:", ipnData.custom)
-
-  // Create a log entry for this IPN
   const ipnLog = new IPNLog({
     ipnMessage: ipnData,
     verified: false,
-  })
+  });
 
   try {
-    // For testing, you can temporarily skip verification
-    // Comment out the verification and set verified to true for testing
-    console.log("Verifying IPN with PayPal...")
-    const verificationResult = await verifyIPN(verificationBody)
-    ipnLog.verified = verificationResult === "VERIFIED"
-    console.log("IPN verification result:", verificationResult)
+    const verificationResult = await verifyIPN(verificationBody);
+    ipnLog.verified = verificationResult === "VERIFIED";
 
-    // For testing purposes, you can temporarily force verification to true
-    // ipnLog.verified = true
-    // console.log("IPN verification forced to true for testing")
+    console.log("IPN verification result:", verificationResult);
 
     if (ipnLog.verified) {
       if (ipnData.payment_status === "Completed") {
-        console.log("Payment completed. Creating order...")
+        console.log("Payment status is completed. Creating order.");
         try {
-          const order = await createOrderFromIPN(ipnData)
+          const order = await createOrderFromIPN(ipnData);
           if (order) {
-            console.log("Order created successfully:", order._id)
-            ipnLog.orderCreated = true
-            ipnLog.orderId = order._id
-            ipnLog.processed = true
+            console.log("Order created successfully:", order);
+            ipnLog.orderCreated = true;
+            ipnLog.orderId = order._id;
+            ipnLog.processed = true;
           }
         } catch (orderError) {
-          console.error("Error creating order from IPN:", orderError)
-          ipnLog.error = orderError.message
+          console.error("Error creating order from IPN:", orderError);
+          ipnLog.error = orderError.message;
         }
       } else {
-        console.log("Payment status is not completed:", ipnData.payment_status)
-        ipnLog.processed = true
+        console.log("Payment status is not completed:", ipnData.payment_status);
+        ipnLog.processed = true;
       }
     } else {
-      console.error("IPN verification failed")
-      ipnLog.error = "IPN verification failed"
+      console.error("IPN verification failed.");
+      ipnLog.error = "IPN verification failed";
     }
   } catch (error) {
-    console.error("Error processing PayPal IPN:", error)
-    ipnLog.error = error.message
+    console.error("Error processing PayPal IPN:", error);
+    ipnLog.error = error.message;
   }
 
-  // Save the IPN log
-  await ipnLog.save()
-  console.log("IPN Log saved with ID:", ipnLog._id)
-  console.log("=== End IPN Processing ===")
+  await ipnLog.save();
+  console.log("IPN Log saved:", ipnLog);
+  res.status(200).send("OK");
+});
 
-  // Always respond with 200 OK to PayPal
-  res.status(200).send("OK")
-})
-
-// Add this function after the PayPal IPN route handler
-// This function is missing but referenced in the code
-async function verifyIPN(ipnData) {
-  return new Promise((resolve, reject) => {
-    // Set up the request to PayPal to validate the IPN message
-    const options = {
-      hostname: process.env.VITE_NODE_ENV === "production" ? "www.paypal.com" : "www.sandbox.paypal.com",
-      path: "/cgi-bin/webscr",
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        "Content-Length": ipnData.length,
-      },
-    }
-
-    // Make the request to PayPal
-    const req = https.request(options, (res) => {
-      let data = ""
-
-      res.on("data", (chunk) => {
-        data += chunk
-      })
-
-      res.on("end", () => {
-        if (data === "VERIFIED") {
-          console.log("IPN Verified")
-          resolve("VERIFIED")
-        } else {
-          console.log("IPN Invalid")
-          resolve("INVALID")
-        }
-      })
-    })
-
-    req.on("error", (e) => {
-      console.error("Error verifying IPN:", e)
-      reject(e)
-    })
-
-    // Send the data
-    req.write(ipnData)
-    req.end()
-  })
-}
-
-// Improve the createOrderFromIPN function to better handle errors and logging
+// Update the createOrderFromIPN function
 async function createOrderFromIPN(ipnData) {
-  console.log("Creating order from IPN data:", ipnData)
+  console.log("Creating order from IPN data:", ipnData);
 
   try {
-    // Check if this transaction has already been processed
-    const existingOrder = await Order.findOne({ paypalTransactionId: ipnData.txn_id })
+    const existingOrder = await Order.findOne({ paypalTransactionId: ipnData.txn_id });
     if (existingOrder) {
-      console.log("Order already exists for transaction:", ipnData.txn_id)
-      return existingOrder
+      console.log("Order already exists:", existingOrder);
+      return existingOrder;
     }
 
-    // Parse the custom field which contains userId|size|color
-    const customParts = ipnData.custom ? ipnData.custom.split("|") : [""]
-    const userId = customParts[0]
-    const selectedSize = customParts.length > 1 ? customParts[1] : ""
-    const selectedColor = customParts.length > 2 ? customParts[2] : ""
+    const customParts = ipnData.custom.split("|");
+    const userId = customParts[0];
+    const selectedSize = customParts.length > 1 ? customParts[1] : "";
+    const selectedColor = customParts.length > 2 ? customParts[2] : "";
 
-    console.log("Parsed custom data:", { userId, selectedSize, selectedColor })
+    console.log("Parsed custom data:", { userId, selectedSize, selectedColor });
 
-    // Validate user exists
-    const user = await User.findById(userId)
+    const user = await User.findById(userId);
     if (!user) {
-      console.error(`User not found with ID: ${userId}`)
-      throw new Error(`User not found with ID: ${userId}`)
+      throw new Error(`User not found with ID: ${userId}`);
     }
 
-    // Validate product exists
-    const productId = ipnData.item_number
-    const product = await Product.findById(productId)
+    const productId = ipnData.item_number;
+    const product = await Product.findById(productId);
     if (!product) {
-      console.error(`Product not found with ID: ${productId}`)
-      throw new Error(`Product not found with ID: ${productId}`)
+      throw new Error(`Product not found with ID: ${productId}`);
     }
 
-    // Get shipping method (default if not found)
-    const shippingMethod =
-      product.shipping && product.shipping.length > 0 ? product.shipping[0] : { name: "Standard", price: 0 }
+    const shippingMethod = product.shipping?.[0] || { name: "Standard", price: 0 };
 
-    // Find the size object that matches both size and color
-    const sizeObj =
-      product.sizes && product.sizes.length > 0
-        ? product.sizes.find(
-            (s) =>
-              s.size === selectedSize &&
-              ((Array.isArray(s.colors) && s.colors.includes(selectedColor)) ||
-                (typeof s.color === "string" && s.color === selectedColor)),
-          )
-        : null
+    const sizeObj = product.sizes.find(
+      (s) => s.size === selectedSize && s.color === selectedColor
+    );
 
-    // Create the order
     const order = new Order({
       userId,
       productId,
       title: ipnData.item_name || product.title,
-      type: product.type || "Product",
       price: sizeObj?.sizePrice || product.price,
       quantity: Number.parseInt(ipnData.quantity || 1),
       size: selectedSize,
       color: selectedColor,
-      image: product.image,
-      hoverImage: product.hoverImage,
-      materials: product.materials,
-      description: product.description,
-      additionalImages: product.additionalImages,
       paypalTransactionId: ipnData.txn_id,
       paypalOrderId: ipnData.parent_txn_id || ipnData.txn_id,
       payerEmail: ipnData.payer_email,
       payerName: `${ipnData.first_name || ""} ${ipnData.last_name || ""}`.trim(),
       shippingAddress: {
         name: user.name,
-        addressLine1: user.address?.street || "",
-        addressLine2: "",
-        city: user.address?.city || "",
-        state: user.address?.state || "",
-        postalCode: user.address?.postalCode || "",
-        country: user.address?.country || "",
+        addressLine1: user.address.street,
+        city: user.address.city,
+        state: user.address.state,
+        postalCode: user.address.postalCode,
+        country: user.address.country,
       },
       shippingMethod,
       status: "completed",
       paymentDetails: ipnData,
-    })
+    });
 
-    // Save the order
-    await order.save()
-    console.log("Order saved successfully:", order._id)
+    await order.save();
+    console.log("Order saved successfully:", order);
 
-    // Update product inventory
-    const purchaseQuantity = Number.parseInt(ipnData.quantity || 1)
-    if (product.sizes && product.sizes.length > 0) {
-      const sizeIndex = product.sizes.findIndex(
-        (s) =>
-          s.size === selectedSize &&
-          ((Array.isArray(s.colors) && s.colors.includes(selectedColor)) ||
-            (typeof s.color === "string" && s.color === selectedColor)),
-      )
-
-      if (sizeIndex >= 0) {
-        product.sizes[sizeIndex].quantity = Math.max(0, product.sizes[sizeIndex].quantity - purchaseQuantity)
-        await Product.findByIdAndUpdate(productId, { sizes: product.sizes })
-        console.log("Updated product stock for size:", selectedSize, "color:", selectedColor)
-      }
-    } else if (product.productQuantity) {
-      // Update general product quantity if sizes aren't used
-      product.productQuantity = Math.max(0, product.productQuantity - purchaseQuantity)
-      await Product.findByIdAndUpdate(productId, { productQuantity: product.productQuantity })
-      console.log("Updated general product stock")
+    const purchaseQuantity = Number.parseInt(ipnData.quantity || 1);
+    const sizeIndex = product.sizes.findIndex((s) => s.size === selectedSize);
+    if (sizeIndex >= 0) {
+      product.sizes[sizeIndex].quantity = Math.max(0, product.sizes[sizeIndex].quantity - purchaseQuantity);
+      await Product.findByIdAndUpdate(productId, { sizes: product.sizes });
+      console.log("Updated product stock:", product.sizes);
     }
 
-    // Remove item from cart if it exists
-    await CartItem.deleteMany({
-      userId,
-      productId,
-      size: selectedSize,
-      color: selectedColor,
-    })
-    console.log("Removed item from cart for user:", userId)
+    await CartItem.deleteMany({ userId, productId, size: selectedSize, color: selectedColor });
+    console.log("Deleted cart items for user:", userId);
 
-    return order
+    return order;
   } catch (error) {
-    console.error("Error creating order from IPN:", error)
-    throw error
+    console.error("Error creating order from IPN:", error);
+    throw error;
   }
 }
 
@@ -2058,31 +1948,38 @@ app.get("/api/page-settings", async (req, res) => {
 // Update page settings - Admin only
 app.put("/api/page-settings", authenticateToken, isAdmin, async (req, res) => {
   try {
-    const { siteIcon, siteLogo, siteTypographyHeaders, siteTypographyBody, siteColors, siteFilters } = req.body
+    const {
+      siteIcon,
+      siteLogo,
+      siteTypographyHeaders,
+      siteTypographyBody,
+      siteColors,
+      siteFilters,
+    } = req.body;
 
     // Find the first document or create a default one if none exists
-    let settings = await PageSettings.findOne()
+    let settings = await PageSettings.findOne();
 
     if (!settings) {
-      settings = new PageSettings()
+      settings = new PageSettings();
     }
 
     // Update fields if provided
-    if (siteIcon !== undefined) settings.siteIcon = siteIcon
-    if (siteLogo !== undefined) settings.siteLogo = siteLogo
-    if (siteTypographyHeaders !== undefined) settings.siteTypographyHeaders = siteTypographyHeaders
-    if (siteTypographyBody !== undefined) settings.siteTypographyBody = siteTypographyBody
-    if (siteColors !== undefined) settings.siteColors = siteColors
-    if (siteFilters !== undefined) settings.siteFilters = siteFilters
+    if (siteIcon !== undefined) settings.siteIcon = siteIcon;
+    if (siteLogo !== undefined) settings.siteLogo = siteLogo;
+    if (siteTypographyHeaders !== undefined) settings.siteTypographyHeaders = siteTypographyHeaders;
+    if (siteTypographyBody !== undefined) settings.siteTypographyBody = siteTypographyBody;
+    if (siteColors !== undefined) settings.siteColors = siteColors;
+    if (siteFilters !== undefined) settings.siteFilters = siteFilters;
 
-    await settings.save()
+    await settings.save();
 
-    res.json(settings)
+    res.json(settings);
   } catch (error) {
-    console.error("Error updating page settings:", error)
-    res.status(500).json({ message: "Error updating page settings", error: error.message })
+    console.error("Error updating page settings:", error);
+    res.status(500).json({ message: "Error updating page settings", error: error.message });
   }
-})
+});
 
 // Update a specific page setting field - Admin only
 app.patch("/api/page-settings/:field", authenticateToken, isAdmin, async (req, res) => {
@@ -2114,120 +2011,6 @@ app.patch("/api/page-settings/:field", authenticateToken, isAdmin, async (req, r
   } catch (error) {
     console.error("Error updating page setting:", error)
     res.status(500).json({ message: "Error updating page setting", error: error.message })
-  }
-})
-
-// Add this test endpoint after the existing routes
-app.get("/api/test-ipn", async (req, res) => {
-  console.log("Test IPN endpoint called")
-  res.json({ message: "IPN endpoint is accessible", timestamp: new Date().toISOString() })
-})
-
-// Add endpoint to manually create order (for testing)
-app.post("/api/orders/manual", authenticateToken, async (req, res) => {
-  try {
-    const {
-      productId,
-      title,
-      type,
-      price,
-      quantity,
-      size,
-      color,
-      paypalTransactionId,
-      payerEmail,
-      payerName,
-      shippingMethod,
-    } = req.body
-
-    console.log("Manual order creation request:", req.body)
-
-    // Get product details
-    const product = await Product.findById(productId)
-    if (!product) {
-      return res.status(404).json({ message: "Product not found" })
-    }
-
-    // Get user details
-    const user = await User.findById(req.user.userId)
-    if (!user) {
-      return res.status(404).json({ message: "User not found" })
-    }
-
-    // Check if order already exists
-    const existingOrder = await Order.findOne({ paypalTransactionId })
-    if (existingOrder) {
-      return res.status(200).json({
-        message: "Order already exists",
-        order: existingOrder,
-        duplicate: true,
-      })
-    }
-
-    // Create the order
-    const order = new Order({
-      userId: req.user.userId,
-      productId,
-      title: title || product.title,
-      type: type || product.type,
-      price: price || product.price,
-      quantity: quantity || 1,
-      size: size || "",
-      color: color || "",
-      image: product.image,
-      hoverImage: product.hoverImage,
-      materials: product.materials,
-      description: product.description,
-      additionalImages: product.additionalImages,
-      paypalTransactionId,
-      payerEmail,
-      payerName,
-      shippingAddress: {
-        name: user.name,
-        addressLine1: user.address?.street || "",
-        city: user.address?.city || "",
-        state: user.address?.state || "",
-        postalCode: user.address?.postalCode || "",
-        country: user.address?.country || "",
-      },
-      shippingMethod: shippingMethod || { name: "Standard", price: 0 },
-      status: "completed",
-    })
-
-    await order.save()
-    console.log("Manual order created successfully:", order._id)
-
-    // Update inventory
-    if (product.sizes && product.sizes.length > 0 && size) {
-      const sizeIndex = product.sizes.findIndex((s) => s.size === size && s.color === color)
-      if (sizeIndex >= 0) {
-        product.sizes[sizeIndex].quantity = Math.max(0, product.sizes[sizeIndex].quantity - quantity)
-        await Product.findByIdAndUpdate(productId, { sizes: product.sizes })
-      }
-    }
-
-    // Remove from cart
-    await CartItem.deleteMany({
-      userId: req.user.userId,
-      productId,
-      size: size || "",
-      color: color || "",
-    })
-
-    res.status(201).json({ message: "Order created successfully", order })
-  } catch (error) {
-    console.error("Error creating manual order:", error)
-    res.status(500).json({ message: "Error creating order", error: error.message })
-  }
-})
-
-// Add endpoint to check IPN logs (admin only)
-app.get("/api/ipn-logs", authenticateToken, isAdmin, async (req, res) => {
-  try {
-    const logs = await IPNLog.find().sort({ createdAt: -1 }).limit(10)
-    res.json(logs)
-  } catch (error) {
-    res.status(500).json({ message: "Error fetching IPN logs", error: error.message })
   }
 })
 
