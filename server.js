@@ -1745,9 +1745,13 @@ app.post("/api/paypal/ipn", express.raw({ type: "application/x-www-form-urlencod
 
 
 async function verifyIPN(verificationBody) {
+
+  const isSandbox = verificationBody.includes("test_ipn=1");
+  const hostname = isSandbox ? "www.sandbox.paypal.com" : "www.paypal.com";
+
   return new Promise((resolve, reject) => {
     const options = {
-      hostname: "www.paypal.com",
+      hostname,
       path: "/cgi-bin/webscr",
       method: "POST",
       headers: {
