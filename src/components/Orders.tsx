@@ -14,7 +14,8 @@ interface Order {
   _id: string
   productId: string
   title: string
-  price: number
+  price: number // Base price of the product
+  sizePrice?: number // Price for the selected size (optional)
   quantity: number
   paypalTransactionId: string
   paypalOrderId?: string
@@ -301,7 +302,10 @@ const Orders: React.FC = () => {
                             {formatDate(order.createdAt)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {formatPrice(order.price * order.quantity, currency)}
+                            {formatPrice(
+                              (order.sizePrice || order.price) * order.quantity,
+                              currency
+                            )}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <button
