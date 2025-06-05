@@ -1743,6 +1743,41 @@ app.post("/api/paypal/ipn", express.raw({ type: "application/x-www-form-urlencod
   res.status(200).send("OK");
 });
 
+
+async function verifyIPN(verificationBody) {
+  return new Promise((resolve, reject) => {
+    const options = {
+      hostname: "www.paypal.com",
+      path: "/cgi-bin/webscr",
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Content-Length": Buffer.byteLength(verificationBody),
+      },
+    };
+
+    const req = https.request(options, (res) => {
+      let data = "";
+
+      res.on("data", (chunk) => {
+        data += chunk;
+      });
+
+      res.on("end", () => {
+        resolve(data.trim());
+      });
+    });
+
+    req.on("error", (error) => {
+      reject(error);
+    });
+
+    req.write(verificationBody);
+    req.end();
+  });
+}
+
+
 // Update the createOrderFromIPN function
 async function createOrderFromIPN(ipnData) {
   console.log("Creating order from IPN data:", ipnData);
