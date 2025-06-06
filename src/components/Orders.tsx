@@ -343,9 +343,7 @@ const Orders: React.FC = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {formatPrice(
-                            (order.sizes && order.sizes.length > 0 && order.sizes[0].sizePrice !== undefined
-                              ? order.sizes[0].sizePrice * (order.quantity || 1)
-                              : (order.price || 0) * (order.quantity || 1)),
+                            (order.price || 0) * (order.quantity || 1),
                             currency
                           )}
                           </td>
