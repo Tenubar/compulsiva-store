@@ -1854,17 +1854,32 @@ async function createOrderFromIPN(ipnData) {
     console.log("Order saved successfully:", order);
 
     const purchaseQuantity = Number.parseInt(ipnData.quantity || 1);
-    const sizeIndex = product.sizes.findIndex((s) => s.size === selectedSize);
-    if (sizeIndex >= 0) {
-      product.sizes[sizeIndex].quantity = Math.max(0, product.sizes[sizeIndex].quantity - purchaseQuantity);
-      await Product.findByIdAndUpdate(productId, { sizes: product.sizes });
-      console.log("Updated product stock:", product.sizes);
+
+    if (product.sizes && product.sizes.length > 0) {
+      // Decrease quantity for the specific size/color
+      const sizeIndex = product.sizes.findIndex(
+        (s) => s.size === selectedSize && s.color === selectedColor
+      );
+      if (sizeIndex >= 0) {
+        product.sizes[sizeIndex].quantity = Math.max(
+          0,
+          product.sizes[sizeIndex].quantity - purchaseQuantity
+        );
+        await Product.findByIdAndUpdate(productId, { sizes: product.sizes });
+        console.log("Updated product stock (sizes):", product.sizes);
+      }
+    } else {
+      // Decrease productQuantity if no sizes
+      product.productQuantity = Math.max(0, (product.productQuantity || 0) - purchaseQuantity);
+      await Product.findByIdAndUpdate(productId, { productQuantity: product.productQuantity });
+      console.log("Updated product stock (productQuantity):", product.productQuantity);
     }
 
     await CartItem.deleteMany({ userId, productId, size: selectedSize, color: selectedColor });
     console.log("Deleted cart items for user:", userId);
 
     return order;
+
   } catch (error) {
     console.error("Error creating order from IPN:", error);
     throw error;

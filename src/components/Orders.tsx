@@ -101,8 +101,46 @@ const Orders: React.FC = () => {
       if (response.ok) {
         const data = await response.json();
         console.log("Orders fetched successfully:", data.orders);
-        setOrders(data.orders || []);
-        console.log(data.orders[0].sizes[0].sizePrice);
+
+        // Safely handle orders and sizes
+        interface Size {
+          size: string;
+          sizePrice: number;
+        }
+
+        interface ApiOrder {
+          _id: string;
+          productId: string;
+          title: string;
+          price: number;
+          sizePrice?: number;
+          quantity: number;
+          paypalTransactionId: string;
+          paypalOrderId?: string;
+          payerEmail?: string;
+          payerName?: string;
+          shippingMethod?: {
+            name: string;
+            price: number;
+          };
+          status: string;
+          createdAt: string;
+          sizes?: Size[];
+        }
+
+        interface ApiResponse {
+          orders: ApiOrder[];
+        }
+
+        const processedOrders: Order[] = (data as ApiResponse).orders.map((order: ApiOrder): Order => ({
+          ...order,
+          sizes: order.sizes?.map((size: Size): Size => ({
+            ...size,
+            sizePrice: size.sizePrice ?? order.price, // Use price if sizePrice is undefined
+          })),
+        }));
+
+        setOrders(processedOrders || []);
       } else if (response.status === 401) {
         console.log("User not logged in. Redirecting to login.");
         navigate("/login");
