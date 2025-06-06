@@ -27,6 +27,7 @@ interface Order {
   }
   status: string
   createdAt: string
+  sizes?: { size: string; sizePrice: number }[] // Added sizes property
 }
 
 const Orders: React.FC = () => {
@@ -101,6 +102,7 @@ const Orders: React.FC = () => {
         const data = await response.json();
         console.log("Orders fetched successfully:", data.orders);
         setOrders(data.orders || []);
+        console.log(data.orders[0].sizes[0].sizePrice);
       } else if (response.status === 401) {
         console.log("User not logged in. Redirecting to login.");
         navigate("/login");
@@ -302,10 +304,12 @@ const Orders: React.FC = () => {
                             {formatDate(order.createdAt)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {formatPrice(
-                              (order.sizePrice || order.price) * order.quantity,
-                              currency
-                            )}
+                          {formatPrice(
+                            (order.sizes && order.sizes.length > 0 && order.sizes[0].sizePrice !== undefined
+                              ? order.sizes[0].sizePrice * (order.quantity || 1)
+                              : (order.price || 0) * (order.quantity || 1)),
+                            currency
+                          )}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <button
