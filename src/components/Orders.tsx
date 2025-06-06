@@ -25,6 +25,10 @@ interface Order {
     name: string
     price: number
   }
+  shipping?: Array<{ 
+    name: string
+    price: number
+  }>
   status: string
   createdAt: string
   sizes?: { size: string; sizePrice: number }[] // Added sizes property
@@ -44,6 +48,7 @@ const Orders: React.FC = () => {
     price?: string
     quantity?: string
     txnId?: string
+    shipping?: Array<{ name: string; price: number }>
   } | null>(null)
 
   const navigate = useNavigate()
@@ -123,11 +128,15 @@ const Orders: React.FC = () => {
             name: string;
             price: number;
           };
+          shipping?: Array<{ 
+            name: string
+            price: number
+          }>
+          
           status: string;
           createdAt: string;
           sizes?: Size[];
         }
-
         interface ApiResponse {
           orders: ApiOrder[];
         }
@@ -249,8 +258,13 @@ const Orders: React.FC = () => {
                       <p className="text-sm text-blue-700">
                         {t("total")}: $
                         {paymentInfo.price && paymentInfo.quantity
-                          ? (parseFloat(paymentInfo.price) * parseInt(paymentInfo.quantity, 10)).toFixed(2)
-                          : "0.00"}
+                        ? (
+                            parseFloat(paymentInfo.price) * parseInt(paymentInfo.quantity, 10) +
+                            (Array.isArray(paymentInfo.shipping) && paymentInfo.shipping[0]?.price
+                              ? paymentInfo.shipping[0].price
+                              : 0)
+                          ).toFixed(2)
+                        : "0.00"}
                       </p>
                     </div>
                   )}
@@ -343,7 +357,8 @@ const Orders: React.FC = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {formatPrice(
-                            (order.price || 0) * (order.quantity || 1),
+                            ((order.price || 0) * (order.quantity || 1)) +
+                              (order.shipping?.[0]?.price || 0),
                             currency
                           )}
                           </td>

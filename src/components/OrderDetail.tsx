@@ -33,6 +33,10 @@ interface OrderDetail {
     name: string
     price: number
   }
+  shipping?: Array<{
+    name: string
+    price: number
+  }>
   sizes?: { size: string; sizePrice: number }[] // Added sizes property
   status: string
   createdAt: string
@@ -180,10 +184,11 @@ const OrderDetail: React.FC = () => {
                         </div>
                       </div>
                       <div className="text-sm font-medium text-gray-900">
-                      {formatPrice(
-                            (order.price || 0) * (order.quantity || 1),
-                            currency
-                          )}
+                        {formatPrice(
+                          ((order.price || 0) * (order.quantity || 1)) +
+                            (order.shipping?.[0]?.price || 0),
+                          currency
+                        )}
                       </div>
                     </div>
                   </div>
