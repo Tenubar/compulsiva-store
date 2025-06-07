@@ -177,6 +177,8 @@ const Orders: React.FC = () => {
     }).format(date)
   }
 
+  console.log("PaymentInfo:", paymentInfo);
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Header currency={currency} setCurrency={setCurrency} language={language} setLanguage={setLanguage} />
