@@ -46,6 +46,7 @@ const Orders: React.FC = () => {
     productId?: string
     title?: string
     price?: string
+    sizePrice?: string
     quantity?: string
     txnId?: string
     shipping?: Array<{ name: string; price: number }>
@@ -259,16 +260,14 @@ const Orders: React.FC = () => {
                       </p>
                       <p className="text-sm text-blue-700">
                         {t("total")}: $
-                        {paymentInfo.price && paymentInfo.quantity
-                          ? (parseFloat(paymentInfo.price) * parseInt(paymentInfo.quantity, 10)).toFixed(2)
-                          : "0.00"}
+                        {paymentInfo &&
+                          ((paymentInfo.sizePrice ?? paymentInfo.price) && paymentInfo.quantity)
+                            ? (
+                                parseFloat(paymentInfo.sizePrice ?? paymentInfo.price ?? "0") *
+                                parseInt(paymentInfo.quantity, 10)
+                              ).toFixed(2)
+                            : "0.00"}
                       </p>
-                      {/* <p className="text-sm text-blue-700">
-                        {t("shippingPrice")}: $
-                        {paymentInfo.shipping && paymentInfo.shipping.length > 0
-                          ? paymentInfo.shipping[0].price.toFixed(2)
-                          : "0.00"}
-                      </p> */}
                       <p className="text-sm text-blue-700">
                       {t("shippingPrice")}: $
                       {paymentInfo.shipping
