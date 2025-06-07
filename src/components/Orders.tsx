@@ -50,6 +50,7 @@ const Orders: React.FC = () => {
     quantity?: string
     txnId?: string
     shipping?: Array<{ name: string; price: number }>
+    size?: string
   } | null>(null)
 
   const navigate = useNavigate()
@@ -61,22 +62,32 @@ const Orders: React.FC = () => {
     const success = queryParams.get("success");
 
     if (success === "true") {
+      const sizes = queryParams.get("sizes") ? JSON.parse(decodeURIComponent(queryParams.get("sizes")!)) : undefined;
+      let purchasedSizePrice: string | undefined = undefined;
+      let purchasedSize: string | undefined = undefined;
+      if (Array.isArray(sizes)) {
+        const purchased = sizes.find((s: any) => s.quantity > 0);
+        if (purchased) {
+          purchasedSizePrice = purchased.sizePrice?.toString();
+          purchasedSize = purchased.size;
+        }
+      }
       const paymentData = {
         productId: queryParams.get("productId") || undefined,
         title: queryParams.get("title") ? decodeURIComponent(queryParams.get("title")!) : undefined,
         price: queryParams.get("price") || undefined,
         quantity: queryParams.get("quantity") || undefined,
         txnId: queryParams.get("tx") || undefined,
-        type: queryParams.get("type") || undefined, // Added type field
-        sizes: queryParams.get("sizes") ? JSON.parse(decodeURIComponent(queryParams.get("sizes")!)) : undefined, // Added sizes field
-        shipping: queryParams.get("shipping") ? JSON.parse(decodeURIComponent(queryParams.get("shipping")!)) : undefined, // Added shipping field
-        description: queryParams.get("description") ? decodeURIComponent(queryParams.get("description")!) : undefined, // Added description field
-        image: queryParams.get("image") ? decodeURIComponent(queryParams.get("image")!) : undefined, // Added image field
-        hoverImage: queryParams.get("hoverImage") ? decodeURIComponent(queryParams.get("hoverImage")!) : undefined, // Added hoverImage field
-        additionalImages: queryParams.get("additionalImages") ? JSON.parse(decodeURIComponent(queryParams.get("additionalImages")!)) : undefined, // Added additionalImages field
+        type: queryParams.get("type") || undefined,
+        sizes,
+        size: purchasedSize, // Add purchased size
+        sizePrice: purchasedSizePrice, // Use the purchased sizePrice
+        shipping: queryParams.get("shipping") ? JSON.parse(decodeURIComponent(queryParams.get("shipping")!)) : undefined,
+        description: queryParams.get("description") ? decodeURIComponent(queryParams.get("description")!) : undefined,
+        image: queryParams.get("image") ? decodeURIComponent(queryParams.get("image")!) : undefined,
+        hoverImage: queryParams.get("hoverImage") ? decodeURIComponent(queryParams.get("hoverImage")!) : undefined,
+        additionalImages: queryParams.get("additionalImages") ? JSON.parse(decodeURIComponent(queryParams.get("additionalImages")!)) : undefined,
       };
-
-      console.log("Payment data from URL:", paymentData);
 
       setPaymentInfo(paymentData);
       setWaitingForIPN(true);
@@ -85,12 +96,10 @@ const Orders: React.FC = () => {
       navigate("/orders", { replace: true });
 
       setTimeout(() => {
-        console.log("Fetching orders after IPN processing.");
         fetchOrders();
         setWaitingForIPN(false);
       }, 5000);
     } else {
-      console.log("Fetching orders normally.");
       fetchOrders();
     }
   }, [location, navigate, t])
@@ -255,18 +264,23 @@ const Orders: React.FC = () => {
                     <div className="mt-4 p-4 bg-blue-50 rounded-md max-w-md mx-auto">
                       <h3 className="font-medium text-blue-800">{t("paymentDetails")}</h3>
                       <p className="text-sm text-blue-700 mt-1">{paymentInfo.title}</p>
+                      {paymentInfo.size && (
+                        <p className="text-sm text-blue-700">
+                          {t("size")}: {paymentInfo.size}
+                        </p>
+                      )}
                       <p className="text-sm text-blue-700">
                         {t("quantity")}: {paymentInfo.quantity}
                       </p>
                       <p className="text-sm text-blue-700">
                         {t("total")}: $
                         {paymentInfo &&
-                          ((paymentInfo.sizePrice ?? paymentInfo.price) && paymentInfo.quantity)
-                            ? (
-                                parseFloat(paymentInfo.sizePrice ?? paymentInfo.price ?? "0") *
-                                parseInt(paymentInfo.quantity, 10)
-                              ).toFixed(2)
-                            : "0.00"}
+                        ((paymentInfo.sizePrice ?? paymentInfo.price) && paymentInfo.quantity)
+                          ? (
+                              parseFloat(paymentInfo.sizePrice ?? paymentInfo.price ?? "0") *
+                              parseInt(paymentInfo.quantity, 10)
+                            ).toFixed(2)
+                          : "0.00"}
                       </p>
                       <p className="text-sm text-blue-700">
                       {t("shippingPrice")}: $
