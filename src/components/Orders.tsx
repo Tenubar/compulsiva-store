@@ -263,12 +263,22 @@ const Orders: React.FC = () => {
                           ? (parseFloat(paymentInfo.price) * parseInt(paymentInfo.quantity, 10)).toFixed(2)
                           : "0.00"}
                       </p>
-                      <p className="text-sm text-blue-700">
+                      {/* <p className="text-sm text-blue-700">
                         {t("shippingPrice")}: $
                         {paymentInfo.shipping && paymentInfo.shipping.length > 0
                           ? paymentInfo.shipping[0].price.toFixed(2)
                           : "0.00"}
-                      </p>
+                      </p> */}
+                      <p className="text-sm text-blue-700">
+                      {t("shippingPrice")}: $
+                      {paymentInfo.shipping
+                        ? Array.isArray(paymentInfo.shipping)
+                          ? paymentInfo.shipping[0]?.price?.toFixed(2) ?? "0.00"
+                          : (typeof paymentInfo.shipping === "object" && paymentInfo.shipping !== null && "price" in paymentInfo.shipping)
+                            ? (paymentInfo.shipping as { price: number }).price?.toFixed(2)
+                            : "0.00"
+                        : "0.00"}
+                    </p>
                     </div>
                   )}
                 </div>
