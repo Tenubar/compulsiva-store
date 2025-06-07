@@ -65,8 +65,6 @@ const Orders: React.FC = () => {
       const sizes = queryParams.get("sizes") ? JSON.parse(decodeURIComponent(queryParams.get("sizes")!)) : undefined;
       let purchasedSizePrice: string | undefined = undefined;
       let purchasedSize: string | undefined = undefined;
-
-      // Find the purchased size (where quantity > 0)
       if (Array.isArray(sizes)) {
         const purchased = sizes.find((s: any) => s.quantity > 0);
         if (purchased) {
@@ -74,20 +72,16 @@ const Orders: React.FC = () => {
           purchasedSize = purchased.size;
         }
       }
-
-      // If no size was selected, fallback to price param
-      const fallbackPrice = queryParams.get("price") || undefined;
-
       const paymentData = {
         productId: queryParams.get("productId") || undefined,
         title: queryParams.get("title") ? decodeURIComponent(queryParams.get("title")!) : undefined,
-        price: purchasedSizePrice || fallbackPrice, // Use purchased sizePrice if available
+        price: purchasedSizePrice || queryParams.get("price") || undefined, // <-- use purchased size price if available
         quantity: queryParams.get("quantity") || undefined,
         txnId: queryParams.get("tx") || undefined,
         type: queryParams.get("type") || undefined,
         sizes,
-        size: purchasedSize, // Add purchased size
-        sizePrice: purchasedSizePrice, // Use the purchased sizePrice
+        size: purchasedSize,
+        sizePrice: purchasedSizePrice,
         shipping: queryParams.get("shipping") ? JSON.parse(decodeURIComponent(queryParams.get("shipping")!)) : undefined,
         description: queryParams.get("description") ? decodeURIComponent(queryParams.get("description")!) : undefined,
         image: queryParams.get("image") ? decodeURIComponent(queryParams.get("image")!) : undefined,
