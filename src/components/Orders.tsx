@@ -252,26 +252,20 @@ const Orders: React.FC = () => {
                     <div className="mt-4 p-4 bg-blue-50 rounded-md max-w-md mx-auto">
                       <h3 className="font-medium text-blue-800">{t("paymentDetails")}</h3>
                       <p className="text-sm text-blue-700 mt-1">{paymentInfo.title}</p>
-                     <p className="text-sm text-blue-700">
-                        {t("quantity")}: {paymentInfo.price && paymentInfo.quantity
-                          ? (
-                              parseFloat(paymentInfo.price) * parseInt(paymentInfo.quantity, 10) +
-                              (Array.isArray(paymentInfo.shipping) && paymentInfo.shipping[0]?.price
-                                ? paymentInfo.shipping[0].price
-                                : 0)
-                            ).toFixed(2)
-                          : "0.00"}
+                      <p className="text-sm text-blue-700">
+                        {t("quantity")}: {paymentInfo.quantity}
                       </p>
                       <p className="text-sm text-blue-700">
                         {t("total")}: $
                         {paymentInfo.price && paymentInfo.quantity
-                        ? (
-                            parseFloat(paymentInfo.price) * parseInt(paymentInfo.quantity, 10) +
-                            (Array.isArray(paymentInfo.shipping) && paymentInfo.shipping[0]?.price
-                              ? paymentInfo.shipping[0].price
-                              : 0)
-                          ).toFixed(2)
-                        : "0.00"}
+                          ? (parseFloat(paymentInfo.price) * parseInt(paymentInfo.quantity, 10)).toFixed(2)
+                          : "0.00"}
+                      </p>
+                      <p className="text-sm text-blue-700">
+                        {t("shippingPrice")}: $
+                        {paymentInfo.shipping && paymentInfo.shipping.length > 0
+                          ? paymentInfo.shipping[0].price.toFixed(2)
+                          : "0.00"}
                       </p>
                     </div>
                   )}
