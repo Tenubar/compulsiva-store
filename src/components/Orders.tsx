@@ -89,6 +89,8 @@ const Orders: React.FC = () => {
         additionalImages: queryParams.get("additionalImages") ? JSON.parse(decodeURIComponent(queryParams.get("additionalImages")!)) : undefined,
       };
 
+
+
       setPaymentInfo(paymentData);
       setWaitingForIPN(true);
       setSuccessMessage(t("paymentSuccessful"));
@@ -274,12 +276,8 @@ const Orders: React.FC = () => {
                       </p>
                       <p className="text-sm text-blue-700">
                         {t("total")}: $
-                        {paymentInfo &&
-                        ((paymentInfo.sizePrice ?? paymentInfo.price) && paymentInfo.quantity)
-                          ? (
-                              parseFloat(paymentInfo.sizePrice ?? paymentInfo.price ?? "0") *
-                              parseInt(paymentInfo.quantity, 10)
-                            ).toFixed(2)
+                        {paymentInfo && paymentInfo.sizePrice && paymentInfo.quantity
+                          ? (parseFloat(paymentInfo.sizePrice) * parseInt(paymentInfo.quantity, 10)).toFixed(2)
                           : "0.00"}
                       </p>
                       <p className="text-sm text-blue-700">
