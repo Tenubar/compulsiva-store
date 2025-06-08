@@ -274,12 +274,12 @@ const Orders: React.FC = () => {
                       <p className="text-sm text-blue-700">
                         {t("quantity")}: {paymentInfo.quantity}
                       </p>
-                        <p className="text-sm text-blue-700">
-                        {t("total")}: $
-                        {paymentInfo && paymentInfo.sizePrice && paymentInfo.quantity
-                          ? (parseFloat(paymentInfo.sizePrice) * parseInt(paymentInfo.quantity, 10)).toFixed(2)
-                          : "0.00"}
-                      </p>
+                      <p className="text-sm text-blue-700">
+  {t("total")}: $
+  {paymentInfo && paymentInfo.price && paymentInfo.quantity
+    ? (parseFloat(paymentInfo.price) * parseInt(paymentInfo.quantity, 10)).toFixed(2)
+    : "0.00"}
+</p>
                       <p className="text-sm text-blue-700">
                       {t("shippingPrice")}: $
                       {paymentInfo.shipping
