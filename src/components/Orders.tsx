@@ -65,18 +65,20 @@ const Orders: React.FC = () => {
       const sizes = queryParams.get("sizes") ? JSON.parse(decodeURIComponent(queryParams.get("sizes")!)) : undefined;
       let purchasedSizePrice: string | undefined = undefined;
       let purchasedSize: string | undefined = undefined;
+      let purchasedQuantity: number | undefined = undefined;
       if (Array.isArray(sizes)) {
         const purchased = sizes.find((s: any) => s.quantity > 0);
         if (purchased) {
           purchasedSizePrice = purchased.sizePrice?.toString();
           purchasedSize = purchased.size;
+          purchasedQuantity = purchased.quantity; // <-- get the actual purchased quantity
         }
       }
       const paymentData = {
         productId: queryParams.get("productId") || undefined,
         title: queryParams.get("title") ? decodeURIComponent(queryParams.get("title")!) : undefined,
-        price: purchasedSizePrice || queryParams.get("price") || undefined, // <-- use purchased size price if available
-        quantity: queryParams.get("quantity") || undefined,
+        price: purchasedSizePrice || queryParams.get("price") || undefined,
+        quantity: (purchasedQuantity !== undefined ? purchasedQuantity.toString() : queryParams.get("quantity")) || undefined,
         txnId: queryParams.get("tx") || undefined,
         type: queryParams.get("type") || undefined,
         sizes,
