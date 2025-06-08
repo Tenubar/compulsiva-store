@@ -51,6 +51,7 @@ const Orders: React.FC = () => {
     txnId?: string
     shipping?: Array<{ name: string; price: number }>
     size?: string
+    sizes?: { size: string; sizePrice: number }[]
   } | null>(null)
 
   const navigate = useNavigate()
@@ -274,12 +275,13 @@ const Orders: React.FC = () => {
                       <p className="text-sm text-blue-700">
                         {t("quantity")}: {paymentInfo.quantity}
                       </p>
-                      <p className="text-sm text-blue-700">
-  {t("total")}: $
-  {paymentInfo && paymentInfo.price && paymentInfo.quantity
-    ? (parseFloat(paymentInfo.price) * parseInt(paymentInfo.quantity, 10)).toFixed(2)
-    : "0.00"}
-</p>
+                     <p className="text-sm text-blue-700">
+                      {t("total")}: $
+                      {paymentInfo && paymentInfo.sizes && paymentInfo.size && paymentInfo.quantity
+                        ? ((Number(paymentInfo.sizes.find((s: any) => s.size === paymentInfo.size)?.sizePrice) || Number(paymentInfo.price) || 0) * parseInt(paymentInfo.quantity, 10)
+                          ).toFixed(2)
+                        : "0.00"}
+                    </p>
                       <p className="text-sm text-blue-700">
                       {t("shippingPrice")}: $
                       {paymentInfo.shipping
@@ -381,8 +383,8 @@ const Orders: React.FC = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {formatPrice(
-                            ((order.price || 0) * (order.quantity || 1)) +
-                              (order.shipping?.[0]?.price || 0),
+                            ((Number(order.price ?? 0)) * Number(order.quantity ?? 1)) +
+                              Number(order.shipping?.[0]?.price ?? 0),
                             currency
                           )}
                           </td>
