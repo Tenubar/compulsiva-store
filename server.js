@@ -1470,60 +1470,106 @@ app.post("/api/cart", authenticateToken, async (req, res) => {
       return res.status(404).json({ message: "Product not found" })
     }
 
-    // Find the selected size in the product
-    const selectedSize = product.sizes.find((s) => s.size === size)
-    if (!selectedSize) {
-      return res.status(400).json({ message: "Selected size not found" })
-    }
+    // --- MODIFICACIÓN INICIO ---
+    // Si el producto tiene sizes y hay al menos uno, buscar el size seleccionado
+    if (product.sizes && product.sizes.length > 0) {
+      const selectedSize = product.sizes.find((s) => s.size === size)
+      if (!selectedSize) {
+        return res.status(400).json({ message: "Selected size not found" })
+      }
 
-    // Check if the selected color is available for this size
-    if (color && selectedSize.color && !selectedSize.color.includes(color)) {
-      return res.status(400).json({ message: "Selected color not available for this size" })
-    }
+      // Check if the selected color is available for this size
+      if (color && selectedSize.color && !selectedSize.color.includes(color)) {
+        return res.status(400).json({ message: "Selected color not available for this size" })
+      }
 
-    // Check if item already exists in cart with the same size and color
-    const existingItem = await CartItem.findOne({
-      userId: req.user.userId,
-      productId: productId,
-      size: size,
-      color: color || "",
-    })
-
-    // Calculate total quantity after this addition
-    const currentQuantity = existingItem ? existingItem.quantity : 0
-    const newTotalQuantity = currentQuantity + quantity
-
-    // Check if the new total quantity exceeds available stock for this size
-    if (newTotalQuantity > selectedSize.quantity) {
-      return res.status(400).json({
-        message: "Maximum stock reached!",
-        availableStock: selectedSize.quantity,
-        currentInCart: currentQuantity,
-      })
-    }
-
-    if (existingItem) {
-      // Update quantity if item exists
-      existingItem.quantity = newTotalQuantity
-      await existingItem.save()
-      res.status(200).json({ message: "Cart updated", item: existingItem })
-    } else {
-      // Create new cart item
-      const cartItem = new CartItem({
+      // Check stock for this size
+      const existingItem = await CartItem.findOne({
         userId: req.user.userId,
-        productId,
-        title,
-        type,
-        price,
-        image,
-        quantity,
-        size,
+        productId: productId,
+        size: size,
         color: color || "",
       })
 
-      await cartItem.save()
-      res.status(201).json({ message: "Item added to cart", item: cartItem })
+      const currentQuantity = existingItem ? existingItem.quantity : 0
+      const newTotalQuantity = currentQuantity + quantity
+
+      if (newTotalQuantity > selectedSize.quantity) {
+        return res.status(400).json({
+          message: "Maximum stock reached!",
+          availableStock: selectedSize.quantity,
+          currentInCart: currentQuantity,
+        })
+      }
+
+      if (existingItem) {
+        existingItem.quantity = newTotalQuantity
+        await existingItem.save()
+        res.status(200).json({ message: "Cart updated", item: existingItem })
+      } else {
+        const cartItem = new CartItem({
+          userId: req.user.userId,
+          productId,
+          title,
+          type,
+          price,
+          image,
+          quantity,
+          size,
+          color: color || "",
+        })
+        await cartItem.save()
+        res.status(201).json({ message: "Item added to cart", item: cartItem })
+      }
+    } else {
+      // --- SIN SIZES: usar productQuantity ---
+      if ((product.productQuantity || 0) < quantity) {
+        return res.status(400).json({
+          message: "Maximum stock reached!",
+          availableStock: product.productQuantity || 0,
+        })
+      }
+
+      // Buscar item existente en el carrito (sin size ni color)
+      const existingItem = await CartItem.findOne({
+        userId: req.user.userId,
+        productId: productId,
+        size: "",
+        color: "",
+      })
+
+      const currentQuantity = existingItem ? existingItem.quantity : 0
+      const newTotalQuantity = currentQuantity + quantity
+
+      if (newTotalQuantity > (product.productQuantity || 0)) {
+        return res.status(400).json({
+          message: "Maximum stock reached!",
+          availableStock: product.productQuantity || 0,
+          currentInCart: currentQuantity,
+        })
+      }
+
+      if (existingItem) {
+        existingItem.quantity = newTotalQuantity
+        await existingItem.save()
+        res.status(200).json({ message: "Cart updated", item: existingItem })
+      } else {
+        const cartItem = new CartItem({
+          userId: req.user.userId,
+          productId,
+          title,
+          type,
+          price,
+          image,
+          quantity,
+          size: "",
+          color: "",
+        })
+        await cartItem.save()
+        res.status(201).json({ message: "Item added to cart", item: cartItem })
+      }
     }
+    // --- MODIFICACIÓN FIN ---
   } catch (error) {
     res.status(500).json({ message: "Error adding to cart", error: error.message })
   }

@@ -834,7 +834,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
         }
       }
 
-      const response = await fetch(`${import.meta.env.VITE_SITE_URL}/api/cart`, {
+        const response = await fetch(`${import.meta.env.VITE_SITE_URL}/api/cart`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -844,7 +844,8 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
           productId: product._id,
           title: product.title,
           type: product.type || "Product",
-          price: product.price,
+          // Cambia aquí: usa el precio del size seleccionado
+          price: product.sizes && product.sizes.length > 0 ? getSelectedSizePrice() : product.price,
           image: product.image,
           quantity: quantity,
           size: selectedSize || "",

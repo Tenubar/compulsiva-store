@@ -108,6 +108,9 @@ export const translations = {
     cancel: "Cancel",
     writeReply: "Write a reply...",
     postReply: "Post Reply",
+    loginRequired: "Login required",
+    loginRequiredForPurchase: "You need to log in to purchase this product",
+    signUp: "Sign Up",
 
     // Cart Messages
     productAdded: "Product added to cart!",
@@ -570,6 +573,9 @@ export const translations = {
     cancel: "Cancelar",
     writeReply: "Escribe una respuesta...",
     postReply: "Publicar Respuesta",
+    loginRequired: "Se requiere iniciar sesión",
+    loginRequiredForPurchase: "Necesitas iniciar sesión para comprar este producto",
+    signUp: "Registrarse",
 
     // Cart Messages
     productAdded: "¡Producto añadido al carrito!",
