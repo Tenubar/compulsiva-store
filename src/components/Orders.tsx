@@ -264,15 +264,15 @@ const Orders: React.FC = () => {
                     <div className="mt-4 p-4 bg-blue-50 rounded-md max-w-md mx-auto">
                       <h3 className="font-medium text-blue-800">{t("paymentDetails")}</h3>
                       <p className="text-sm text-blue-700 mt-1">{paymentInfo.title}</p>
-                      {paymentInfo.size && (
+                      {/* {paymentInfo.size && (
                         <p className="text-sm text-blue-700">
                           {t("size")}: {paymentInfo.size}
                         </p>
-                      )}
-                      <p className="text-sm text-blue-700">
+                      )} */}
+                      {/* <p className="text-sm text-blue-700">
                         {t("quantity")}: {paymentInfo.quantity}
                       </p>
-                      {/* <p className="text-sm text-blue-700">
+                      <p className="text-sm text-blue-700">
                         {t("total")}: $
                         {paymentInfo &&
                         ((paymentInfo.sizePrice ?? paymentInfo.price) && paymentInfo.quantity)
@@ -281,8 +281,8 @@ const Orders: React.FC = () => {
                               parseInt(paymentInfo.quantity, 10)
                             ).toFixed(2)
                           : "0.00"}
-                      </p>
-                      <p className="text-sm text-blue-700">
+                      </p> */}
+                      {/* <p className="text-sm text-blue-700">
                       {t("shippingPrice")}: $
                       {paymentInfo.shipping
                         ? Array.isArray(paymentInfo.shipping)
