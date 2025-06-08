@@ -51,7 +51,6 @@ const Orders: React.FC = () => {
     txnId?: string
     shipping?: Array<{ name: string; price: number }>
     size?: string
-    sizes?: { size: string; sizePrice: number }[]
   } | null>(null)
 
   const navigate = useNavigate()
@@ -76,21 +75,19 @@ const Orders: React.FC = () => {
       const paymentData = {
         productId: queryParams.get("productId") || undefined,
         title: queryParams.get("title") ? decodeURIComponent(queryParams.get("title")!) : undefined,
-        price: purchasedSizePrice || queryParams.get("price") || undefined, // <-- use purchased size price if available
+        price: queryParams.get("price") || undefined,
         quantity: queryParams.get("quantity") || undefined,
         txnId: queryParams.get("tx") || undefined,
         type: queryParams.get("type") || undefined,
         sizes,
-        size: purchasedSize,
-        sizePrice: purchasedSizePrice,
+        size: purchasedSize, // Add purchased size
+        sizePrice: purchasedSizePrice, // Use the purchased sizePrice
         shipping: queryParams.get("shipping") ? JSON.parse(decodeURIComponent(queryParams.get("shipping")!)) : undefined,
         description: queryParams.get("description") ? decodeURIComponent(queryParams.get("description")!) : undefined,
         image: queryParams.get("image") ? decodeURIComponent(queryParams.get("image")!) : undefined,
         hoverImage: queryParams.get("hoverImage") ? decodeURIComponent(queryParams.get("hoverImage")!) : undefined,
         additionalImages: queryParams.get("additionalImages") ? JSON.parse(decodeURIComponent(queryParams.get("additionalImages")!)) : undefined,
       };
-
-
 
       setPaymentInfo(paymentData);
       setWaitingForIPN(true);
@@ -275,7 +272,26 @@ const Orders: React.FC = () => {
                       <p className="text-sm text-blue-700">
                         {t("quantity")}: {paymentInfo.quantity}
                       </p>
-                     {/* Price and Shipping Price Removed */}
+                      {/* <p className="text-sm text-blue-700">
+                        {t("total")}: $
+                        {paymentInfo &&
+                        ((paymentInfo.sizePrice ?? paymentInfo.price) && paymentInfo.quantity)
+                          ? (
+                              parseFloat(paymentInfo.sizePrice ?? paymentInfo.price ?? "0") *
+                              parseInt(paymentInfo.quantity, 10)
+                            ).toFixed(2)
+                          : "0.00"}
+                      </p>
+                      <p className="text-sm text-blue-700">
+                      {t("shippingPrice")}: $
+                      {paymentInfo.shipping
+                        ? Array.isArray(paymentInfo.shipping)
+                          ? paymentInfo.shipping[0]?.price?.toFixed(2) ?? "0.00"
+                          : (typeof paymentInfo.shipping === "object" && paymentInfo.shipping !== null && "price" in paymentInfo.shipping)
+                            ? (paymentInfo.shipping as { price: number }).price?.toFixed(2)
+                            : "0.00"
+                        : "0.00"}
+                    </p> */}
                     </div>
                   )}
                 </div>
@@ -367,8 +383,8 @@ const Orders: React.FC = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {formatPrice(
-                            ((Number(order.price ?? 0)) * Number(order.quantity ?? 1)) +
-                              Number(order.shipping?.[0]?.price ?? 0),
+                            ((order.price || 0) * (order.quantity || 1)) +
+                              (order.shipping?.[0]?.price || 0),
                             currency
                           )}
                           </td>
