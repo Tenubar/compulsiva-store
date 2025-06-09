@@ -43,7 +43,7 @@ const Cart: React.FC = () => {
     if (!document.getElementById(scriptId)) {
       const script = document.createElement("script")
       script.id = scriptId
-      script.src = "https://www.paypal.com/sdk/js?client-id=TU_CLIENT_ID_PAYPAL&currency=USD"
+      script.src = `https://www.paypal.com/sdk/js?client-id=${import.meta.env.VITE_PAYPAL_CLIENT_ID}&currency=USD`
       script.async = true
       script.onload = renderPayPalButton
       document.body.appendChild(script)
