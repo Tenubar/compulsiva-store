@@ -1805,8 +1805,12 @@ async function verifyIPN(verificationBody) {
 // Update the createOrderFromIPN function
 async function createOrderFromIPN(ipnData) {
   console.log("Creating order from IPN data:", ipnData);
-
   console.log("IPN item_number:", ipnData.item_number);
+
+   if (!ipnData.custom || !ipnData.custom.trim()) {
+    console.log("IPN custom field is empty, skipping order creation.");
+    return null;
+  }
 
   try {
     const existingOrder = await Order.findOne({ paypalTransactionId: ipnData.txn_id });
