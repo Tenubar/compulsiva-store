@@ -10,6 +10,7 @@ import { GridFSBucket } from "mongodb"
 import { Readable } from "stream"
 import https from "https"
 import querystring from "querystring"
+import fetch from "node-fetch" // If you use node <18, install node-fetch
 
 dotenv.config()
 
@@ -183,7 +184,7 @@ const orderSchema = new mongoose.Schema(
     title: { type: String, required: true },
     type: { type: String, required: true }, // Matches productSchema's type field
     price: { type: Number, required: true },
-    materials: { type: String }, // Matches productSchema's materials field    
+    materials: { type: String, default: "" }, // Matches productSchema's materials field    
      sizes: {
       type: [
         {
@@ -1357,8 +1358,15 @@ const cartItemSchema = new mongoose.Schema(
     price: { type: Number, required: true },
     image: { type: String, required: true },
     quantity: { type: Number, required: true, default: 1 },
-    size: { type: String, default: "" }, // Size field
-    color: { type: String, default: "" }, // Add color field
+    size: { type: String, default: "" },
+    color: { type: String, default: "" },
+    shipping: [
+      {
+        shipping_name: { type: String },
+        shipping_value: { type: String },
+      },
+    ],
+    shippingKey: { type: String, default: "" }, // <-- Añadido
   },
   { timestamps: true },
 )
@@ -1462,7 +1470,7 @@ app.get("/api/cart/count", authenticateToken, async (req, res) => {
 // Update the cart POST endpoint to handle sizes
 app.post("/api/cart", authenticateToken, async (req, res) => {
   try {
-    const { productId, title, type, price, image, quantity, size, color } = req.body
+    const { productId, title, type, price, image, quantity, size, color, shipping } = req.body
 
     // Get the product to check available quantity
     const product = await Product.findById(productId)
@@ -1470,106 +1478,75 @@ app.post("/api/cart", authenticateToken, async (req, res) => {
       return res.status(404).json({ message: "Product not found" })
     }
 
-    // --- MODIFICACIÓN INICIO ---
-    // Si el producto tiene sizes y hay al menos uno, buscar el size seleccionado
-    if (product.sizes && product.sizes.length > 0) {
-      const selectedSize = product.sizes.find((s) => s.size === size)
-      if (!selectedSize) {
-        return res.status(400).json({ message: "Selected size not found" })
-      }
+    // Serializa el shipping para comparar (solo el primero, como usas en el frontend)
+    const shippingKey = shipping && shipping.length > 0
+      ? JSON.stringify(shipping[0])
+      : ""
 
-      // Check if the selected color is available for this size
-      if (color && selectedSize.color && !selectedSize.color.includes(color)) {
-        return res.status(400).json({ message: "Selected color not available for this size" })
-      }
+    // Busca item existente en el carrito con mismo producto, talla, color y shippingKey
+    const existingItem = await CartItem.findOne({
+      userId: req.user.userId,
+      productId: productId,
+      size: size || "",
+      color: color || "",
+      shippingKey: shippingKey,
+    })
 
-      // Check stock for this size
-      const existingItem = await CartItem.findOne({
-        userId: req.user.userId,
-        productId: productId,
-        size: size,
-        color: color || "",
-      })
+    // --- NUEVO: Suma la cantidad total de todos los items con mismo producto/size/color ---
+    const allSameSizeItems = await CartItem.find({
+      userId: req.user.userId,
+      productId: productId,
+      size: size || "",
+      color: color || "",
+    })
+    const totalQuantityForSize = allSameSizeItems.reduce((sum, item) => sum + item.quantity, 0)
+    const newTotalQuantity = totalQuantityForSize + quantity
 
-      const currentQuantity = existingItem ? existingItem.quantity : 0
-      const newTotalQuantity = currentQuantity + quantity
-
-      if (newTotalQuantity > selectedSize.quantity) {
-        return res.status(400).json({
-          message: "Maximum stock reached!",
-          availableStock: selectedSize.quantity,
-          currentInCart: currentQuantity,
-        })
-      }
-
-      if (existingItem) {
-        existingItem.quantity = newTotalQuantity
-        await existingItem.save()
-        res.status(200).json({ message: "Cart updated", item: existingItem })
-      } else {
-        const cartItem = new CartItem({
-          userId: req.user.userId,
-          productId,
-          title,
-          type,
-          price,
-          image,
-          quantity,
-          size,
-          color: color || "",
-        })
-        await cartItem.save()
-        res.status(201).json({ message: "Item added to cart", item: cartItem })
-      }
-    } else {
-      // --- SIN SIZES: usar productQuantity ---
-      if ((product.productQuantity || 0) < quantity) {
-        return res.status(400).json({
-          message: "Maximum stock reached!",
-          availableStock: product.productQuantity || 0,
-        })
-      }
-
-      // Buscar item existente en el carrito (sin size ni color)
-      const existingItem = await CartItem.findOne({
-        userId: req.user.userId,
-        productId: productId,
-        size: "",
-        color: "",
-      })
-
-      const currentQuantity = existingItem ? existingItem.quantity : 0
-      const newTotalQuantity = currentQuantity + quantity
-
-      if (newTotalQuantity > (product.productQuantity || 0)) {
-        return res.status(400).json({
-          message: "Maximum stock reached!",
-          availableStock: product.productQuantity || 0,
-          currentInCart: currentQuantity,
-        })
-      }
-
-      if (existingItem) {
-        existingItem.quantity = newTotalQuantity
-        await existingItem.save()
-        res.status(200).json({ message: "Cart updated", item: existingItem })
-      } else {
-        const cartItem = new CartItem({
-          userId: req.user.userId,
-          productId,
-          title,
-          type,
-          price,
-          image,
-          quantity,
-          size: "",
-          color: "",
-        })
-        await cartItem.save()
-        res.status(201).json({ message: "Item added to cart", item: cartItem })
-      }
+    // --- FIX: Check stock for size/color if sizes exist ---
+    let availableStock = product.productQuantity || 0
+    if (product.sizes && product.sizes.length > 0 && size) {
+      // Busca la talla y color seleccionados
+      const sizeObj = product.sizes.find(
+        (s) =>
+          s.size.toLowerCase() === size.toLowerCase() &&
+          (
+            (Array.isArray(s.colors) && s.colors.includes(color)) ||
+            (typeof s.color === "string" && s.color.toLowerCase() === color.toLowerCase())
+          )
+      )
+      availableStock = sizeObj ? sizeObj.quantity : 0
     }
-    // --- MODIFICACIÓN FIN ---
+
+    if (newTotalQuantity > availableStock) {
+      return res.status(400).json({
+        message: "Maximum stock reached!",
+        availableStock: availableStock,
+        currentInCart: totalQuantityForSize,
+      })
+    }
+    // --- END FIX ---
+
+    if (existingItem) {
+      existingItem.quantity += quantity
+      await existingItem.save()
+      res.status(200).json({ message: "Cart updated", item: existingItem })
+    } else {
+      const cartItem = new CartItem({
+        userId: req.user.userId,
+        productId,
+        title,
+        type,
+        price,
+        image,
+        quantity,
+        size: size || "",
+        color: color || "",
+        shipping: shipping || [],
+        shippingKey: shippingKey,
+      })
+      await cartItem.save()
+      res.status(201).json({ message: "Item added to cart", item: cartItem })
+    }
   } catch (error) {
     res.status(500).json({ message: "Error adding to cart", error: error.message })
   }
@@ -1825,7 +1802,6 @@ async function verifyIPN(verificationBody) {
   });
 }
 
-
 // Update the createOrderFromIPN function
 async function createOrderFromIPN(ipnData) {
   console.log("Creating order from IPN data:", ipnData);
@@ -1931,6 +1907,148 @@ async function createOrderFromIPN(ipnData) {
     throw error;
   }
 }
+
+// Paypal Cart 
+// Utilidad para autenticación con PayPal
+async function getPayPalAccessToken() {
+  const clientId = process.env.VITE_PAYPAL_CLIENT_ID
+  const secret = process.env.VITE_PAYPAL_SECRET
+  const base = process.env.VITE_PAYPAL_ENV === "live"
+    ? "https://api.paypal.com"
+    : "https://api.sandbox.paypal.com"
+  const auth = Buffer.from(`${clientId}:${secret}`).toString("base64")
+  const res = await fetch(`${base}/v1/oauth2/token`, {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${auth}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: "grant_type=client_credentials",
+  })
+  const data = await res.json()
+  return data.access_token
+}
+
+// Crear orden de carrito
+app.post("/api/paypal/create-cart-order", authenticateToken, async (req, res) => {
+  try {
+    const { items } = req.body
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: "No items in cart" })
+    }
+    const accessToken = await getPayPalAccessToken()
+    const base = process.env.PAYPAL_ENV === "live"
+      ? "https://api.paypal.com"
+      : "https://api.sandbox.paypal.com"
+
+    // Construye los items para PayPal
+    const purchase_units = [{
+      items: items.map(item => ({
+        name: item.title,
+        unit_amount: { currency_code: "USD", value: item.price.toFixed(2) },
+        quantity: item.quantity,
+        sku: item.productId,
+      })),
+      amount: {
+        currency_code: "USD",
+        value: items.reduce((sum, i) => sum + i.price * i.quantity, 0).toFixed(2),
+        breakdown: {
+          item_total: {
+            currency_code: "USD",
+            value: items.reduce((sum, i) => sum + i.price * i.quantity, 0).toFixed(2),
+          }
+        }
+      }
+    }]
+
+    const response = await fetch(`${base}/v2/checkout/orders`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        intent: "CAPTURE",
+        purchase_units,
+      }),
+    })
+    const data = await response.json()
+    res.json({ orderID: data.id })
+  } catch (err) {
+    console.error("PayPal create-cart-order error:", err)
+    res.status(500).json({ error: "Error creating PayPal order" })
+  }
+})
+
+// Capturar orden de carrito y crear órdenes en la base de datos
+app.post("/api/paypal/capture-cart-order", authenticateToken, async (req, res) => {
+  try {
+    const { orderID } = req.body
+    if (!orderID) return res.status(400).json({ error: "Missing orderID" })
+    const accessToken = await getPayPalAccessToken()
+    const base = process.env.PAYPAL_ENV === "live"
+      ? "https://api.paypal.com"
+      : "https://api.sandbox.paypal.com"
+
+    // Captura la orden en PayPal
+    const captureRes = await fetch(`${base}/v2/checkout/orders/${orderID}/capture`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+    })
+    const captureData = await captureRes.json()
+    if (!captureData || !captureData.purchase_units) {
+      return res.status(400).json({ error: "Invalid PayPal response" })
+    }
+
+    // Procesa cada item y crea una orden en la base de datos
+    const userId = req.user.userId
+    const items = []
+    captureData.purchase_units.forEach(unit => {
+      if (unit.items) {
+        unit.items.forEach(item => {
+          items.push(item)
+        })
+      }
+    })
+
+    for (const item of items) {
+      // Busca el producto real para obtener info extra
+      const product = await Product.findById(item.sku)
+      if (!product) continue
+      // Crea la orden
+      await Order.create({
+        userId,
+        productId: item.sku,
+        title: item.name,
+        type: product.type,
+        price: Number(item.unit_amount.value),
+        quantity: Number(item.quantity),
+        image: product.image,
+        hoverImage: product.hoverImage,
+        additionalImages: product.additionalImages,
+        paypalTransactionId: captureData.id,
+        status: "completed",
+        paymentDetails: captureData,
+      })
+      // Descuenta stock (opcional)
+      if (product.productQuantity) {
+        product.productQuantity = Math.max(0, product.productQuantity - Number(item.quantity))
+        await product.save()
+      }
+      // Borra del carrito
+      await CartItem.deleteMany({ userId, productId: item.sku })
+    }
+
+    res.json({ success: true })
+  } catch (err) {
+    console.error("PayPal capture-cart-order error:", err)
+    res.status(500).json({ error: "Error capturing PayPal order" })
+  }
+})
+
 
 // Check if user has purchased a specific product
 app.get("/api/user/has-purchased/:productId", authenticateToken, async (req, res) => {
@@ -2119,7 +2237,7 @@ app.patch("/api/page-settings/:field", authenticateToken, isAdmin, async (req, r
       return res.status(400).json({ message: "Invalid field" })
     }
 
-    // Update the specific field
+    // // Update the specific field
     settings[field] = value
     await settings.save()
 

@@ -117,6 +117,7 @@ export const translations = {
     maxStockReached: "Maximum stock reached!",
     failedToAdd: "Failed to add to cart",
     errorAddingToCart: "Error adding to cart",
+    productOutOfStock: "Product out of stock",
 
     // Errors
     error: "Error",
@@ -582,6 +583,7 @@ export const translations = {
     maxStockReached: "¡Stock máximo alcanzado!",
     failedToAdd: "Error al añadir al carrito",
     errorAddingToCart: "Error al añadir al carrito",
+    productOutOfStock: "Producto agotado",
 
     // Errors
     error: "Error",

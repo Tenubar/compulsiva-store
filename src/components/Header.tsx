@@ -35,6 +35,11 @@ interface HeaderProps {
   setLanguage: (language: Language) => void
 }
 
+interface ShippingInfo {
+  shipping_name: string
+  shipping_value: number
+}
+
 interface CartItem {
   _id: string
   title: string
@@ -42,6 +47,7 @@ interface CartItem {
   image: string
   quantity: number
   productId: string
+  shipping?: ShippingInfo[]
 }
 
 const Header: React.FC<HeaderProps> = ({ currency, setCurrency, language, setLanguage }) => {
@@ -217,8 +223,18 @@ const Header: React.FC<HeaderProps> = ({ currency, setCurrency, language, setLan
   }
 
   const calculateCartTotal = () => {
-    return cartItems.reduce((total, item) => total + item.price * item.quantity, 0).toFixed(2)
-  }
+  return cartItems.reduce((total, item) => {
+    const base = item.price * item.quantity
+    let shipping = 0
+    if (item.shipping && Array.isArray(item.shipping) && item.shipping.length > 0 && item.shipping[0].shipping_value) {
+      const value = Number(item.shipping[0].shipping_value)
+      if (!isNaN(value)) {
+        shipping += value
+      }
+    }
+    return total + base + shipping
+  }, 0).toFixed(2)
+}
 
   const toggleSearch = () => {
     setIsSearchOpen((prev) => !prev)
@@ -697,11 +713,30 @@ const Header: React.FC<HeaderProps> = ({ currency, setCurrency, language, setLan
                                 </a>
                                 <p className="text-xs text-gray-500">
                                   {item.quantity} x ${item.price.toFixed(2)}
+                                  {item.shipping && Array.isArray(item.shipping) && item.shipping.length > 0 && item.shipping[0].shipping_value && (
+                                    <>
+                                      <br />
+                                      <span>
+                                        {item.shipping[0].shipping_name}: ${item.shipping[0].shipping_value}
+                                      </span>
+                                    </>
+                                  )}
                                 </p>
                               </div>
                               <div className="text-sm font-medium text-gray-900">
-                                ${(item.price * item.quantity).toFixed(2)}
-                              </div>
+                              {(() => {
+                                const baseTotal = item.price * item.quantity
+                                let shippingTotal = 0
+                                if (item.shipping && Array.isArray(item.shipping) && item.shipping.length > 0 && item.shipping[0].shipping_value) {
+                                  // Suma el valor del shipping (puede ser string o number)
+                                  const value = Number(item.shipping[0].shipping_value)
+                                  if (!isNaN(value)) {
+                                    shippingTotal += value
+                                  }
+                                }
+                                return `$${(baseTotal + shippingTotal).toFixed(2)}`
+                              })()}
+                            </div>
                             </li>
                           ))}
                         </ul>

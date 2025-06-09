@@ -1,11 +1,15 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { ArrowLeft, Trash2, ShoppingBag } from "lucide-react"
 
-// Update the CartItem interface to include size
+// Update the CartItem interface to include shipping
+interface ShippingInfo {
+  shipping_name: string
+  shipping_value: string
+}
 interface CartItem {
   _id: string
   productId: string
@@ -14,19 +18,82 @@ interface CartItem {
   price: number
   image: string
   quantity: number
-  size?: string // Add size field
-  color?: string // Add color field
+  size?: string
+  color?: string
+  shipping?: ShippingInfo[]
 }
 
 const Cart: React.FC = () => {
   const [cartItems, setCartItems] = useState<CartItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
+  const [processing, setProcessing] = useState(false)
   const navigate = useNavigate()
+  const paypalRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     fetchCartItems()
   }, [])
+
+  useEffect(() => {
+    if (cartItems.length === 0) return
+
+    // Carga el SDK de PayPal solo si hay productos
+    const scriptId = "paypal-sdk"
+    if (!document.getElementById(scriptId)) {
+      const script = document.createElement("script")
+      script.id = scriptId
+      script.src = "https://www.paypal.com/sdk/js?client-id=TU_CLIENT_ID_PAYPAL&currency=USD"
+      script.async = true
+      script.onload = renderPayPalButton
+      document.body.appendChild(script)
+    } else {
+      renderPayPalButton()
+    }
+
+    function renderPayPalButton() {
+      if ((window as any).paypal && paypalRef.current) {
+        (window as any).paypal.Buttons({
+          createOrder: async () => {
+            // Llama a tu backend para crear la orden de carrito
+            const res = await fetch(`${import.meta.env.VITE_SITE_URL}/api/paypal/create-cart-order`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: JSON.stringify({ items: cartItems }),
+            })
+            const data = await res.json()
+            return data.orderID // Devuelve el orderID de PayPal
+          },
+          onApprove: async (data: any, actions: any) => {
+            setProcessing(true)
+            // Captura el pago
+            const captureRes = await fetch(`${import.meta.env.VITE_SITE_URL}/api/paypal/capture-cart-order`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: JSON.stringify({ orderID: data.orderID }),
+            })
+            const captureData = await captureRes.json()
+            if (captureData.success) {
+              // Redirige a /orders o muestra mensaje de éxito
+              navigate("/orders?success=cart")
+            } else {
+              alert("Error procesando el pago.")
+            }
+            setProcessing(false)
+          },
+          onError: (err: any) => {
+            alert("Error con PayPal: " + err)
+          }
+        }).render(paypalRef.current)
+      }
+    }
+    // Limpieza opcional
+    return () => {
+      if (paypalRef.current) paypalRef.current.innerHTML = ""
+    }
+  }, [cartItems])
 
   const fetchCartItems = async () => {
     try {
@@ -96,7 +163,21 @@ const Cart: React.FC = () => {
   }
 
   const calculateTotal = () => {
-    return cartItems.reduce((total, item) => total + item.price * item.quantity, 0).toFixed(2)
+    return cartItems.reduce((total, item) => {
+      let shipping = 0
+      if (
+        item.shipping &&
+        Array.isArray(item.shipping) &&
+        item.shipping.length > 0 &&
+        item.shipping[0].shipping_value
+      ) {
+        const value = Number(item.shipping[0].shipping_value)
+        if (!isNaN(value)) {
+          shipping += value
+        }
+      }
+      return total + item.price * item.quantity + shipping
+    }, 0).toFixed(2)
   }
 
   if (loading) {
@@ -166,7 +247,6 @@ const Cart: React.FC = () => {
             </div>
             <ul className="divide-y divide-gray-200">
               {cartItems.map((item) => (
-                // Update the cart item display to show size
                 <li key={item._id} className="px-6 py-4 flex items-center">
                   <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-md border border-gray-200">
                     <img
@@ -178,7 +258,25 @@ const Cart: React.FC = () => {
                   <div className="ml-4 flex-1">
                     <div className="flex justify-between">
                       <h3 className="text-base font-medium text-gray-900">{item.title}</h3>
-                      <p className="text-base font-medium text-gray-900">${(item.price * item.quantity).toFixed(2)}</p>
+                      <p className="text-base font-medium text-gray-900">
+                        {/* Show product total including shipping */}
+                        {(() => {
+                          const baseTotal = item.price * item.quantity
+                          let shippingTotal = 0
+                          if (
+                            item.shipping &&
+                            Array.isArray(item.shipping) &&
+                            item.shipping.length > 0 &&
+                            item.shipping[0].shipping_value
+                          ) {
+                            const value = Number(item.shipping[0].shipping_value)
+                            if (!isNaN(value)) {
+                              shippingTotal += value
+                            }
+                          }
+                          return `$${(baseTotal + shippingTotal).toFixed(2)}`
+                        })()}
+                      </p>
                     </div>
                     <p className="mt-1 text-sm text-gray-500">
                       {item.type}
@@ -197,6 +295,18 @@ const Cart: React.FC = () => {
                           {item.color}
                         </span>
                       )}
+                      {/* Show shipping info if exists */}
+                      {item.shipping &&
+                        Array.isArray(item.shipping) &&
+                        item.shipping.length > 0 &&
+                        item.shipping[0].shipping_value && (
+                          <>
+                            <br />
+                            <span>
+                              {item.shipping[0].shipping_name}: ${item.shipping[0].shipping_value}
+                            </span>
+                          </>
+                        )}
                     </p>
                     <div className="flex items-center mt-2">
                       <button
@@ -236,21 +346,13 @@ const Cart: React.FC = () => {
               </div>
               <p className="mt-0.5 text-sm text-gray-500">Shipping and taxes calculated at checkout.</p>
               <div className="mt-6">
-                <button className="w-full border border-transparent rounded-md py-3 px-8 flex items-center justify-center text-base font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                style = {{
-                  backgroundColor: "var(--color-primary)",
-                  color: "var(--color-text-white)",
-                  transition: "background-color 0.3s",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = "var(--color-secondary)"
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = "var(--color-primary)"
-                }}
-                >
-                  Checkout
-                </button>
+                {/* Botón de checkout clásico (puedes ocultarlo si usas solo PayPal) */}
+                {/* <button ...>Checkout</button> */}
+                {/* PayPal Checkout */}
+                {cartItems.length > 0 && (
+                  <div ref={paypalRef} className="w-full flex justify-center my-4" />
+                )}
+                {processing && <div className="text-center text-blue-600">Procesando pago...</div>}
               </div>
               <div className="mt-6 flex justify-center text-center text-sm text-gray-500">
                 <p>

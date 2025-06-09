@@ -812,6 +812,11 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
       setAddingToCart(true)
       setCartMessage("")
 
+      // Guarda las selecciones actuales
+      const prevSize = selectedSize
+      const prevColor = selectedColor
+      const prevShipping = selectedShipping
+
       // Check stock based on whether sizes are used or not
       if (product.sizes && product.sizes.length > 0) {
         // Find the quantity for the selected color
@@ -844,19 +849,22 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
           productId: product._id,
           title: product.title,
           type: product.type || "Product",
-          // Cambia aquí: usa el precio del size seleccionado
           price: product.sizes && product.sizes.length > 0 ? getSelectedSizePrice() : product.price,
           image: product.image,
           quantity: quantity,
           size: selectedSize || "",
           color: selectedColor || "",
+          shipping:
+            selectedShipping
+              ? [
+                  {
+                    shipping_name: selectedShipping.name,
+                    shipping_value: selectedShipping.price.toString(),
+                  },
+                ]
+              : [],
         }),
       })
-
-      if (response.status === 401) {
-        navigate("/login")
-        return
-      }
 
       const data = await response.json()
 
@@ -864,8 +872,39 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
         setCartMessage(t("productAdded"))
         setTimeout(() => setCartMessage(""), 3000)
 
-        // Refresh product data to get updated stock
-        fetchProduct(true)
+        // Refresca el producto pero conserva las selecciones
+        await fetchProduct(true)
+        // Espera a que el producto esté actualizado antes de setear los valores
+        setSelectedSize(prev => {
+          // Si el size sigue existiendo, lo dejamos, si no, el primero disponible
+          if (
+            product?.sizes?.some(
+              s => s.size.toLowerCase() === prevSize.toLowerCase()
+            )
+          ) {
+            return prevSize
+          }
+          return product?.sizes?.[0]?.size || ""
+        })
+        setSelectedColor(prev => {
+          // Si el color sigue existiendo para el size, lo dejamos
+          const colors = getColorsForSelectedSize(prevSize)
+          if (colors.some(c => c.color === prevColor)) {
+            return prevColor
+          }
+          return colors[0]?.color || ""
+        })
+        setSelectedShipping(prev => {
+          // Si el shipping sigue existiendo, lo dejamos
+          if (
+            product?.shipping?.some(
+              s => s.name === prevShipping?.name && s.price === prevShipping?.price
+            )
+          ) {
+            return prevShipping
+          }
+          return product?.shipping?.[0] || null
+        })
       } else {
         // Check if the error is due to maximum stock reached
         if (data.message === "Maximum stock reached!") {
@@ -1984,6 +2023,8 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
                         />
                       </div>
                     </div>
+
+
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700">{t("phone")}</label>
