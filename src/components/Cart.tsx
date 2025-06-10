@@ -55,7 +55,6 @@ const Cart: React.FC = () => {
       if ((window as any).paypal && paypalRef.current) {
         (window as any).paypal.Buttons({
           createOrder: async () => {
-            // Llama a tu backend para crear la orden de carrito
             const res = await fetch(`${import.meta.env.VITE_SITE_URL}/api/paypal/create-cart-order`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -63,11 +62,11 @@ const Cart: React.FC = () => {
               body: JSON.stringify({ items: cartItems }),
             })
             const data = await res.json()
-            return data.orderID // Devuelve el orderID de PayPal
+            return data.orderID
           },
           onApprove: async (data: any, actions: any) => {
             setProcessing(true)
-            // Captura el pago
+            // Captura el pago y crea las órdenes en el backend
             const captureRes = await fetch(`${import.meta.env.VITE_SITE_URL}/api/paypal/capture-cart-order`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -76,7 +75,7 @@ const Cart: React.FC = () => {
             })
             const captureData = await captureRes.json()
             if (captureData.success) {
-              // Redirige a /orders o muestra mensaje de éxito
+              // Redirige a /orders y muestra mensaje de éxito
               navigate("/orders?success=cart")
             } else {
               alert("Error procesando el pago.")
@@ -89,11 +88,10 @@ const Cart: React.FC = () => {
         }).render(paypalRef.current)
       }
     }
-    // Limpieza opcional
     return () => {
       if (paypalRef.current) paypalRef.current.innerHTML = ""
     }
-  }, [cartItems])
+  }, [cartItems, navigate])
 
   const fetchCartItems = async () => {
     try {
