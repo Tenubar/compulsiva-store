@@ -63,7 +63,7 @@ const Cart: React.FC = () => {
             const data = await res.json();
             return data.orderID;
           },
-          onApprove: async (data: any, actions: any) => {
+          onApprove: async (data: any) => {
             setProcessing(true);
             const captureRes = await fetch(`${import.meta.env.VITE_SITE_URL}/api/paypal/capture-cart-order`, {
               method: "POST",
