@@ -1978,16 +1978,15 @@ app.post("/api/paypal/capture-cart-order", authenticateToken, async (req, res) =
       }
     })
 
-    console.log("Tiempo de procesar items!");
+    console.log("Procesando items del carrito:", items)
 
     for (const item of items) {
-
-      console.log("Processing item:", item);
-
-      // Busca el producto real para obtener info extra
+      console.log("Creando orden para item:", item)
       const product = await Product.findById(item.sku)
-      if (!product) continue
-      // Crea la orden
+      if (!product) {
+        console.log("Producto no encontrado:", item.sku)
+        continue
+      }
       await Order.create({
         userId,
         productId: item.sku,
