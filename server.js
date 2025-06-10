@@ -2016,7 +2016,12 @@ app.post("/api/paypal/capture-cart-order", authenticateToken, async (req, res) =
       }
     })
 
+    console.log("Tiempo de procesar items!");
+
     for (const item of items) {
+
+      console.log("Processing item:", item);
+
       // Busca el producto real para obtener info extra
       const product = await Product.findById(item.sku)
       if (!product) continue

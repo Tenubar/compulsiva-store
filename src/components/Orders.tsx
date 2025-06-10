@@ -167,13 +167,13 @@ const Orders: React.FC = () => {
         console.error("Error fetching orders:", response.statusText);
         setError(t("errorFetchingOrders"));
       }
-    } catch (error) {
-      console.error("Error fetching orders:", error);
-      setError(t("errorFetchingOrders"));
-    } finally {
-      setLoading(false);
+      } catch (error) {
+        console.error("Error fetching orders:", error);
+        setError(t("errorFetchingOrders"));
+      } finally {
+        setLoading(false);
+      }
     }
-  }
 
   // Format date
   const formatDate = (dateString: string) => {
