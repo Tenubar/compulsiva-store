@@ -65,14 +65,15 @@ const Cart: React.FC = () => {
           },
           onApprove: async (data: any, actions: any) => {
             setProcessing(true);
-            // Aquí llamas al endpoint para crear las órdenes en el backend
-            const captureRes = await fetch(`${import.meta.env.VITE_SITE_URL}/api/paypal/capture-cart-order`, {
+            const { orderID } = data;
+            const captureRes = await fetch(`${import.meta.env.VITE_SITE_URL}/v2/checkout/orders/${orderID}/capture`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               credentials: "include",
-              body: JSON.stringify({ orderID: data.orderID }),
+              body: JSON.stringify({ orderID }),
             });
             const captureData = await captureRes.json();
+            console.log("PayPal captureData:", JSON.stringify(captureData, null, 2));
             if (captureData.success) {
               navigate("/orders?success=cart");
             } else {

@@ -1946,13 +1946,14 @@ app.post("/api/paypal/create-cart-order", authenticateToken, async (req, res) =>
 
 // Capturar orden de carrito y crear órdenes en la base de datos
 app.post("/api/paypal/capture-cart-order", authenticateToken, async (req, res) => {
+  console.log("POST /api/paypal/capture-cart-order called", req.body);
   try {
-    const { orderID } = req.body
-    if (!orderID) return res.status(400).json({ error: "Missing orderID" })
-    const accessToken = await getPayPalAccessToken()
+    const { orderID } = req.body;
+    if (!orderID) return res.status(400).json({ error: "Missing orderID" });
+    const accessToken = await getPayPalAccessToken();
     const base = process.env.PAYPAL_ENV === "live"
       ? "https://api.paypal.com"
-      : "https://api.sandbox.paypal.com"
+      : "https://api.sandbox.paypal.com";
 
     // Captura la orden en PayPal
     const captureRes = await fetch(`${base}/v2/checkout/orders/${orderID}/capture`, {
@@ -1961,34 +1962,51 @@ app.post("/api/paypal/capture-cart-order", authenticateToken, async (req, res) =
         "Content-Type": "application/json",
         Authorization: `Bearer ${accessToken}`,
       },
-    })
-    const captureData = await captureRes.json()
-    if (!captureData || !captureData.purchase_units) {
-      return res.status(400).json({ error: "Invalid PayPal response" })
+    });
+    const captureData = await captureRes.json();
+    console.log("PayPal captureData:", JSON.stringify(captureData, null, 2));
+
+    // Si no hay items en la respuesta de PayPal, usa los del carrito del usuario
+    let items = [];
+    if (
+      captureData.purchase_units &&
+      captureData.purchase_units[0] &&
+      Array.isArray(captureData.purchase_units[0].items) &&
+      captureData.purchase_units[0].items.length > 0
+    ) {
+      captureData.purchase_units.forEach(unit => {
+        if (unit.items) {
+          unit.items.forEach(item => {
+            items.push(item);
+          });
+        }
+      });
+    } else {
+      // Recupera los items del carrito del usuario autenticado
+      items = await CartItem.find({ userId: req.user.userId });
+      // Adapta el formato para que coincida con el esperado más abajo
+      items = items.map(item => ({
+        sku: item.productId,
+        name: item.title,
+        unit_amount: { value: item.price },
+        quantity: item.quantity,
+      }));
+      console.log("Recuperando items del carrito del usuario:", items);
     }
 
-    // Procesa cada item y crea una orden en la base de datos
-    const userId = req.user.userId
-    const items = []
-    captureData.purchase_units.forEach(unit => {
-      if (unit.items) {
-        unit.items.forEach(item => {
-          items.push(item)
-        })
-      }
-    })
-
-    console.log("Procesando items del carrito:", items)
+    if (!items.length) {
+      return res.status(400).json({ error: "No items to process for order" });
+    }
 
     for (const item of items) {
-      console.log("Creando orden para item:", item)
-      const product = await Product.findById(item.sku)
+      console.log("Creando orden para item:", item);
+      const product = await Product.findById(item.sku);
       if (!product) {
-        console.log("Producto no encontrado:", item.sku)
-        continue
+        console.log("Producto no encontrado:", item.sku);
+        continue;
       }
       await Order.create({
-        userId,
+        userId: req.user.userId,
         productId: item.sku,
         title: item.name,
         type: product.type,
@@ -2000,20 +2018,20 @@ app.post("/api/paypal/capture-cart-order", authenticateToken, async (req, res) =
         paypalTransactionId: captureData.id,
         status: "completed",
         paymentDetails: captureData,
-      })
+      });
       // Descuenta stock (opcional)
       if (product.productQuantity) {
-        product.productQuantity = Math.max(0, product.productQuantity - Number(item.quantity))
-        await product.save()
+        product.productQuantity = Math.max(0, product.productQuantity - Number(item.quantity));
+        await product.save();
       }
       // Borra del carrito
-      await CartItem.deleteMany({ userId, productId: item.sku })
+      await CartItem.deleteMany({ userId: req.user.userId, productId: item.sku });
     }
 
-    res.json({ success: true })
+    res.json({ success: true });
   } catch (err) {
-    console.error("PayPal capture-cart-order error:", err)
-    res.status(500).json({ error: "Error capturing PayPal order" })
+    console.error("PayPal capture-cart-order error:", err);
+    res.status(500).json({ error: "Error capturing PayPal order" });
   }
 })
 
@@ -2126,8 +2144,6 @@ app.get("/api/check-admin", authenticateToken, async (req, res) => {
     res.status(500).json({ message: "Error checking admin status", error: error.message })
   }
 })
-
-// Add these routes before the server.listen line
 
 // Get page settings
 app.get("/api/page-settings", async (req, res) => {
