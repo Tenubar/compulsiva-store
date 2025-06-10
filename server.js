@@ -2008,19 +2008,15 @@ app.post("/api/paypal/capture-cart-order", authenticateToken, async (req, res) =
         continue;
       }
 
-      // --- NUEVO: Descontar stock por talla/color o por productQuantity ---
+      // --- AJUSTE: Descontar stock por talla/color o por productQuantity ---
       if (product.sizes && product.sizes.length > 0 && item.size) {
-        // Busca la talla y color correctos y descuenta la cantidad
         let updated = false;
         product.sizes = product.sizes.map(sizeObj => {
+          // Compara talla y color (ambos string, insensible a mayúsculas)
           if (
             sizeObj.size.toLowerCase() === (item.size || "").toLowerCase() &&
-            (
-              (Array.isArray(sizeObj.colors) && sizeObj.colors.includes(item.color)) ||
-              (typeof sizeObj.color === "string" && sizeObj.color.toLowerCase() === (item.color || "").toLowerCase())
-            )
+            sizeObj.color.toLowerCase() === (item.color || "").toLowerCase()
           ) {
-            // Descuenta la cantidad solo para esa talla/color
             updated = true;
             return {
               ...sizeObj,
@@ -2039,7 +2035,7 @@ app.post("/api/paypal/capture-cart-order", authenticateToken, async (req, res) =
           await product.save();
         }
       }
-      // --- FIN NUEVO ---
+      // --- FIN AJUSTE ---
 
       await Order.create({
         userId: req.user.userId,
@@ -2106,6 +2102,7 @@ app.post("/api/suggestions", authenticateToken, async (req, res) => {
     }
 
     const suggestion = new Suggestion({
+
       userId: req.user.userId,
       userName: user.name,
       message: message.trim(),
