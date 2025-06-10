@@ -136,7 +136,7 @@ const productSchema = new mongoose.Schema(
       default: [],
     },
     shipping: { type: [{ name: String, price: Number }], default: [] },
-    productQuantity: { type: Number, default: 1, min: 1 },
+    productQuantity: { type: Number, default: 1, min: 0 },
     additionalImages: { type: [String], default: [] },
     // New fields
     visits: { type: Number, default: 0 },
@@ -197,7 +197,7 @@ const orderSchema = new mongoose.Schema(
       default: [],
     },
     shipping: { type: [{ name: String, price: Number }], default: [] },
-    productQuantity: { type: Number, default: 1, min: 1 },
+    productQuantity: { type: Number, default: 1, min: 0 },
     description: { type: String }, // Matches productSchema's description field
     image: { type: String, required: true }, // Matches productSchema's image field
     hoverImage: { type: String }, // Matches productSchema's hoverImage field
