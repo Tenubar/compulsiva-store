@@ -36,19 +36,18 @@ const Cart: React.FC = () => {
   }, [])
 
   useEffect(() => {
-    if (cartItems.length === 0) return
+    if (cartItems.length === 0) return;
 
-    // Carga el SDK de PayPal solo si hay productos
-    const scriptId = "paypal-sdk"
+    const scriptId = "paypal-sdk";
     if (!document.getElementById(scriptId)) {
-      const script = document.createElement("script")
-      script.id = scriptId
-      script.src = `https://www.paypal.com/sdk/js?client-id=${import.meta.env.VITE_PAYPAL_CLIENT_ID}&currency=USD`
-      script.async = true
-      script.onload = renderPayPalButton
-      document.body.appendChild(script)
+      const script = document.createElement("script");
+      script.id = scriptId;
+      script.src = `https://www.paypal.com/sdk/js?client-id=${import.meta.env.VITE_PAYPAL_CLIENT_ID}&currency=USD`;
+      script.async = true;
+      script.onload = renderPayPalButton;
+      document.body.appendChild(script);
     } else {
-      renderPayPalButton()
+      renderPayPalButton();
     }
 
     function renderPayPalButton() {
@@ -60,37 +59,37 @@ const Cart: React.FC = () => {
               headers: { "Content-Type": "application/json" },
               credentials: "include",
               body: JSON.stringify({ items: cartItems }),
-            })
-            const data = await res.json()
-            return data.orderID
+            });
+            const data = await res.json();
+            return data.orderID;
           },
           onApprove: async (data: any, actions: any) => {
-            setProcessing(true)
-            // Captura el pago y crea las órdenes en el backend
+            setProcessing(true);
+            // Aquí llamas al endpoint para crear las órdenes en el backend
             const captureRes = await fetch(`${import.meta.env.VITE_SITE_URL}/api/paypal/capture-cart-order`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               credentials: "include",
               body: JSON.stringify({ orderID: data.orderID }),
-            })
-            const captureData = await captureRes.json()
+            });
+            const captureData = await captureRes.json();
             if (captureData.success) {
-              // Redirige a /orders y muestra mensaje de éxito
-              navigate("/orders?success=cart")
+              navigate("/orders?success=cart");
             } else {
-              alert("Error procesando el pago.")
+              alert("Error procesando el pago.");
             }
-            setProcessing(false)
+            setProcessing(false);
           },
           onError: (err: any) => {
-            alert("Error con PayPal: " + err)
+            alert("Error con PayPal: " + err);
           }
-        }).render(paypalRef.current)
+        }).render(paypalRef.current);
       }
     }
+
     return () => {
-      if (paypalRef.current) paypalRef.current.innerHTML = ""
-    }
+      if (paypalRef.current) paypalRef.current.innerHTML = "";
+    };
   }, [cartItems, navigate])
 
   const fetchCartItems = async () => {
