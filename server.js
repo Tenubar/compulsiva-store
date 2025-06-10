@@ -1731,28 +1731,29 @@ app.post("/api/paypal/ipn", express.raw({ type: "application/x-www-form-urlencod
 
     console.log("IPN verification result:", verificationResult);
 
-    if (ipnLog.verified) {
-      if (ipnData.payment_status === "Completed") {
-        console.log("Payment status is completed. Creating order.");
-        try {
-          const order = await createOrderFromIPN(ipnData);
-          if (order) {
-            console.log("Order created successfully:", order);
-            ipnLog.orderCreated = true;
-            ipnLog.orderId = order._id;
-            ipnLog.processed = true;
-          }
-        } catch (orderError) {
-          console.error("Error creating order from IPN:", orderError);
-          ipnLog.error = orderError.message;
+    // SOLO crear orden si el campo custom NO está vacío (compra individual)
+    if (ipnLog.verified && ipnData.payment_status === "Completed" && ipnData.custom && ipnData.custom.trim()) {
+      console.log("Payment status is completed and custom field present. Creating order.");
+      try {
+        const order = await createOrderFromIPN(ipnData);
+        if (order) {
+          console.log("Order created successfully:", order);
+          ipnLog.orderCreated = true;
+          ipnLog.orderId = order._id;
+          ipnLog.processed = true;
         }
-      } else {
-        console.log("Payment status is not completed:", ipnData.payment_status);
-        ipnLog.processed = true;
+      } catch (orderError) {
+        console.error("Error creating order from IPN:", orderError);
+        ipnLog.error = orderError.message;
       }
     } else {
-      console.error("IPN verification failed.");
-      ipnLog.error = "IPN verification failed";
+      // Si es carrito, solo loguea y no intentes crear orden
+      if (!ipnData.custom || !ipnData.custom.trim()) {
+        console.log("IPN custom field is empty (carrito), skipping order creation.");
+      } else {
+        console.log("Payment status is not completed or custom missing:", ipnData.payment_status);
+      }
+      ipnLog.processed = true;
     }
   } catch (error) {
     console.error("Error processing PayPal IPN:", error);
@@ -1804,19 +1805,21 @@ async function verifyIPN(verificationBody) {
 
 // Update the createOrderFromIPN function
 async function createOrderFromIPN(ipnData) {
-  // Si el campo custom está vacío o solo contiene espacios, no procesar la orden
+  // Solo procesa si el campo custom tiene valor (compra individual)
   if (!ipnData.custom || !ipnData.custom.trim()) {
     console.log("IPN custom field is empty, skipping order creation.");
     return null;
   }
 
   try {
+    // Evita duplicados por txn_id
     const existingOrder = await Order.findOne({ paypalTransactionId: ipnData.txn_id });
     if (existingOrder) {
       console.log("Order already exists:", existingOrder);
       return existingOrder;
     }
 
+    // Extrae datos del campo custom
     const customParts = ipnData.custom.split("|");
     const userId = customParts[0];
     const selectedSize = customParts.length > 1 ? customParts[1] : "";
@@ -1824,37 +1827,26 @@ async function createOrderFromIPN(ipnData) {
 
     console.log("Parsed custom data:", { userId, selectedSize, selectedColor });
 
-     const user = await User.findById(userId);
+    const user = await User.findById(userId);
     if (!user) {
       throw new Error(`User not found with ID: ${userId}`);
     }
 
     const productId = ipnData.item_number;
-    console.log("IPN item_number:", productId);
     const product = await Product.findById(productId);
     if (!product) {
-      console.error(`Product not found with ID: ${ipnData.item_number}`);
-      ipnLog.error = `Product not found with ID: ${ipnData.item_number}`;
-      await ipnLog.save();
-      return null; // Stop further processing
+      console.error(`Product not found with ID: ${productId}`);
+      return null;
     }
 
-    const shippingMethod = product.shipping?.[0] || { name: "Standard", price: 0 };
-
-    const sizeObj = product.sizes.find(
-      (s) => s.size === selectedSize && s.color === selectedColor
-    );
-
+    // Crea la orden solo para compra individual
     const order = new Order({
       userId,
       productId,
       title: ipnData.item_name || product.title,
       type: product.type,
-      price: sizeObj?.sizePrice || product.price,
-      sizes: product.sizes,
-      shipping: product.shipping,
-      productQuantity: Number.parseInt(ipnData.quantity || 1),
-      description: product.description,
+      price: product.price,
+      quantity: Number.parseInt(ipnData.quantity || 1),
       image: product.image,
       hoverImage: product.hoverImage,
       additionalImages: product.additionalImages,
@@ -1862,14 +1854,6 @@ async function createOrderFromIPN(ipnData) {
       paypalOrderId: ipnData.parent_txn_id || ipnData.txn_id,
       payerEmail: ipnData.payer_email,
       payerName: `${ipnData.first_name || ""} ${ipnData.last_name || ""}`.trim(),
-      shippingAddress: {
-        name: user.name,
-        addressLine1: user.address.street,
-        city: user.address.city,
-        state: user.address.state,
-        postalCode: user.address.postalCode,
-        country: user.address.country,
-      },
       status: "completed",
       paymentDetails: ipnData,
     });
@@ -1877,30 +1861,8 @@ async function createOrderFromIPN(ipnData) {
     await order.save();
     console.log("Order saved successfully:", order);
 
-    const purchaseQuantity = Number.parseInt(ipnData.quantity || 1);
-
-    if (product.sizes && product.sizes.length > 0) {
-      // Decrease quantity for the specific size/color
-      const sizeIndex = product.sizes.findIndex(
-        (s) => s.size === selectedSize && s.color === selectedColor
-      );
-      if (sizeIndex >= 0) {
-        product.sizes[sizeIndex].quantity = Math.max(
-          0,
-          product.sizes[sizeIndex].quantity - purchaseQuantity
-        );
-        await Product.findByIdAndUpdate(productId, { sizes: product.sizes });
-        console.log("Updated product stock (sizes):", product.sizes);
-      }
-    } else {
-      // Decrease productQuantity if no sizes
-      product.productQuantity = Math.max(0, (product.productQuantity || 0) - purchaseQuantity);
-      await Product.findByIdAndUpdate(productId, { productQuantity: product.productQuantity });
-      console.log("Updated product stock (productQuantity):", product.productQuantity);
-    }
-
-    await CartItem.deleteMany({ userId, productId, size: selectedSize, color: selectedColor });
-    console.log("Deleted cart items for user:", userId);
+    // Opcional: descontar stock y limpiar carrito para este producto/usuario
+    await CartItem.deleteMany({ userId, productId });
 
     return order;
 
