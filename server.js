@@ -2012,10 +2012,13 @@ app.post("/api/paypal/capture-cart-order", authenticateToken, async (req, res) =
       if (product.sizes && product.sizes.length > 0 && item.size) {
         let updated = false;
         product.sizes = product.sizes.map(sizeObj => {
-          // Compara talla y color (ambos string, insensible a mayúsculas)
+          const sizeStr = typeof sizeObj.size === "string" ? sizeObj.size : "";
+          const itemSizeStr = typeof item.size === "string" ? item.size : "";
+          const colorStr = typeof sizeObj.color === "string" ? sizeObj.color : "";
+          const itemColorStr = typeof item.color === "string" ? item.color : "";
           if (
-            sizeObj.size.toLowerCase() === (item.size || "").toLowerCase() &&
-            sizeObj.color.toLowerCase() === (item.color || "").toLowerCase()
+            sizeStr.toLowerCase() === itemSizeStr.toLowerCase() &&
+            colorStr.toLowerCase() === itemColorStr.toLowerCase()
           ) {
             updated = true;
             return {
