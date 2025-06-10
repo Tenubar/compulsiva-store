@@ -54,11 +54,30 @@ const Cart: React.FC = () => {
       if ((window as any).paypal && paypalRef.current) {
         (window as any).paypal.Buttons({
           createOrder: async () => {
+            // Prepara los items con shipping incluido
+            const itemsWithShipping = cartItems.map(item => {
+              let shipping = 0
+              if (
+                item.shipping &&
+                Array.isArray(item.shipping) &&
+                item.shipping.length > 0 &&
+                item.shipping[0].shipping_value
+              ) {
+                const value = Number(item.shipping[0].shipping_value)
+                if (!isNaN(value)) {
+                  shipping += value * item.quantity // Shipping por cantidad
+                }
+              }
+              return {
+                ...item,
+                price: item.price + (shipping / item.quantity), // Shipping unitario sumado al precio unitario
+              }
+            })
             const res = await fetch(`${import.meta.env.VITE_SITE_URL}/api/paypal/create-cart-order`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               credentials: "include",
-              body: JSON.stringify({ items: cartItems }),
+              body: JSON.stringify({ items: itemsWithShipping }),
             });
             const data = await res.json();
             return data.orderID;
@@ -158,7 +177,7 @@ const Cart: React.FC = () => {
     }
   }
 
-  const calculateTotal = () => {
+    const calculateTotal = () => {
     return cartItems.reduce((total, item) => {
       let shipping = 0
       if (
@@ -169,7 +188,7 @@ const Cart: React.FC = () => {
       ) {
         const value = Number(item.shipping[0].shipping_value)
         if (!isNaN(value)) {
-          shipping += value
+          shipping += value * item.quantity // <-- Multiplica por la cantidad
         }
       }
       return total + item.price * item.quantity + shipping
