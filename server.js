@@ -1990,6 +1990,8 @@ app.post("/api/paypal/capture-cart-order", authenticateToken, async (req, res) =
         name: item.title,
         unit_amount: { value: item.price },
         quantity: item.quantity,
+        size: item.size,
+        color: item.color,
       }));
       console.log("Recuperando items del carrito del usuario:", items);
     }
@@ -2005,6 +2007,40 @@ app.post("/api/paypal/capture-cart-order", authenticateToken, async (req, res) =
         console.log("Producto no encontrado:", item.sku);
         continue;
       }
+
+      // --- NUEVO: Descontar stock por talla/color o por productQuantity ---
+      if (product.sizes && product.sizes.length > 0 && item.size) {
+        // Busca la talla y color correctos y descuenta la cantidad
+        let updated = false;
+        product.sizes = product.sizes.map(sizeObj => {
+          if (
+            sizeObj.size.toLowerCase() === (item.size || "").toLowerCase() &&
+            (
+              (Array.isArray(sizeObj.colors) && sizeObj.colors.includes(item.color)) ||
+              (typeof sizeObj.color === "string" && sizeObj.color.toLowerCase() === (item.color || "").toLowerCase())
+            )
+          ) {
+            // Descuenta la cantidad solo para esa talla/color
+            updated = true;
+            return {
+              ...sizeObj,
+              quantity: Math.max(0, sizeObj.quantity - Number(item.quantity)),
+            };
+          }
+          return sizeObj;
+        });
+        if (updated) {
+          await product.save();
+        }
+      } else {
+        // Si no tiene tallas, descuenta el productQuantity general
+        if (product.productQuantity) {
+          product.productQuantity = Math.max(0, product.productQuantity - Number(item.quantity));
+          await product.save();
+        }
+      }
+      // --- FIN NUEVO ---
+
       await Order.create({
         userId: req.user.userId,
         productId: item.sku,
@@ -2012,6 +2048,8 @@ app.post("/api/paypal/capture-cart-order", authenticateToken, async (req, res) =
         type: product.type,
         price: Number(item.unit_amount.value),
         quantity: Number(item.quantity),
+        size: item.size || "",
+        color: item.color || "",
         image: product.image,
         hoverImage: product.hoverImage,
         additionalImages: product.additionalImages,
@@ -2019,11 +2057,7 @@ app.post("/api/paypal/capture-cart-order", authenticateToken, async (req, res) =
         status: "completed",
         paymentDetails: captureData,
       });
-      // Descuenta stock (opcional)
-      if (product.productQuantity) {
-        product.productQuantity = Math.max(0, product.productQuantity - Number(item.quantity));
-        await product.save();
-      }
+
       // Borra del carrito
       await CartItem.deleteMany({ userId: req.user.userId, productId: item.sku });
     }
@@ -2064,6 +2098,8 @@ app.post("/api/suggestions", authenticateToken, async (req, res) => {
   try {
     const { message } = req.body
     const user = await User.findById(req.user.userId)
+
+
 
     if (!message || message.trim() === "") {
       return res.status(400).json({ message: "Message is required" })
