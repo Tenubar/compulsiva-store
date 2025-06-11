@@ -184,6 +184,8 @@ const orderSchema = new mongoose.Schema(
     title: { type: String, required: true },
     type: { type: String, required: true }, // Matches productSchema's type field
     price: { type: Number, required: true },
+    
+
     materials: { type: String, default: "" }, // Matches productSchema's materials field    
      sizes: {
       type: [
@@ -197,7 +199,8 @@ const orderSchema = new mongoose.Schema(
       default: [],
     },
     shipping: { type: [{ name: String, price: Number }], default: [] },
-    productQuantity: { type: Number, default: 1, min: 0 },
+    quantity: { type: Number, default: 1, min: 0 },
+    // productQuantity: { type: Number, default: 1, min: 0 },
     description: { type: String }, // Matches productSchema's description field
     image: { type: String, required: true }, // Matches productSchema's image field
     hoverImage: { type: String }, // Matches productSchema's hoverImage field
@@ -1846,7 +1849,7 @@ async function createOrderFromIPN(ipnData) {
       title: ipnData.item_name || product.title,
       type: product.type,
       price: product.price,
-      quantity: Number.parseInt(ipnData.quantity || 1),
+      quantity: parseInt(ipnData.quantity, 10) || 1,
       image: product.image,
       hoverImage: product.hoverImage,
       additionalImages: product.additionalImages,
