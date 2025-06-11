@@ -1858,6 +1858,12 @@ async function createOrderFromIPN(ipnData) {
       }
     }
 
+    let shippingCost = 0;
+    if (product.shipping && product.shipping.length > 0) {
+      shippingCost = product.shipping[0].price;
+    }
+    finalPrice += shippingCost;
+
     // Crea la orden solo para compra individual
     const order = new Order({
       userId,
