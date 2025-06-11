@@ -1842,6 +1842,15 @@ async function createOrderFromIPN(ipnData) {
       return null;
     }
 
+    let sizePrice = product.price;
+    if (selectedSize && product.sizes?.length > 0) {
+      const foundSize = product.sizes.find((s) => s.size === selectedSize);
+      if (foundSize?.sizePrice !== undefined) {
+        sizePrice = foundSize.sizePrice;
+      }
+    }
+
+
     // Crea la orden solo para compra individual
     const order = new Order({
       userId,
@@ -1849,6 +1858,7 @@ async function createOrderFromIPN(ipnData) {
       title: ipnData.item_name || product.title,
       type: product.type,
       price: product.price,
+      sizePrice,
       quantity: parseInt(ipnData.quantity, 10) || 1,
       image: product.image,
       hoverImage: product.hoverImage,

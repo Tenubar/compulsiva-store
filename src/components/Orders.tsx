@@ -382,11 +382,11 @@ const Orders: React.FC = () => {
                             {formatDate(order.createdAt)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {formatPrice(
-                            ((order.price || 0) * (order.quantity || 1)) +
-                              (order.shipping?.[0]?.price || 0),
-                            currency
-                          )}
+                            {formatPrice(
+                              ((order.sizePrice ?? order.price) * (order.quantity ?? 1)) +
+                                (order.shipping?.[0]?.price ?? 0),
+                              currency
+                            )}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <button
