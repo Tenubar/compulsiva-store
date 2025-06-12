@@ -2204,13 +2204,9 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
         target="_top"
         className="hidden"
         id="paypal-form"
-        >
+      >
         <input type="hidden" name="cmd" value="_xclick" />
-        <input
-          type="hidden"
-          name="business"
-          value={import.meta.env.VITE_ADMIN_USER_EMAIL_PP}
-        />
+        <input type="hidden" name="business" value={import.meta.env.VITE_ADMIN_USER_EMAIL_PP} />
         <input
           type="hidden"
           name="item_name"
@@ -2218,9 +2214,13 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
         />
         <input type="hidden" name="item_number" value={product._id} />
         <input
-        type="hidden"
-        name="amount"
-        value={priceToUse.toFixed(2)}
+          type="hidden"
+          name="amount"
+          value={
+            selectedShipping && selectedShipping.price > 0
+              ? (priceToUse + selectedShipping.price).toFixed(2)
+              : priceToUse
+          }
         />
         <input type="hidden" name="quantity" value={quantity} />
         <input type="hidden" name="currency_code" value="USD" />
