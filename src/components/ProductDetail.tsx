@@ -2230,8 +2230,8 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
         <input
           type="hidden"
           name="custom"
-          value={`${userData ? userData._id : ""}|${selectedSize}|${selectedColor}`}
-        />
+          value={`${userData ? userData._id : ""}|${selectedSize}|${selectedColor}|${quantity}`}
+       />
         <input type="hidden" name="no_shipping" value="1" />
         <input type="hidden" name="no_note" value="1" />
         <input type="hidden" name="tax" value="0" />

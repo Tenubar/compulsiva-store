@@ -1827,6 +1827,9 @@ async function createOrderFromIPN(ipnData) {
     const userId = customParts[0];
     const selectedSize = customParts.length > 1 ? customParts[1] : "";
     const selectedColor = customParts.length > 2 ? customParts[2] : "";
+    const [qtyString] = ipnData.custom.split("|");
+    const quantity = parseInt(qtyString, 10) || 1;
+
 
     console.log("Parsed custom data:", { userId, selectedSize, selectedColor });
 
@@ -1872,7 +1875,7 @@ async function createOrderFromIPN(ipnData) {
       type: product.type,
       price: finalPrice,
       sizePrice,
-      quantity: parseInt(ipnData.quantity, 10) || 1,
+      quantity: quantity,
       image: product.image,
       hoverImage: product.hoverImage,
       additionalImages: product.additionalImages,
