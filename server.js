@@ -1824,10 +1824,7 @@ async function createOrderFromIPN(ipnData) {
 
     // Extrae datos del campo custom
     const customParts = ipnData.custom.split("|");
-    const userId = customParts[0];
-    const selectedSize = customParts.length > 1 ? customParts[1] : "";
-    const selectedColor = customParts.length > 2 ? customParts[2] : "";
-    const [qtyString] = ipnData.custom.split("|");
+    const [userId, selectedSize, selectedColor, qtyString] = ipnData.custom.split("|");
     const quantity = parseInt(qtyString, 10) || 1;
 
 
@@ -1869,7 +1866,7 @@ async function createOrderFromIPN(ipnData) {
 
     // Crea la orden solo para compra individual
     const order = new Order({
-      userId,
+      userId: userId,
       productId,
       title: ipnData.item_name || product.title,
       type: product.type,
