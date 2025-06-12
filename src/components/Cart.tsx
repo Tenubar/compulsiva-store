@@ -55,29 +55,35 @@ const Cart: React.FC = () => {
         (window as any).paypal.Buttons({
           createOrder: async () => {
             // Prepara los items con shipping incluido
-            const itemsWithShipping = cartItems.map(item => {
-              let shipping = 0
+            const itemsForPaypalBackend = cartItems.map(item => {
+              const baseUnitPrice = item.price;
+              let flatShippingCostForThisItemLine = 0;
               if (
                 item.shipping &&
                 Array.isArray(item.shipping) &&
                 item.shipping.length > 0 &&
                 item.shipping[0].shipping_value
               ) {
-                const value = Number(item.shipping[0].shipping_value)
+                const value = Number(item.shipping[0].shipping_value);
                 if (!isNaN(value)) {
-                  shipping += value * item.quantity // Shipping por cantidad
+                  flatShippingCostForThisItemLine = value;
                 }
               }
+
+              // Calculate the effective unit price that includes a share of the flat shipping cost.
+              const effectiveUnitPrice = baseUnitPrice + (item.quantity > 0 ? (flatShippingCostForThisItemLine / item.quantity) : 0);
+
               return {
-                ...item,
-                price: item.price + (shipping / item.quantity), // Shipping unitario sumado al precio unitario
-              }
-            })
+                ...item, // Spread other item properties (productId, title, quantity, size, color, etc.)
+                price: parseFloat(effectiveUnitPrice.toFixed(2)), // Send this effective unit price
+              };
+            });
+
             const res = await fetch(`${import.meta.env.VITE_SITE_URL}/api/paypal/create-cart-order`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               credentials: "include",
-              body: JSON.stringify({ items: itemsWithShipping }),
+              body: JSON.stringify({ items: itemsForPaypalBackend }),
             });
             const data = await res.json();
             return data.orderID;
@@ -177,23 +183,42 @@ const Cart: React.FC = () => {
     }
   }
 
-    const calculateTotal = () => {
-    return cartItems.reduce((total, item) => {
-      let shipping = 0
-      if (
-        item.shipping &&
-        Array.isArray(item.shipping) &&
-        item.shipping.length > 0 &&
-        item.shipping[0].shipping_value
-      ) {
-        const value = Number(item.shipping[0].shipping_value)
-        if (!isNaN(value)) {
-          shipping += value * item.quantity // <-- Multiplica por la cantidad
-        }
+  //   const calculateTotal = () => {
+  //   return cartItems.reduce((total, item) => {
+  //     let shipping = 0
+  //     if (
+  //       item.shipping &&
+  //       Array.isArray(item.shipping) &&
+  //       item.shipping.length > 0 &&
+  //       item.shipping[0].shipping_value
+  //     ) {
+  //       const value = Number(item.shipping[0].shipping_value)
+  //       if (!isNaN(value)) {
+  //         shipping += value * item.quantity
+  //       }
+  //     }
+  //     return total + item.price * item.quantity + shipping
+  //   }, 0).toFixed(2)
+  // }
+
+const calculateTotal = () => {
+  return cartItems.reduce((total, item) => {
+    const baseTotal = item.price * item.quantity
+    let shippingTotal = 0
+    if (
+      item.shipping &&
+      Array.isArray(item.shipping) &&
+      item.shipping.length > 0 &&
+      item.shipping[0].shipping_value
+    ) {
+      const value = Number(item.shipping[0].shipping_value)
+      if (!isNaN(value)) {
+        shippingTotal += value
       }
-      return total + item.price * item.quantity + shipping
-    }, 0).toFixed(2)
-  }
+    }
+    return total + baseTotal + shippingTotal
+  }, 0).toFixed(2)
+}
 
   if (loading) {
     return (
