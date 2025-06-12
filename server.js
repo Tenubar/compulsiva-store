@@ -2067,6 +2067,11 @@ app.post("/api/paypal/capture-cart-order", authenticateToken, async (req, res) =
         }
       }
 
+      let shippingCost = 0;
+      if (product.shipping && product.shipping.length > 0) {
+        shippingCost = product.shipping[0].price;
+      }
+
       await Order.create({
         userId: req.user.userId,
         productId: item.sku,
@@ -2080,6 +2085,7 @@ app.post("/api/paypal/capture-cart-order", authenticateToken, async (req, res) =
         hoverImage: product.hoverImage,
         additionalImages: product.additionalImages,
         paypalTransactionId: captureData.id,
+        shippingCost, 
         status: "completed",
         paymentDetails: captureData,
       });
