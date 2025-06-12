@@ -11,7 +11,17 @@ import { getApiUrl } from "../utils/apiUtils"
 import { useCurrencyConversion } from "../utils/currencyUtils"
 
 interface PaymentDetails {
-  mc_gross: string
+  mc_gross?: string
+  purchase_units?: Array<{
+    payments?: {
+      captures?: Array<{
+        amount: {
+          currency_code: string
+          value: string
+        }
+      }>
+    }
+  }>
 }
 
 interface Order {
@@ -383,10 +393,12 @@ const Orders: React.FC = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {formatPrice(
-                              parseFloat(order.paymentDetails?.mc_gross || "0"),
-                              currency
-                            )}
+                          {formatPrice(
+                            parseFloat(
+                              order.paymentDetails?.purchase_units?.[0]?.payments?.captures?.[0]?.amount?.value ?? "0"
+                            ),
+                            currency
+                          )}
                         </td>
                         </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
