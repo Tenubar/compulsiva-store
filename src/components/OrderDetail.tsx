@@ -10,6 +10,14 @@ import Footer from "./Footer"
 import { getApiUrl } from "../utils/apiUtils"
 import { useCurrencyConversion } from "../utils/currencyUtils"
 
+interface PaymentDetails {
+  mc_gross?: string
+}
+
+interface OrderDetail {
+  paymentDetails?: PaymentDetails
+}
+
 interface OrderDetail {
   _id: string
   productId: string
@@ -185,8 +193,7 @@ const OrderDetail: React.FC = () => {
                       </div>
                       <div className="text-sm font-medium text-gray-900">
                         {formatPrice(
-                          ((order.price || 0) * (order.quantity || 1)) +
-                            (order.shipping?.[0]?.price || 0),
+                          parseFloat(order.paymentDetails?.mc_gross || "0"),
                           currency
                         )}
                       </div>

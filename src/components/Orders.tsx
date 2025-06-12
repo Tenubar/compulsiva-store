@@ -12,10 +12,6 @@ import { useCurrencyConversion } from "../utils/currencyUtils"
 
 interface PaymentDetails {
   mc_gross: string
-  protection_eligibility?: string
-  payer_id?: string
-  tax?: string
-  payment_date?: string
 }
 
 interface Order {
