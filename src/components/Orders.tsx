@@ -10,29 +10,33 @@ import Footer from "./Footer"
 import { getApiUrl } from "../utils/apiUtils"
 import { useCurrencyConversion } from "../utils/currencyUtils"
 
+interface PaymentDetails {
+  mc_gross: string
+  protection_eligibility?: string
+  payer_id?: string
+  tax?: string
+  payment_date?: string
+}
+
 interface Order {
   _id: string
   productId: string
   title: string
-  price: number // Base price of the product
-  sizePrice?: number // Price for the selected size (optional)
+  price: number
+  sizePrice?: number
   quantity: number
   paypalTransactionId: string
   paypalOrderId?: string
   payerEmail?: string
   payerName?: string
-  shippingMethod?: {
-    name: string
-    price: number
-  }
-  shipping?: Array<{ 
-    name: string
-    price: number
-  }>
+  shippingMethod?: { name: string; price: number }
+  shipping?: Array<{ name: string; price: number }>
   status: string
   createdAt: string
-  sizes?: { size: string; sizePrice: number }[] // Added sizes property
+  sizes?: { size: string; sizePrice: number }[]
+  paymentDetails?: PaymentDetails
 }
+
 
 const Orders: React.FC = () => {
   const { t, language, setLanguage, currency, setCurrency } = useContext(LanguageContext)
@@ -383,13 +387,10 @@ const Orders: React.FC = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {formatPrice(
-                            (
-                              ((order.sizePrice ?? order.price) * order.quantity) +
-                              (order.shippingMethod?.price ?? 0)
-                            ),
-                            currency
-                          )}
+                            {formatPrice(
+                              parseFloat(order.paymentDetails?.mc_gross || "0"),
+                              currency
+                            )}
                         </td>
                         </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
