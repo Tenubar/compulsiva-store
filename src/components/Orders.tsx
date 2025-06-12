@@ -19,6 +19,7 @@ interface Order {
   productId: string
   title: string
   price: number
+  shippingCost?: number
   sizePrice?: number
   quantity: number
   paypalTransactionId: string
@@ -128,6 +129,7 @@ const Orders: React.FC = () => {
           productId: string;
           title: string;
           price: number;
+          shippingCost?: number;
           sizePrice?: number;
           quantity: number;
           paypalTransactionId: string;

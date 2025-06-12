@@ -200,6 +200,7 @@ const orderSchema = new mongoose.Schema(
     },
     shipping: { type: [{ name: String, price: Number }], default: [] },
     quantity: { type: Number, default: 1, min: 0 },
+    shippingCost: { type: Number, default: 0 },
     // productQuantity: { type: Number, default: 1, min: 0 },
     description: { type: String }, // Matches productSchema's description field
     image: { type: String, required: true }, // Matches productSchema's image field
