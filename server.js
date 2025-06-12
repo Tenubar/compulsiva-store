@@ -1862,7 +1862,7 @@ async function createOrderFromIPN(ipnData) {
     if (product.shipping && product.shipping.length > 0) {
       shippingCost = product.shipping[0].price;
     }
-    finalPrice += shippingCost;
+    finalPrice;
 
     // Crea la orden solo para compra individual
     const order = new Order({
@@ -1871,7 +1871,7 @@ async function createOrderFromIPN(ipnData) {
       title: ipnData.item_name || product.title,
       type: product.type,
       price: finalPrice,
-      sizePrice,
+      shippingCost: shippingCost,
       quantity: quantity,
       image: product.image,
       hoverImage: product.hoverImage,
