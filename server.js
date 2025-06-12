@@ -1885,25 +1885,24 @@ async function createOrderFromIPN(ipnData) {
     });
 
     // Actualiza el stock del producto
-    const dbProduct = await Product.findById(productId)
-    if (!dbProduct) return // maneja error
+    const productupdt = await Product.findById(productId)
+    if (!productupdt) return // maneja error
 
     // Si tiene sizes, disminuye la cantidad respectiva
-    const purchasedQuantity = parseInt(ipnData.quantity, 10) || 1;
-    if (dbProduct.sizes?.length > 0 && selectedSize) {
-      const sizeIndex = dbProduct.sizes.findIndex((s) => s.size === selectedSize && s.color === selectedColor)
+    if (product.sizes?.length > 0 && size) {
+      const sizeIndex = product.sizes.findIndex((s) => s.size === size && s.color === selectedColor)
       if (sizeIndex !== -1) {
-        dbProduct.sizes[sizeIndex].quantity = Math.max(
-          dbProduct.sizes[sizeIndex].quantity - purchasedQuantity,
+        product.sizes[sizeIndex].quantity = Math.max(
+          product.sizes[sizeIndex].quantity - purchasedQuantity,
           0
         )
       }
     } else {
       // Decrementa productQuantity si no hay sizes
-      dbProduct.productQuantity = Math.max(dbProduct.productQuantity - purchasedQuantity, 0)
+      product.productQuantity = Math.max(product.productQuantity - purchasedQuantity, 0)
     }
 
-    await dbProduct.save()
+    await product.save()
     
     await order.save()
     return order
