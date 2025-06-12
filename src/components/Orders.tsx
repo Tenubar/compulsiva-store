@@ -385,7 +385,7 @@ const Orders: React.FC = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {formatPrice(order.price * order.quantity, currency)}
+                          {formatPrice(order.price * order.quantity + (order.shippingCost ?? 0), currency)}
                         </td>
                         </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">

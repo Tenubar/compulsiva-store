@@ -1627,6 +1627,7 @@ app.post("/api/orders", authenticateToken, async (req, res) => {
       payerName,
       shippingAddress,
       paymentDetails,
+      shippingCost
     } = req.body
 
     // Check if an order with this transaction ID already exists
@@ -1653,6 +1654,7 @@ app.post("/api/orders", authenticateToken, async (req, res) => {
       payerName,
       shippingAddress,
       paymentDetails,
+      shippingCost
     })
 
     await order.save()
@@ -2059,13 +2061,11 @@ app.post("/api/paypal/capture-cart-order", authenticateToken, async (req, res) =
           await product.save();
         }
       } else {
-        // Si no tiene tallas, descuenta el productQuantity general
         if (product.productQuantity) {
           product.productQuantity = Math.max(0, product.productQuantity - Number(item.quantity));
           await product.save();
         }
       }
-      // --- FIN AJUSTE ---
 
       await Order.create({
         userId: req.user.userId,
