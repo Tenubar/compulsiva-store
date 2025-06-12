@@ -24,6 +24,7 @@ interface OrderDetail {
   title: string
   price: number
   quantity: number
+  shippingCost?: number
   paypalTransactionId: string
   paypalOrderId?: string
   payerEmail?: string
@@ -193,7 +194,7 @@ const OrderDetail: React.FC = () => {
                       </div>
                       <div className="text-sm font-medium text-gray-900">
                         {formatPrice(
-                          parseFloat(order.paymentDetails?.mc_gross || "0"),
+                          order.price * order.quantity + (order.shippingCost ?? 0),
                           currency
                         )}
                       </div>

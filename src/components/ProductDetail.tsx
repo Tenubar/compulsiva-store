@@ -839,6 +839,14 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
         }
       }
 
+       let displayTitle = product.title;
+      if (product.sizes && product.sizes.length > 0 && selectedSize) {
+        displayTitle += ` - ${selectedSize}`;
+        if (selectedColor) {
+          displayTitle += ` - ${selectedColor}`;
+        }
+      }
+
         const response = await fetch(`${import.meta.env.VITE_SITE_URL}/api/cart`, {
         method: "POST",
         headers: {
@@ -847,7 +855,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
         credentials: "include",
         body: JSON.stringify({
           productId: product._id,
-          title: product.title,
+          title: displayTitle,
           type: product.type || "Product",
           price: product.sizes && product.sizes.length > 0 ? getSelectedSizePrice() : product.price,
           image: product.image,
