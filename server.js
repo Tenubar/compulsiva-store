@@ -1808,13 +1808,13 @@ async function verifyIPN(verificationBody) {
 
 // Update the createOrderFromIPN function
 async function createOrderFromIPN(ipnData) {
-  // Solo procesa si el campo custom tiene valor (compra individual)
-  if (!ipnData.custom || !ipnData.custom.trim()) {
-    console.log("IPN custom field is empty, skipping order creation.");
-    return null;
-  }
-
   try {
+    // Solo procesa si el campo custom tiene valor (compra individual)
+    if (!ipnData.custom || !ipnData.custom.trim()) {
+      console.log("IPN custom field is empty, skipping order creation.");
+      return null;
+    }
+
     // Evita duplicados por txn_id
     const existingOrder = await Order.findOne({ paypalTransactionId: ipnData.txn_id });
     if (existingOrder) {
@@ -1884,17 +1884,32 @@ async function createOrderFromIPN(ipnData) {
       paymentDetails: ipnData,
     });
 
-    await order.save();
-    console.log("Order saved successfully:", order);
+    // Actualiza el stock del producto
+    const dbProduct = await Product.findById(productId)
+    if (!dbProduct) return // maneja error
 
-    // Opcional: descontar stock y limpiar carrito para este producto/usuario
-    await CartItem.deleteMany({ userId, productId });
+    // Si tiene sizes, disminuye la cantidad respectiva
+    const purchasedQuantity = parseInt(ipnData.quantity, 10) || 1;
+    if (dbProduct.sizes?.length > 0 && selectedSize) {
+      const sizeIndex = dbProduct.sizes.findIndex((s) => s.size === selectedSize && s.color === selectedColor)
+      if (sizeIndex !== -1) {
+        dbProduct.sizes[sizeIndex].quantity = Math.max(
+          dbProduct.sizes[sizeIndex].quantity - purchasedQuantity,
+          0
+        )
+      }
+    } else {
+      // Decrementa productQuantity si no hay sizes
+      dbProduct.productQuantity = Math.max(dbProduct.productQuantity - purchasedQuantity, 0)
+    }
 
-    return order;
-
+    await dbProduct.save()
+    
+    await order.save()
+    return order
   } catch (error) {
-    console.error("Error creating order from IPN:", error);
-    throw error;
+    console.error("Error creating order from IPN:", error)
+    throw error
   }
 }
 
@@ -2028,16 +2043,16 @@ app.post("/api/paypal/capture-cart-order", authenticateToken, async (req, res) =
 
     for (const item of items) {
       console.log("Creando orden para item:", item);
-      const product = await Product.findById(item.sku);
-      if (!product) {
+      const foundProduct = await Product.findById(item.sku);
+      if (!foundProduct) {
         console.log("Producto no encontrado:", item.sku);
         continue;
       }
 
       // --- AJUSTE: Descontar stock por talla/color o por productQuantity ---
-      if (product.sizes && product.sizes.length > 0 && item.size) {
+      if (foundProduct.sizes && foundProduct.sizes.length > 0 && item.size) {
         let updated = false;
-        product.sizes = product.sizes.map(sizeObj => {
+        foundProduct.sizes = foundProduct.sizes.map(sizeObj => {
           const sizeStr = typeof sizeObj.size === "string" ? sizeObj.size : "";
           const itemSizeStr = typeof item.size === "string" ? item.size : "";
           const colorStr = typeof sizeObj.color === "string" ? sizeObj.color : "";
@@ -2055,13 +2070,13 @@ app.post("/api/paypal/capture-cart-order", authenticateToken, async (req, res) =
           return sizeObj;
         });
         if (updated) {
-          await product.save();
+          await foundProduct.save();
         }
       } else {
         // Si no tiene tallas, descuenta el productQuantity general
-        if (product.productQuantity) {
-          product.productQuantity = Math.max(0, product.productQuantity - Number(item.quantity));
-          await product.save();
+        if (foundProduct.productQuantity) {
+          foundProduct.productQuantity = Math.max(0, foundProduct.productQuantity - Number(item.quantity));
+          await foundProduct.save();
         }
       }
       // --- FIN AJUSTE ---
@@ -2070,14 +2085,14 @@ app.post("/api/paypal/capture-cart-order", authenticateToken, async (req, res) =
         userId: req.user.userId,
         productId: item.sku,
         title: item.name,
-        type: product.type,
+        type: foundProduct.type,
         price: Number(item.unit_amount.value),
         quantity: Number(item.quantity),
         size: item.size || "",
         color: item.color || "",
-        image: product.image,
-        hoverImage: product.hoverImage,
-        additionalImages: product.additionalImages,
+        image: foundProduct.image,
+        hoverImage: foundProduct.hoverImage,
+        additionalImages: foundProduct.additionalImages,
         paypalTransactionId: captureData.id,
         status: "completed",
         paymentDetails: captureData,
