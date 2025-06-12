@@ -2026,6 +2026,10 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
 
 
 
+
+
+
+
                     <div>
                       <label className="block text-sm font-medium text-gray-700">{t("phone")}</label>
                       <input
@@ -2218,11 +2222,10 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
           name="amount"
           value={
             selectedShipping && selectedShipping.price > 0
-              ? (priceToUse + selectedShipping.price).toFixed(2)
-              : (priceToUse).toFixed(2)
+              ? ((priceToUse * quantity) + selectedShipping.price).toFixed(2)
+              : (priceToUse * quantity).toFixed(2)
           }
         />
-        <input type="hidden" name="quantity" value={quantity} />
         <input type="hidden" name="currency_code" value="USD" />
         <input
           type="hidden"
