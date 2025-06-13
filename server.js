@@ -1848,14 +1848,14 @@ async function createOrderFromIPN(ipnData) {
 
     let sizePrice = product.price; // Default to product price
     // Update product stock
-    if (selectedSize && product.sizes && product.sizes.length > 0) {
+     if (selectedSize && product.sizes && product.sizes.length > 0) {
       const sizeIndex = product.sizes.findIndex(
         (s) => s.size === selectedSize && s.color === (selectedColor || "Default")
       );
       if (sizeIndex > -1) {
-        product.sizes[sizeIndex].quantity -= purchasedQuantity;
+        product.sizes[sizeIndex].quantity -= purchasedQuantity; // Now uses the correctly named variable
         if (product.sizes[sizeIndex].quantity < 0) {
-          console.warn(`Product size ${selectedSize} (${selectedColor}) stock is now negative for product ${productId}. Setting to 0.`);
+          console.warn(`Product size ${selectedSize} (${selectedColor || "Default"}) stock is now negative for product ${productId}. Setting to 0.`);
           product.sizes[sizeIndex].quantity = 0;
         }
         sizePrice = product.sizes[sizeIndex].sizePrice || product.price;
@@ -1863,7 +1863,7 @@ async function createOrderFromIPN(ipnData) {
         console.warn(`Size ${selectedSize} with color ${selectedColor || "Default"} not found for product ${productId}. Stock not updated for size.`);
       }
     } else {
-      product.productQuantity -= purchasedQuantity;
+      product.productQuantity -= purchasedQuantity; // Now uses the correctly named variable
       if (product.productQuantity < 0) {
         console.warn(`Product ${productId} stock is now negative. Setting to 0.`);
         product.productQuantity = 0;
