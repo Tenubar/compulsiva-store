@@ -1841,23 +1841,42 @@ async function createOrderFromIPN(ipnData) {
     const productId = ipnData.item_number;
     const product = await Product.findById(productId);
     if (!product) {
-      console.error(`Product not found with ID: ${productId}`);
-      return null;
+      console.error(`Product with ID ${productId} not found.`);
+      throw new Error(`Product with ID ${productId} not found.`);
     }
 
-    let sizePrice = product.price;
-    if (selectedSize && product.sizes?.length > 0) {
-      const foundSize = product.sizes.find((s) => s.size === selectedSize);
-      if (foundSize?.sizePrice !== undefined) {
-        sizePrice = foundSize.sizePrice;
+    let sizePrice = product.price; // Default to product price
+    // Update product stock
+    if (selectedSize && product.sizes && product.sizes.length > 0) {
+      const sizeIndex = product.sizes.findIndex(
+        (s) => s.size === selectedSize && s.color === (selectedColor || "Default")
+      );
+      if (sizeIndex > -1) {
+        product.sizes[sizeIndex].quantity -= purchasedQuantity;
+        if (product.sizes[sizeIndex].quantity < 0) {
+          console.warn(`Product size ${selectedSize} (${selectedColor}) stock is now negative for product ${productId}. Setting to 0.`);
+          product.sizes[sizeIndex].quantity = 0;
+        }
+        sizePrice = product.sizes[sizeIndex].sizePrice || product.price;
+      } else {
+        console.warn(`Size ${selectedSize} with color ${selectedColor || "Default"} not found for product ${productId}. Stock not updated for size.`);
+      }
+    } else {
+      product.productQuantity -= purchasedQuantity;
+      if (product.productQuantity < 0) {
+        console.warn(`Product ${productId} stock is now negative. Setting to 0.`);
+        product.productQuantity = 0;
       }
     }
+    await product.save();
+    console.log(`Stock updated for product ${productId}.`);
 
-    let finalPrice = product.price;
+
+    let finalPrice = product.price; // This was 'sizePrice' before, ensure it's product.price or size specific price
     if (selectedSize && product.sizes?.length > 0) {
-      const foundSize = product.sizes.find((s) => s.size === selectedSize);
-      if (foundSize?.sizePrice !== undefined) {
-        finalPrice = foundSize.sizePrice;
+      const sizeObj = product.sizes.find(s => s.size === selectedSize && s.color === (selectedColor || "Default"));
+      if (sizeObj && typeof sizeObj.sizePrice === 'number') {
+        finalPrice = sizeObj.sizePrice;
       }
     }
 
@@ -1865,7 +1884,7 @@ async function createOrderFromIPN(ipnData) {
     if (product.shipping && product.shipping.length > 0) {
       shippingCost = product.shipping[0].price;
     }
-    finalPrice;
+    
 
     // Crea la orden solo para compra individual
     const order = new Order({
