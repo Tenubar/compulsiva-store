@@ -2137,7 +2137,7 @@ app.post("/api/paypal/capture-cart-order", authenticateToken, async (req, res) =
       });
 
       // Default shipping method
-      let shippingMethod = { name: "No shipping", price: 0 };
+      let shippingMethod = { name: "", price: 0 };
       if (cartItem && Array.isArray(cartItem.shipping) && cartItem.shipping.length > 0) {
         shippingMethod = {
           name: cartItem.shipping[0].shipping_name,
