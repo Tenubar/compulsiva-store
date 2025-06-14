@@ -118,6 +118,7 @@ export const translations = {
     failedToAdd: "Failed to add to cart",
     errorAddingToCart: "Error adding to cart",
     productOutOfStock: "Product out of stock",
+    colorOutOfStock: "Color out of stock",
 
     // Errors
     error: "Error",
@@ -584,6 +585,7 @@ export const translations = {
     failedToAdd: "Error al añadir al carrito",
     errorAddingToCart: "Error al añadir al carrito",
     productOutOfStock: "Producto agotado",
+    colorOutOfStock: "Color agotado",
 
     // Errors
     error: "Error",

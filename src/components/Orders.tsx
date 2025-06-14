@@ -35,7 +35,7 @@ interface Order {
 }
 
 
-const Orders: React.FC = () => {
+export const Orders: React.FC = () => {
   const { t, language, setLanguage, currency, setCurrency } = useContext(LanguageContext)
   const { formatPrice } = useCurrencyConversion()
   const [orders, setOrders] = useState<Order[]>([])
@@ -43,6 +43,8 @@ const Orders: React.FC = () => {
   const [error, setError] = useState("")
   const [successMessage, setSuccessMessage] = useState("")
   const [waitingForIPN, setWaitingForIPN] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)  // <-- Add this
+  const pageSize = 10                                // <-- Add this  
   const [paymentInfo, setPaymentInfo] = useState<{
     productId?: string
     title?: string
@@ -191,6 +193,9 @@ const Orders: React.FC = () => {
 
   console.log("PaymentInfo:", paymentInfo);
 
+  const totalPages = Math.ceil(orders.length / pageSize)
+  const paginatedOrders = orders.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Header currency={currency} setCurrency={setCurrency} language={language} setLanguage={setLanguage} />
@@ -302,7 +307,7 @@ const Orders: React.FC = () => {
                   <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
                   <p className="mt-2 text-gray-500">{t("loadingOrders")}</p>
                 </div>
-              ) : orders.length === 0 ? (
+              ) : paginatedOrders.length === 0 && orders.length === 0 ?  (
                 <div className="text-center py-8">
                   <ShoppingBag className="h-12 w-12 text-gray-400 mx-auto" />
                   <h3 className="mt-2 text-sm font-medium text-gray-900">{t("noOrders")}</h3>
@@ -351,13 +356,19 @@ const Orders: React.FC = () => {
                         >
                           {t("total")}
                         </th>
+
+
                         <th scope="col" className="relative px-6 py-3">
-                          <span className="sr-only">{t("view")}</span>
+                          <span className="sr-only">
+                          {t("view")}
+                          </span>
                         </th>
+
+                      
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {orders.map((order) => (
+                      {paginatedOrders.map((order) => (
                         <tr key={order._id} className="hover:bg-gray-50">
                           <td className="px-6 py-4">
                             <div className="flex items-center">
@@ -400,6 +411,28 @@ const Orders: React.FC = () => {
                       ))}
                     </tbody>
                   </table>
+
+                  {/* Pagination controls */}
+                  <div className="flex justify-between items-center mt-4">
+                    <button
+                      onClick={() => setCurrentPage(current => Math.max(current - 1, 1))}
+                      disabled={currentPage === 1}
+                      className="px-3 py-2 border rounded"
+                    >
+                      « Previous
+                    </button>
+                    <span className="mx-4">
+                      Page {currentPage} of {totalPages}
+                    </span>
+                    <button
+                      onClick={() => setCurrentPage(current => Math.min(current + 1, totalPages))}
+                      disabled={currentPage === totalPages}
+                      className="px-3 py-2 border rounded"
+                    >
+                      Next »
+                    </button>
+                  </div>
+
                 </div>
               )}
             </div>

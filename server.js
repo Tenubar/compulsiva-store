@@ -1592,6 +1592,18 @@ app.delete("/api/cart/:id", authenticateToken, async (req, res) => {
   }
 })
 
+// Delete all cart items for the authenticated user
+app.delete("/api/cart", authenticateToken, async (req, res) => {
+  try {
+    await CartItem.deleteMany({ userId: req.user.userId });
+    res.json({ message: "All items removed from cart" });
+  } catch (error) {
+    console.error("Error clearing cart:", error);
+    res.status(500).json({ message: "Error clearing cart", error: error.message });
+  }
+});
+
+
 // Order Routes
 app.get("/api/orders", authenticateToken, async (req, res) => {
   try {

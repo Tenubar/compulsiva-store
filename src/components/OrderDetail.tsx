@@ -248,7 +248,7 @@ const OrderDetail: React.FC = () => {
                 </div>
 
                 {/* Shipping Information */}
-                <div className="mb-8">
+                {/* <div className="mb-8">
                   <h2 className="text-lg font-medium text-gray-900 mb-4">{t("shippingInformation")}</h2>
                   <div className="bg-gray-50 p-4 rounded-lg">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -284,7 +284,55 @@ const OrderDetail: React.FC = () => {
                       )}
                     </div>
                   </div>
+                </div> */}
+
+                     {/* ...existing code... */}
+
+              {/* Shipping Information */}
+              <div className="mb-8">
+                <h2 className="text-lg font-medium text-gray-900 mb-4">{t("shippingInformation")}</h2>
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  {order.shipping && order.shipping.length > 0 ? (
+                    /* Show the user’s shipping address stored in the order */
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <div className="flex items-center mb-2">
+                          <Truck className="h-5 w-5 text-gray-400 mr-2" />
+                          <span className="text-sm font-medium text-gray-900">{t("shippingMethod")}</span>
+                        </div>
+                        {order.shippingMethod ? (
+                          <p className="text-sm text-gray-500 ml-7">
+                            {order.shippingMethod.name} ({formatPrice(order.shippingMethod.price, currency)})
+                          </p>
+                        ) : (
+                          <p className="text-sm text-gray-500 ml-7">{t("standardShipping")}</p>
+                        )}
+                      </div>
+                      {order.shippingAddress && (
+                        <div>
+                          <div className="flex items-center mb-2">
+                            <MapPin className="h-5 w-5 text-gray-400 mr-2" />
+                            <span className="text-sm font-medium text-gray-900">{t("shippingAddress")}</span>
+                          </div>
+                          <div className="text-sm text-gray-500 ml-7">
+                            {order.shippingAddress.name && <p>{order.shippingAddress.name}</p>}
+                            {order.shippingAddress.addressLine1 && <p>{order.shippingAddress.addressLine1}</p>}
+                            {order.shippingAddress.addressLine2 && <p>{order.shippingAddress.addressLine2}</p>}
+                            <p>
+                              {order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.postalCode}
+                            </p>
+                            <p>{order.shippingAddress.country}</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    /* Display if product has no shipping */
+                    <p className="text-sm text-gray-500 ml-7">Sin shipping (Compra Digital)</p>
+                  )}
                 </div>
+              </div>
+
               </div>
             ) : null}
           </div>

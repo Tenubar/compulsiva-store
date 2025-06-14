@@ -183,6 +183,29 @@ const Cart: React.FC = () => {
     }
   }
 
+  const handleEmptyCart = async () => {
+    const confirmEmpty = window.confirm("Estás seguro de deseas borrar todos los items del Carrito de compras?");
+    if (confirmEmpty) {
+      try {
+        const response = await fetch(`${import.meta.env.VITE_SITE_URL}/api/cart`, {
+          method: "DELETE",
+          credentials: "include",
+        });
+
+        if (response.ok) {
+          setCartItems([]); // Clear cart items in the frontend
+          // Optionally, show a success message
+        } else {
+          const errorData = await response.json();
+          setError(errorData.message || "Failed to empty cart");
+        }
+      } catch (err) {
+        setError("Error emptying cart");
+        console.error(err);
+      }
+    }
+  };
+
   //   const calculateTotal = () => {
   //   return cartItems.reduce((total, item) => {
   //     let shipping = 0
@@ -282,9 +305,19 @@ const calculateTotal = () => {
           </div>
         ) : (
           <div className="bg-white shadow-md rounded-lg overflow-hidden">
-            <div className="border-b border-gray-200 px-6 py-4">
+            
+             <div className="border-b border-gray-200 px-6 py-4 flex justify-between items-center">
               <h2 className="text-lg font-medium text-gray-900">Items in your cart</h2>
+              {cartItems.length > 0 && (
+                <button
+                  onClick={handleEmptyCart}
+                  className="px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                >
+                  Empty the Cart
+                </button>
+              )}
             </div>
+            
             <ul className="divide-y divide-gray-200">
               {cartItems.map((item) => (
                 <li key={item._id} className="px-6 py-4 flex items-center">
