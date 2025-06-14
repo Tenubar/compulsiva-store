@@ -1903,7 +1903,7 @@ async function createOrderFromIPN(ipnData) {
       shippingCost = product.shipping[0].price;
     }
     
-    let shippingMethod = { name: "No shipping", price: 0 };
+    let shippingMethod = { name: "", price: 0 };
     if (ipnData.shipping_method) {
       try {
         shippingMethod = JSON.parse(ipnData.shipping_method);
