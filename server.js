@@ -219,6 +219,7 @@ const orderSchema = new mongoose.Schema(
       postalCode: { type: String },
       country: { type: String },
     },
+    shippingMethod: { type: String, default: "" },
     status: { type: String, default: "completed" },
     paymentDetails: { type: Object },
   },
@@ -2139,6 +2140,7 @@ app.post("/api/paypal/capture-cart-order", authenticateToken, async (req, res) =
         country: user.address.country || "",
       },
 
+        shippingMethod: req.body.shippingMethod || "",
         userId: req.user.userId,
         productId: item.sku,
         title: item.name,

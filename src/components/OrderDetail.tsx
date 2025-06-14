@@ -328,6 +328,12 @@ const OrderDetail: React.FC = () => {
                             {order.userShipping.city}, {order.userShipping.state} {order.userShipping.postalCode}
                           </p>
                           <p>{order.userShipping.country}</p>
+                          {/* Add shippingMethod here */}
+                          {order.shippingMethod && typeof order.shippingMethod === "string" && (
+                            <p className="mt-4">
+                              {t("shippingMethod")}: {order.shippingMethod}
+                            </p>
+                          )}
                         </div>
                       </div>
                     </div>
