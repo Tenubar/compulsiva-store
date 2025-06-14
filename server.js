@@ -1903,6 +1903,14 @@ async function createOrderFromIPN(ipnData) {
       shippingCost = product.shipping[0].price;
     }
     
+    let shippingMethod = { name: "No shipping", price: 0 };
+    if (ipnData.shipping_method) {
+      try {
+        shippingMethod = JSON.parse(ipnData.shipping_method);
+      } catch (e) {
+        // fallback to default if parsing fails
+      }
+    }
 
     // Crea la orden solo para compra individual
     const order = new Order({
@@ -1917,6 +1925,7 @@ async function createOrderFromIPN(ipnData) {
       image: product.image,
       hoverImage: product.hoverImage,
       additionalImages: product.additionalImages,
+      shippingMethod,
       paypalTransactionId: ipnData.txn_id,
       paypalOrderId: ipnData.parent_txn_id || ipnData.txn_id,
       payerEmail: ipnData.payer_email,

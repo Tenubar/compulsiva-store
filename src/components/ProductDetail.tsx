@@ -1016,7 +1016,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
   }
 
   // Add console logs to handlePayPalCheckout
-  const handlePayPalCheckout = () => {
+  const handlePayPalCheckout = async () => {
     if (!isLoggedIn) {
       console.log("User not logged in. Showing login prompt.");
       setShowLoginPrompt(true);
@@ -2032,12 +2032,6 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
                       </div>
                     </div>
 
-
-
-
-
-
-
                     <div>
                       <label className="block text-sm font-medium text-gray-700">{t("phone")}</label>
                       <input
@@ -2240,7 +2234,12 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
           name="custom"
           value={`${userData ? userData._id : ""}|${selectedSize}|${selectedColor}|${quantity}`}
        />
-        <input type="hidden" name="no_shipping" value="1" />
+        <input type="hidden" name="no_shipping" value="2" />
+        <input
+          type="hidden"
+          name="shipping_method"
+          value={selectedShipping ? JSON.stringify(selectedShipping) : ""}
+        />
         <input type="hidden" name="no_note" value="1" />
         <input type="hidden" name="tax" value="0" />
         <input
