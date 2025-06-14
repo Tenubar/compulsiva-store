@@ -2119,17 +2119,17 @@ app.post("/api/paypal/capture-cart-order", authenticateToken, async (req, res) =
         userId: user._id,
         paypalTransactionId: req.body?.transactionId || "", // or wherever you store it
 
-        shippingAddress: {
-        name: purchase_units?.[0]?.shipping?.name?.full_name || "",
-        addressLine1: purchase_units?.[0]?.shipping?.address?.address_line_1 || "",
-        addressLine2: purchase_units?.[0]?.shipping?.address?.address_line_2 || "",
-        city: purchase_units?.[0]?.shipping?.address?.admin_area_2 || "",
-        state: purchase_units?.[0]?.shipping?.address?.admin_area_1 || "",
-        postalCode: purchase_units?.[0]?.shipping?.address?.postal_code || "",
-        country: purchase_units?.[0]?.shipping?.address?.country_code || "",
-      },
+      //   shippingAddress: {
+      //   name: purchase_units?.[0]?.shipping?.name?.full_name || "",
+      //   addressLine1: purchase_units?.[0]?.shipping?.address?.address_line_1 || "",
+      //   addressLine2: purchase_units?.[0]?.shipping?.address?.address_line_2 || "",
+      //   city: purchase_units?.[0]?.shipping?.address?.admin_area_2 || "",
+      //   state: purchase_units?.[0]?.shipping?.address?.admin_area_1 || "",
+      //   postalCode: purchase_units?.[0]?.shipping?.address?.postal_code || "",
+      //   country: purchase_units?.[0]?.shipping?.address?.country_code || "",
+      // },
 
-        userShipping: {
+        shippingAddress: {
         name: user.name || "",
         addressLine1: user.address.street || "",
         addressLine2: "",
