@@ -2127,23 +2127,29 @@ app.post("/api/paypal/capture-cart-order", authenticateToken, async (req, res) =
         return res.status(404).json({ message: "User not found" });
       }
 
-      const selectedShipping = req.body?.selectedShipping;
+      
+      // Find the cart item in DB to get shipping info
+      const cartItem = await CartItem.findOne({
+        userId: req.user.userId,
+        productId: item.sku,
+        size: item.size || "",
+        color: item.color || "",
+      });
+
+      // Default shipping method
+      let shippingMethod = { name: "No shipping", price: 0 };
+      if (cartItem && Array.isArray(cartItem.shipping) && cartItem.shipping.length > 0) {
+        shippingMethod = {
+          name: cartItem.shipping[0].shipping_name,
+          price: Number(cartItem.shipping[0].shipping_value),
+        };
+      }
 
 
       await Order.create({
 
         userId: user._id,
         paypalTransactionId: req.body?.transactionId || "", // or wherever you store it
-
-      //   shippingAddress: {
-      //   name: purchase_units?.[0]?.shipping?.name?.full_name || "",
-      //   addressLine1: purchase_units?.[0]?.shipping?.address?.address_line_1 || "",
-      //   addressLine2: purchase_units?.[0]?.shipping?.address?.address_line_2 || "",
-      //   city: purchase_units?.[0]?.shipping?.address?.admin_area_2 || "",
-      //   state: purchase_units?.[0]?.shipping?.address?.admin_area_1 || "",
-      //   postalCode: purchase_units?.[0]?.shipping?.address?.postal_code || "",
-      //   country: purchase_units?.[0]?.shipping?.address?.country_code || "",
-      // },
 
         shippingAddress: {
         name: user.name || "",
@@ -2155,9 +2161,7 @@ app.post("/api/paypal/capture-cart-order", authenticateToken, async (req, res) =
         country: user.address.country || "",
       },
 
-        shippingMethod: selectedShipping
-        ? { name: selectedShipping.name, price: selectedShipping.price }
-        : { name: "No shipping", price: 0 },
+        shippingMethod,
         userId: req.user.userId,
         productId: item.sku,
         title: item.name,
