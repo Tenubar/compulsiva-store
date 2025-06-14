@@ -271,7 +271,9 @@ const OrderDetail: React.FC = () => {
                             {order.shippingMethod.name} ({formatPrice(order.shippingMethod.price, currency)})
                           </p>
                         ) : (
-                          <p className="text-sm text-gray-500 ml-7">{t("standardShipping")}</p>
+                          <p className="text-sm text-gray-500 ml-7">
+                            {t("standardShipping")}
+                          </p>
                         )}
                       </div>
                       {order.shippingAddress && (

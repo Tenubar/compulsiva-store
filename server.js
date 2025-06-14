@@ -219,7 +219,11 @@ const orderSchema = new mongoose.Schema(
       postalCode: { type: String },
       country: { type: String },
     },
-    shippingMethod: { type: String, default: "" },
+    shippingMethod: {
+      name: { type: String, default: "" },
+      price: { type: Number, default: 0 },
+    },
+    // ..
     status: { type: String, default: "completed" },
     paymentDetails: { type: Object },
   },
@@ -2114,6 +2118,8 @@ app.post("/api/paypal/capture-cart-order", authenticateToken, async (req, res) =
         return res.status(404).json({ message: "User not found" });
       }
 
+      const selectedShipping = req.body?.selectedShipping;
+
 
       await Order.create({
 
@@ -2140,7 +2146,9 @@ app.post("/api/paypal/capture-cart-order", authenticateToken, async (req, res) =
         country: user.address.country || "",
       },
 
-        shippingMethod: req.body.shippingMethod || "",
+        shippingMethod: selectedShipping
+        ? { name: selectedShipping.name, price: selectedShipping.price }
+        : { name: "No shipping", price: 0 },
         userId: req.user.userId,
         productId: item.sku,
         title: item.name,
