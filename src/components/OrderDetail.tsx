@@ -300,18 +300,39 @@ const OrderDetail: React.FC = () => {
                   <div className="mb-8">
                     <h2 className="text-lg font-medium text-gray-900 mb-4">{t("userShippingInformation")}</h2>
                     <div className="bg-gray-50 p-4 rounded-lg">
-                      <div className="text-sm text-gray-500 ml-7">
-                        {order.userShipping.name && <p>{order.userShipping.name}</p>}
-                        {order.userShipping.addressLine1 && <p>{order.userShipping.addressLine1}</p>}
-                        {order.userShipping.addressLine2 && <p>{order.userShipping.addressLine2}</p>}
-                        <p>
-                          {order.userShipping.city}, {order.userShipping.state} {order.userShipping.postalCode}
-                        </p>
-                        <p>{order.userShipping.country}</p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <div className="flex items-center mb-2">
+                            <User className="h-5 w-5 text-gray-400 mr-2" />
+                            <span className="text-sm font-medium text-gray-900">{t("recipientName")}</span>
+                          </div>
+                          <p className="text-sm text-gray-500 ml-7">{order.userShipping.name || "John Doe"}</p>
+                        </div>
+                        <div>
+                          <div className="flex items-center mb-2">
+                            <Mail className="h-5 w-5 text-gray-400 mr-2" />
+                            <span className="text-sm font-medium text-gray-900">{t("recipientEmail")}</span>
+                          </div>
+                          <p className="text-sm text-gray-500 ml-7">{order.payerEmail || "customer@example.com"}</p>
+                        </div>
+                      </div>
+                      <div className="mt-4">
+                        <div className="flex items-center mb-2">
+                          <MapPin className="h-5 w-5 text-gray-400 mr-2" />
+                          <span className="text-sm font-medium text-gray-900">{t("shippingAddress")}</span>
+                        </div>
+                        <div className="text-sm text-gray-500 ml-7">
+                          {order.userShipping.addressLine1 && <p>{order.userShipping.addressLine1}</p>}
+                          {order.userShipping.addressLine2 && <p>{order.userShipping.addressLine2}</p>}
+                          <p>
+                            {order.userShipping.city}, {order.userShipping.state} {order.userShipping.postalCode}
+                          </p>
+                          <p>{order.userShipping.country}</p>
+                        </div>
                       </div>
                     </div>
                   </div>
-                )} 
+                )}
 
               </div>
             ) : null}
