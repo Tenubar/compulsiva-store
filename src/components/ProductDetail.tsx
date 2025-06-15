@@ -2232,8 +2232,21 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
         <input
           type="hidden"
           name="custom"
-          value={`${userData ? userData._id : ""}|${selectedSize}|${selectedColor}|${quantity}`}
-       />
+          value={
+            // Add shipping address and shipping method as JSON after the pipe-separated fields
+            `${userData ? userData._id : ""}|${selectedSize}|${selectedColor}|${quantity}|` +
+            encodeURIComponent(
+              JSON.stringify({
+                shippingAddress: previewAddress,
+                shippingMethod: selectedShipping,
+                firstName: previewFirstName,
+                lastName: previewLastName,
+                phone: previewPhone,
+                id: previewId,
+              })
+            )
+          }
+        />
         <input type="hidden" name="no_shipping" value="2" />
         <input
           type="hidden"

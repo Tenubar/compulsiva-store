@@ -1844,12 +1844,30 @@ async function createOrderFromIPN(ipnData) {
 
     // Extrae datos del campo custom
     const customParts = ipnData.custom.split("|");
-    const [userId, selectedSize, selectedColor, qtyString] = ipnData.custom.split("|");
+    const [userId, selectedSize, selectedColor, qtyString, extraJson] = customParts;
     const quantity = parseInt(qtyString, 10) || 1;
     const purchasedQuantity = parseInt(qtyString, 10) || 1;
 
-
-    console.log("Parsed custom data:", { userId, selectedSize, selectedColor });
+    // Parse extra JSON for shippingAddress and shippingMethod
+    let shippingAddress = {};
+    let shippingMethod = { name: "", price: 0 };
+    let firstName = "";
+    let lastName = "";
+    let phone = "";
+    let id = "";
+    if (extraJson) {
+      try {
+        const extra = JSON.parse(decodeURIComponent(extraJson));
+        if (extra.shippingAddress) shippingAddress = extra.shippingAddress;
+        if (extra.shippingMethod) shippingMethod = extra.shippingMethod;
+        if (extra.firstName) firstName = extra.firstName;
+        if (extra.lastName) lastName = extra.lastName;
+        if (extra.phone) phone = extra.phone;
+        if (extra.id) id = extra.id;
+      } catch (e) {
+        console.warn("Failed to parse extra shipping info from custom field:", e);
+      }
+    }
 
     const user = await User.findById(userId);
     if (!user) {
@@ -1903,7 +1921,6 @@ async function createOrderFromIPN(ipnData) {
       shippingCost = product.shipping[0].price;
     }
     
-    let shippingMethod = { name: "", price: 0 };
     if (ipnData.shipping_method) {
       try {
         shippingMethod = JSON.parse(ipnData.shipping_method);
@@ -1926,6 +1943,7 @@ async function createOrderFromIPN(ipnData) {
       hoverImage: product.hoverImage,
       additionalImages: product.additionalImages,
       shippingMethod,
+      shippingAddress, // Store shipping address
       paypalTransactionId: ipnData.txn_id,
       paypalOrderId: ipnData.parent_txn_id || ipnData.txn_id,
       payerEmail: ipnData.payer_email,
@@ -2055,6 +2073,7 @@ app.post("/api/paypal/capture-cart-order", authenticateToken, async (req, res) =
           unit.items.forEach(item => {
             items.push(item);
           });
+       
         }
       });
     } else {
