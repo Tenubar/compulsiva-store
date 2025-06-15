@@ -2248,11 +2248,11 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
           }
         />
         <input type="hidden" name="no_shipping" value="2" />
-        <input
+        {/* <input
           type="hidden"
           name="shipping_method"
           value={selectedShipping ? JSON.stringify(selectedShipping) : ""}
-        />
+        /> */}
         <input type="hidden" name="no_note" value="1" />
         <input type="hidden" name="tax" value="0" />
         <input
