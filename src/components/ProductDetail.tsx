@@ -146,20 +146,87 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
   const [previewId, setPreviewId] = useState("")
   const [previewFirstName, setPreviewFirstName] = useState("")
   const [previewLastName, setPreviewLastName] = useState("")
-
   const navigate = useNavigate()
   const [addingToCart, setAddingToCart] = useState(false)
   const [cartMessage, setCartMessage] = useState("")
-
   const visitIncremented = useRef(false)
   const lastFetchTime = useRef<number>(0)
 
   // Check if we're returning from a purchase
   const isReturningFromPurchase = useRef(false)
-
   const [selectedShipping, setSelectedShipping] = useState<{ name: string; price: number } | null>(null)
-
   const { formatPrice } = useCurrencyConversion()
+
+  // PayPal Buton
+  const paypalButtonRef = useRef<HTMLDivElement>(null)
+  const [processing, setProcessing] = useState(false)
+
+
+  useEffect(() => {
+  if (!showPayPalPreview) return
+  // If PayPal script not loaded yet, load it
+  const scriptId = "paypal-sdk"
+  if (!document.getElementById(scriptId)) {
+    const script = document.createElement("script")
+    script.id = scriptId
+    script.src = `https://www.paypal.com/sdk/js?client-id=${import.meta.env.VITE_PAYPAL_CLIENT_ID}&currency=USD`
+    script.async = true
+    script.onload = renderPayPalInvoiceButton
+    document.body.appendChild(script)
+  } else {
+    renderPayPalInvoiceButton()
+  }
+}, [showPayPalPreview, product, quantity, selectedSize, selectedColor, selectedShipping])
+
+function renderPayPalInvoiceButton() {
+  if (!(window as any).paypal || !paypalButtonRef.current) return
+
+  // Calculate the total (item price * quantity + shipping)
+  const itemPrice = getSelectedSizePrice() || (product ? product.price : 0)
+  const shippingPrice = selectedShipping?.price || 0
+  const total = (itemPrice * quantity + shippingPrice).toFixed(2)
+
+  ;(window as any).paypal.Buttons({
+    createOrder: async () => {
+      // Or call create-single-order
+      const res = await fetch(`${import.meta.env.VITE_SITE_URL}/api/paypal/create-single-order`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          item: {
+            productId: product?._id,
+            title: product?.title,
+            price: parseFloat(total),
+            quantity,
+            size: selectedSize,
+            color: selectedColor,
+          },
+        }),
+      })
+      const data = await res.json()
+      return data.orderID
+    },
+    onApprove: async (data: any) => {
+      setProcessing(true)
+      const captureRes = await fetch(`${import.meta.env.VITE_SITE_URL}/api/paypal/capture-cart-order`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ orderID: data.orderID }),
+      })
+      const captureData = await captureRes.json()
+      if (captureData.success) {
+        navigate("/orders?success=true")
+      } else {
+        alert("Error processing PayPal payment.")
+      }
+      setProcessing(false)
+    },
+    onError: (err: any) => alert("PayPal Error: " + err),
+  }).render(paypalButtonRef.current)
+}
+
 
   useEffect(() => {
     // Check if we're returning from a successful purchase
@@ -854,11 +921,11 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
         },
         credentials: "include",
         body: JSON.stringify({
-          productId: product._id,
+          productId: product ? product._id : "",
           title: displayTitle,
-          type: product.type || "Product",
-          price: product.sizes && product.sizes.length > 0 ? getSelectedSizePrice() : product.price,
-          image: product.image,
+          type: product ? (product.type || "Product") : "Product",
+          price: product && product.sizes && product.sizes.length > 0 ? getSelectedSizePrice() : (product ? product.price : 0),
+          image: product ? product.image : "",
           quantity: quantity,
           size: selectedSize || "",
           color: selectedColor || "",
@@ -2174,7 +2241,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
                     </div>
                     {/* PayPal Button */}
                     <div className="mt-4">
-                      <button
+                      {/* <button
                         onClick={handlePreviewSubmit}
                         disabled={!isFormValid()}
                         className="w-full px-6 py-3 rounded-md text-white"
@@ -2192,7 +2259,8 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
                         }}
                       >
                         {t("proceedToPayPal")}
-                      </button>
+                      </button> */}
+                      <div ref={paypalButtonRef} className="mt-6" />
                     </div>
                   </div>
                 </div>
@@ -2203,7 +2271,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
       )}
 
       {/* PayPal form with return URL that redirects to order page */}
-      <form
+      {/* <form
         // action="https://www.paypal.com/cgi-bin/webscr"
         action="https://www.sandbox.paypal.com/cgi-bin/webscr"
         method="post"
@@ -2232,27 +2300,14 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
         <input
           type="hidden"
           name="custom"
-          value={
-            // Add shipping address and shipping method as JSON after the pipe-separated fields
-            `${userData ? userData._id : ""}|${selectedSize}|${selectedColor}|${quantity}|` +
-            encodeURIComponent(
-              JSON.stringify({
-                shippingAddress: previewAddress,
-                shippingMethod: selectedShipping,
-                firstName: previewFirstName,
-                lastName: previewLastName,
-                phone: previewPhone,
-                id: previewId,
-              })
-            )
-          }
+          value={`${userData ? userData._id : ""}|${selectedSize}|${selectedColor}|${quantity}`}
         />
         <input type="hidden" name="no_shipping" value="2" />
-        {/* <input
+        <input
           type="hidden"
           name="shipping_method"
           value={selectedShipping ? JSON.stringify(selectedShipping) : ""}
-        /> */}
+        />
         <input type="hidden" name="no_note" value="1" />
         <input type="hidden" name="tax" value="0" />
         <input
@@ -2267,7 +2322,8 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ onBack }): JSX.Element =>
           name="submit"
           alt="PayPal - The safer, easier way to pay online!"
         />
-      </form>
+      </form> */}
+      <div ref={paypalButtonRef} className="my-4" />
     </div>
   )
 }

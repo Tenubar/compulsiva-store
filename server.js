@@ -2038,6 +2038,71 @@ app.post("/api/paypal/create-cart-order", authenticateToken, async (req, res) =>
   }
 })
 
+app.post("/api/paypal/create-single-order", authenticateToken, async (req, res) => {
+  try {
+    const { item } = req.body
+    if (!item) {
+      return res.status(400).json({ error: "Missing item data" })
+    }
+
+    const token = await getPayPalAccessToken()
+    const base =
+      process.env.VITE_PAYPAL_ENV === "live"
+        ? "https://api.paypal.com"
+        : "https://api.sandbox.paypal.com"
+
+    const purchaseUnits = [
+      {
+        amount: {
+          currency_code: "USD",
+          value: item.price.toFixed(2),
+          breakdown: {
+            item_total: {
+              currency_code: "USD",
+              value: item.price.toFixed(2),
+            },
+          },
+        },
+        items: [
+          {
+            name: item.title || "Single Product",
+            unit_amount: {
+              currency_code: "USD",
+              value: item.price.toFixed(2),
+            },
+            quantity: item.quantity || 1,
+          },
+        ],
+      },
+    ]
+
+    const orderData = {
+      intent: "CAPTURE",
+      purchase_units: purchaseUnits,
+    }
+
+    const response = await fetch(`${base}/v2/checkout/orders`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(orderData),
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      return res.status(500).json({ message: "Error creating PayPal order", details: data })
+    }
+
+    res.status(200).json({ orderID: data.id })
+  } catch (err) {
+    res.status(500).json({ message: "Error creating single PayPal order", error: err.message })
+  }
+})
+
+
 // Capturar orden de carrito y crear órdenes en la base de datos
 app.post("/api/paypal/capture-cart-order", authenticateToken, async (req, res) => {
 
