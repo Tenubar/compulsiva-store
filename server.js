@@ -1812,6 +1812,10 @@ app.post("/api/paypal/ipn", express.raw({ type: "application/x-www-form-urlencod
 
   await ipnLog.save();
   console.log("IPN Log saved:", ipnLog);
+
+  // Envía correo al admin
+  await sendAdminOrderEmail(order);
+
   res.status(200).send("OK");
 });
 
@@ -1985,8 +1989,6 @@ async function createOrderFromIPN(ipnData) {
 
     await order.save();
     console.log("Order saved successfully:", order);
-
-    await sendAdminOrderEmail(order);
 
     await CartItem.deleteMany({ userId, productId });
     return order;
