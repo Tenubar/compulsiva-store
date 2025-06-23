@@ -184,36 +184,56 @@ function renderPayPalInvoiceButton() {
   // Calculate the total (item price * quantity + shipping)
   const itemPrice = getSelectedSizePrice() || (product ? product.price : 0)
   const shippingPrice = selectedShipping?.price || 0
-  const total = (itemPrice * quantity + shippingPrice).toFixed(2)
+  const total = (itemPrice * quantity + shippingPrice).toFixed(2);
+  
+(window as any).paypal.Buttons({
+  createOrder: async () => {
+    const res = await fetch(`${import.meta.env.VITE_SITE_URL}/api/paypal/create-single-order`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        item: {
+          productId: product?._id,
+          title: product?.title,
+          price: itemPrice,
+          quantity,
+          size: selectedSize,
+          color: selectedColor,
+          shipping: selectedShipping
+            ? {
+                name: selectedShipping.name,
+                price: shippingPrice,
+              }
+            : undefined,
+        },
+      }),
+    })
+    const data = await res.json()
+    return data.orderID
+  },
 
-  ;(window as any).paypal.Buttons({
-    createOrder: async () => {
-      // Or call create-single-order
-      const res = await fetch(`${import.meta.env.VITE_SITE_URL}/api/paypal/create-single-order`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          item: {
-            productId: product?._id,
-            title: product?.title,
-            price: parseFloat(total),
-            quantity,
-            size: selectedSize,
-            color: selectedColor,
-          },
-        }),
-      })
-      const data = await res.json()
-      return data.orderID
-    },
     onApprove: async (data: any) => {
       setProcessing(true)
       const captureRes = await fetch(`${import.meta.env.VITE_SITE_URL}/api/paypal/capture-cart-order`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ orderID: data.orderID }),
+        body: JSON.stringify({
+          orderID: data.orderID,
+          userId: userData?._id,
+          productId: product?._id,
+          size: selectedSize,
+          color: selectedColor,
+          quantity,
+          // Send as shippingMethod, not shipping
+          shippingMethod: selectedShipping
+            ? {
+                name: selectedShipping.name,
+                price: selectedShipping.price,
+              }
+            : undefined,
+        }),
       })
       const captureData = await captureRes.json()
       if (captureData.success) {
@@ -2323,7 +2343,6 @@ function renderPayPalInvoiceButton() {
           alt="PayPal - The safer, easier way to pay online!"
         />
       </form> */}
-      <div ref={paypalButtonRef} className="my-4" />
     </div>
   )
 }

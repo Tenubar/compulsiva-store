@@ -11,6 +11,7 @@ import { Readable } from "stream"
 import https from "https"
 import querystring from "querystring"
 import fetch from "node-fetch" // If you use node <18, install node-fetch
+import { Resend } from 'resend';
 
 dotenv.config()
 
@@ -280,6 +281,32 @@ const pageSettingsSchema = new mongoose.Schema(
 )
 
 const PageSettings = mongoose.model("PageSettings", pageSettingsSchema)
+
+const resend = new Resend(process.env.VITE_RESEND_API_KEY);
+
+async function sendAdminOrderEmail(order) {
+  try {
+    await resend.emails.send({
+      from: 'onboarding@resend.dev', // Debe estar verificado en Resend
+      to: process.env.VITE_ADMIN_USER_EMAIL,
+      subject: 'Compra hecha exitosamente',
+      html: `
+        <h2>¡Nueva compra realizada!</h2>
+        <p>Se ha realizado una compra exitosa en la tienda.</p>
+        <ul>
+          <li><b>Producto:</b> ${order.title}</li>
+          <li><b>Cantidad:</b> ${order.quantity}</li>
+          <li><b>Precio:</b> $${order.price}</li>
+          <li><b>Comprador:</b> ${order.payerName || ''} (${order.payerEmail || ''})</li>
+          <li><b>ID de Orden:</b> ${order._id}</li>
+        </ul>
+      `,
+    });
+    console.log('Correo enviado al admin');
+  } catch (err) {
+    console.error('Error enviando correo al admin:', err);
+  }
+}
 
 // Route for uploading image to GridFS
 app.post("/api/upload/productImage", upload.single("image"), async (req, res) => {
@@ -1883,22 +1910,24 @@ async function createOrderFromIPN(ipnData) {
 
     let sizePrice = product.price; // Default to product price
     // Update product stock
-     if (selectedSize && product.sizes && product.sizes.length > 0) {
+    if (selectedSize && product.sizes && product.sizes.length > 0) {
       const sizeIndex = product.sizes.findIndex(
         (s) => s.size === selectedSize && s.color === (selectedColor || "Default")
       );
       if (sizeIndex > -1) {
-        product.sizes[sizeIndex].quantity -= purchasedQuantity; // Now uses the correctly named variable
+        product.sizes[sizeIndex].quantity -= purchasedQuantity;
         if (product.sizes[sizeIndex].quantity < 0) {
-          console.warn(`Product size ${selectedSize} (${selectedColor || "Default"}) stock is now negative for product ${productId}. Setting to 0.`);
+          console.warn(
+            `Product size ${selectedSize} (${selectedColor || "Default"}) stock is now negative for product ${productId}. Setting to 0.`
+          );
           product.sizes[sizeIndex].quantity = 0;
         }
         sizePrice = product.sizes[sizeIndex].sizePrice || product.price;
       } else {
-        console.warn(`Size ${selectedSize} with color ${selectedColor || "Default"} not found for product ${productId}. Stock not updated for size.`);
+        console.warn(`Size ${selectedSize} with color ${selectedColor || "Default"} not found for product ${productId}.`);
       }
     } else {
-      product.productQuantity -= purchasedQuantity; // Now uses the correctly named variable
+      product.productQuantity -= purchasedQuantity;
       if (product.productQuantity < 0) {
         console.warn(`Product ${productId} stock is now negative. Setting to 0.`);
         product.productQuantity = 0;
@@ -1907,11 +1936,12 @@ async function createOrderFromIPN(ipnData) {
     await product.save();
     console.log(`Stock updated for product ${productId}.`);
 
-
-    let finalPrice = product.price; // This was 'sizePrice' before, ensure it's product.price or size specific price
+    let finalPrice = product.price;
     if (selectedSize && product.sizes?.length > 0) {
-      const sizeObj = product.sizes.find(s => s.size === selectedSize && s.color === (selectedColor || "Default"));
-      if (sizeObj && typeof sizeObj.sizePrice === 'number') {
+      const sizeObj = product.sizes.find(
+        (s) => s.size === selectedSize && s.color === (selectedColor || "Default")
+      );
+      if (sizeObj && typeof sizeObj.sizePrice === "number") {
         finalPrice = sizeObj.sizePrice;
       }
     }
@@ -1920,7 +1950,7 @@ async function createOrderFromIPN(ipnData) {
     if (product.shipping && product.shipping.length > 0) {
       shippingCost = product.shipping[0].price;
     }
-    
+
     if (ipnData.shipping_method) {
       try {
         shippingMethod = JSON.parse(ipnData.shipping_method);
@@ -1929,21 +1959,22 @@ async function createOrderFromIPN(ipnData) {
       }
     }
 
-    // Crea la orden solo para compra individual
     const order = new Order({
       userId: userId,
       productId,
       title: ipnData.item_name || product.title,
       type: product.type,
-      price: finalPrice, // Use the determined final price
-      shippingCost: shippingCost,
+      price: finalPrice,
+      shippingCost,
       quantity: purchasedQuantity,
-      sizes: selectedSize ? [{ size: selectedSize, sizePrice: finalPrice, quantity: purchasedQuantity, color: selectedColor || "Default" }] : [],
+      sizes: selectedSize
+        ? [{ size: selectedSize, sizePrice: finalPrice, quantity: purchasedQuantity, color: selectedColor || "Default" }]
+        : [],
       image: product.image,
       hoverImage: product.hoverImage,
       additionalImages: product.additionalImages,
       shippingMethod,
-      shippingAddress, // Store shipping address
+      shippingAddress,
       paypalTransactionId: ipnData.txn_id,
       paypalOrderId: ipnData.parent_txn_id || ipnData.txn_id,
       payerEmail: ipnData.payer_email,
@@ -1955,11 +1986,10 @@ async function createOrderFromIPN(ipnData) {
     await order.save();
     console.log("Order saved successfully:", order);
 
-    // Opcional: descontar stock y limpiar carrito para este producto/usuario
+    await sendAdminOrderEmail(order);
+
     await CartItem.deleteMany({ userId, productId });
-
     return order;
-
   } catch (error) {
     console.error("Error creating order from IPN:", error);
     throw error;
@@ -2045,40 +2075,80 @@ app.post("/api/paypal/create-single-order", authenticateToken, async (req, res) 
       return res.status(400).json({ error: "Missing item data" })
     }
 
+    // Fetch product from DB
+    const product = await Product.findById(item.productId)
+    if (!product) {
+      return res.status(404).json({ error: "Product not found" })
+    }
+
+    // Determine correct price and title
+    let price = product.price
+    let displayTitle = product.title
+    if (product.sizes && product.sizes.length > 0 && item.size) {
+      // Find the size object (match size and color if provided)
+      let sizeObj = product.sizes.find(
+        s =>
+          s.size.toLowerCase() === item.size.toLowerCase() &&
+          (
+            (Array.isArray(s.colors) && s.colors.includes(item.color)) ||
+            (typeof s.color === "string" && s.color.toLowerCase() === (item.color || "").toLowerCase())
+          )
+      )
+
+
+      if (!sizeObj) {
+        // fallback: match only size
+        sizeObj = product.sizes.find(s => s.size.toLowerCase() === item.size.toLowerCase())
+      }
+      if (sizeObj && typeof sizeObj.sizePrice === "number") {
+        price = sizeObj.sizePrice
+      }
+      displayTitle += ` - ${item.size}`
+      if (item.color) displayTitle += ` - ${item.color}`
+
+    }
+
     const token = await getPayPalAccessToken()
     const base =
       process.env.VITE_PAYPAL_ENV === "live"
         ? "https://api.paypal.com"
         : "https://api.sandbox.paypal.com"
 
-    const purchaseUnits = [
-      {
-        amount: {
-          currency_code: "USD",
-          value: item.price.toFixed(2),
-          breakdown: {
-            item_total: {
-              currency_code: "USD",
-              value: item.price.toFixed(2),
-            },
-          },
-        },
-        items: [
-          {
-            name: item.title || "Single Product",
-            unit_amount: {
-              currency_code: "USD",
-              value: item.price.toFixed(2),
-            },
-            quantity: item.quantity || 1,
-          },
-        ],
-      },
-    ]
+    // Calculate shipping
+    const shippingAmount = item.shipping?.price ? Number(item.shipping.price) : 0
 
-    const orderData = {
+        // Build the correct PayPal order body
+    const orderBody = {
       intent: "CAPTURE",
-      purchase_units: purchaseUnits,
+      purchase_units: [
+        {
+          amount: {
+            currency_code: "USD",
+            value: (price * item.quantity + shippingAmount).toFixed(2),
+            breakdown: {
+              item_total: {
+                currency_code: "USD",
+                value: (price * item.quantity).toFixed(2),
+              },
+              shipping: {
+                currency_code: "USD",
+                value: shippingAmount.toFixed(2),
+              },
+            },
+          },
+          items: [
+            {
+              name: displayTitle,
+              unit_amount: {
+                currency_code: "USD",
+                value: price.toFixed(2),
+              },
+              quantity: item.quantity.toString(),
+              sku: product._id.toString(),
+            },
+          ],
+        },
+      ],
     }
 
     const response = await fetch(`${base}/v2/checkout/orders`, {
@@ -2087,12 +2157,12 @@ app.post("/api/paypal/create-single-order", authenticateToken, async (req, res) 
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify(orderData),
+      body: JSON.stringify(orderBody),
     })
 
     const data = await response.json()
 
-    if (!response.ok) {
+    if (!response.ok || !data.id) {
       return res.status(500).json({ message: "Error creating PayPal order", details: data })
     }
 
@@ -2104,11 +2174,13 @@ app.post("/api/paypal/create-single-order", authenticateToken, async (req, res) 
 
 
 // Capturar orden de carrito y crear órdenes en la base de datos
-app.post("/api/paypal/capture-cart-order", authenticateToken, async (req, res) => {
+
+app.post("/api/paypal/capture-cart-order", async (req, res) => {
 
   try {
-    const { orderID } = req.body;
+    const { orderID, userId } = req.body;
     if (!orderID) return res.status(400).json({ error: "Missing orderID" });
+    if (!userId) return res.status(400).json({ error: "Missing userId" });
     const accessToken = await getPayPalAccessToken();
     const base = process.env.PAYPAL_ENV === "live"
       ? "https://api.paypal.com"
@@ -2123,7 +2195,7 @@ app.post("/api/paypal/capture-cart-order", authenticateToken, async (req, res) =
       },
     });
     const captureData = await captureRes.json();
-    console.log("PayPal captureData:", JSON.stringify(captureData, null, 2));
+    // console.log("PayPal captureData:", JSON.stringify(captureData, null, 2));
 
     // Si no hay items en la respuesta de PayPal, usa los del carrito del usuario
     let items = [];
@@ -2138,13 +2210,24 @@ app.post("/api/paypal/capture-cart-order", authenticateToken, async (req, res) =
           unit.items.forEach(item => {
             items.push(item);
           });
-       
         }
       });
+    } else if (req.body.productId) {
+      // Use product info from frontend for single-product purchase
+      const product = await Product.findById(req.body.productId);
+      if (product) {
+        items = [{
+          sku: product._id,
+          name: product.title,
+          unit_amount: { value: product.price },
+          quantity: req.body.quantity || 1,
+          size: req.body.size || "",
+          color: req.body.color || "",
+        }];
+      }
     } else {
       // Recupera los items del carrito del usuario autenticado
-      items = await CartItem.find({ userId: req.user.userId });
-      // Adapta el formato para que coincida con el esperado más abajo
+      items = await CartItem.find({ userId });
       items = items.map(item => ({
         sku: item.productId,
         name: item.title,
@@ -2168,104 +2251,129 @@ app.post("/api/paypal/capture-cart-order", authenticateToken, async (req, res) =
         continue;
       }
 
-      // --- AJUSTE: Descontar stock por talla/color o por productQuantity ---
+      let displayTitle = product.title;
       if (product.sizes && product.sizes.length > 0 && item.size) {
-        let updated = false;
-        product.sizes = product.sizes.map(sizeObj => {
-          const sizeStr = typeof sizeObj.size === "string" ? sizeObj.size : "";
-          const itemSizeStr = typeof item.size === "string" ? item.size : "";
-          const colorStr = typeof sizeObj.color === "string" ? sizeObj.color : "";
-          const itemColorStr = typeof item.color === "string" ? item.color : "";
-          if (
-            sizeStr.toLowerCase() === itemSizeStr.toLowerCase() &&
-            colorStr.toLowerCase() === itemColorStr.toLowerCase()
-          ) {
-            updated = true;
-            return {
-              ...sizeObj,
-              quantity: Math.max(0, sizeObj.quantity - Number(item.quantity)),
-            };
-          }
-          return sizeObj;
-        });
-        if (updated) {
-          await product.save();
-        }
-      } else {
-        if (product.productQuantity) {
-          product.productQuantity = Math.max(0, product.productQuantity - Number(item.quantity));
-          await product.save();
+        displayTitle += ` - ${item.size}`;
+        if (item.color) {
+          displayTitle += ` - ${item.color}`;
         }
       }
 
-      let shippingCost = 0;
-      if (product.shipping && product.shipping.length > 0) {
-        shippingCost = product.shipping[0].price;
-      }
-
-      const { purchase_units } = req.body.orderData || {};
-
-      // Get user shipping info from our MongoDB user
-      const user = await User.findById(req.user.userId).select("-password");
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
-
-      
-      // Find the cart item in DB to get shipping info
-      const cartItem = await CartItem.findOne({
-        userId: req.user.userId,
-        productId: item.sku,
-        size: item.size || "",
-        color: item.color || "",
-      });
-
-      // Default shipping method
-      let shippingMethod = { name: "", price: 0 };
-      if (cartItem && Array.isArray(cartItem.shipping) && cartItem.shipping.length > 0) {
-        shippingMethod = {
-          name: cartItem.shipping[0].shipping_name,
-          price: Number(cartItem.shipping[0].shipping_value),
+        // --- AJUSTE: Descontar stock por talla/color o por productQuantity ---
+  if (product.sizes && product.sizes.length > 0 && item.size) {
+    let updated = false;
+    product.sizes = product.sizes.map(sizeObj => {
+      const sizeStr = typeof sizeObj.size === "string" ? sizeObj.size : "";
+      const itemSizeStr = typeof item.size === "string" ? item.size : "";
+      const colorStr = typeof sizeObj.color === "string" ? sizeObj.color : "";
+      const itemColorStr = typeof item.color === "string" ? item.color : "";
+      if (
+        sizeStr.toLowerCase() === itemSizeStr.toLowerCase() &&
+        colorStr.toLowerCase() === itemColorStr.toLowerCase()
+      ) {
+        updated = true;
+        return {
+          ...sizeObj,
+          quantity: Math.max(0, sizeObj.quantity - Number(item.quantity)),
         };
       }
-
-
-      await Order.create({
-
-        userId: user._id,
-        paypalTransactionId: req.body?.transactionId || "", // or wherever you store it
-
-        shippingAddress: {
-        name: user.name || "",
-        addressLine1: user.address.street || "",
-        addressLine2: "",
-        city: user.address.city || "",
-        state: user.address.state || "",
-        postalCode: user.address.postalCode || "",
-        country: user.address.country || "",
-      },
-
-        shippingMethod,
-        userId: req.user.userId,
-        productId: item.sku,
-        title: item.name,
-        type: product.type,
-        price: Number(item.unit_amount.value),
-        quantity: Number(item.quantity),
-        size: item.size || "",
-        color: item.color || "",
-        image: product.image,
-        hoverImage: product.hoverImage,
-        additionalImages: product.additionalImages,
-        paypalTransactionId: captureData.id,
-        shippingCost, 
-        status: "completed",
-        paymentDetails: captureData,
-      });
-
-      // Borra del carrito
-      await CartItem.deleteMany({ userId: req.user.userId, productId: item.sku });
+      return sizeObj;
+    });
+    if (updated) {
+      await product.save();
     }
+  } else {
+    if (product.productQuantity) {
+      product.productQuantity = Math.max(0, product.productQuantity - Number(item.quantity));
+      await product.save();
+    }
+  }
+
+  // --- FIX: Always use the correct price (size price or product price) ---
+  let correctPrice = product.price;
+  let sizes = [];
+  if (product.sizes && product.sizes.length > 0 && item.size) {
+    const sizeObj = product.sizes.find(
+      s =>
+        s.size.toLowerCase() === item.size.toLowerCase() &&
+        (typeof s.color === "string" && s.color.toLowerCase() === (item.color || "").toLowerCase())
+    );
+    if (sizeObj && typeof sizeObj.sizePrice === "number") {
+      correctPrice = sizeObj.sizePrice;
+      sizes = [{
+        size: sizeObj.size,
+        sizePrice: sizeObj.sizePrice,
+        quantity: Number(item.quantity),
+        color: sizeObj.color || "Default"
+      }];
+    }
+  }
+
+  let shippingCost = 0;
+  if (product.shipping && product.shipping.length > 0) {
+    shippingCost = product.shipping[0].price;
+  }
+
+  const { purchase_units } = req.body.orderData || {};
+
+  // Get user shipping info from our MongoDB user
+  const user = await User.findById(userId).select("-password");
+  if (!user) return res.status(404).json({ message: "User not found" });
+
+  // Find the cart item in DB to get shipping info
+  const cartItem = await CartItem.findOne({
+    userId,
+    productId: item.sku,
+    size: item.size || "",
+    color: item.color || "",
+  });
+
+  // Default shipping method
+  let shippingMethod = { name: "", price: 0 };
+  // Use shippingMethod from request body if present (for single-product purchase)
+  if (req.body.shippingMethod && req.body.shippingMethod.name) {
+    shippingMethod = {
+      name: req.body.shippingMethod.name,
+      price: Number(req.body.shippingMethod.price),
+    };
+  } else if (cartItem && Array.isArray(cartItem.shipping) && cartItem.shipping.length > 0) {
+    shippingMethod = {
+      name: cartItem.shipping[0].shipping_name,
+      price: Number(cartItem.shipping[0].shipping_value),
+    };
+  }
+
+  await Order.create({
+    userId: userId,
+    paypalTransactionId: req.body?.transactionId || "",
+    shippingAddress: {
+      name: user.name || "",
+      addressLine1: user.address.street || "",
+      addressLine2: "",
+      city: user.address.city || "",
+      state: user.address.state || "",
+      postalCode: user.address.postalCode || "",
+      country: user.address.country || "",
+    },
+    shippingMethod,
+    productId: item.sku,
+    title: displayTitle,
+    type: product.type,
+    price: correctPrice, // <-- Always use the correct price
+    quantity: Number(item.quantity),
+    sizes, // <-- Save size info if available
+    image: product.image,
+    hoverImage: product.hoverImage,
+    additionalImages: product.additionalImages,
+    paypalTransactionId: captureData.id,
+    shippingCost,
+    status: "completed",
+    paymentDetails: captureData,
+  });
+
+  // Borra del carrito
+  await CartItem.deleteMany({ userId, productId: item.sku });
+}
 
     res.json({ success: true });
   } catch (err) {

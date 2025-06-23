@@ -842,8 +842,36 @@ const CreateProduct: React.FC = () => {
     }
   }
 
+  // Add this state for fade-out animation
+  const [showSavingDraft, setShowSavingDraft] = useState(false)
+
+  useEffect(() => {
+    if (savingDraft) {
+      setShowSavingDraft(true)
+    } else if (showSavingDraft) {
+      // Fade out after 500ms when savingDraft becomes false
+      const timeout = setTimeout(() => setShowSavingDraft(false), 500)
+      return () => clearTimeout(timeout)
+    }
+  }, [savingDraft])
+
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      {/* Saving Draft Spinner */}
+      <div
+        className={`
+        fixed top-6 right-8 z-50 transition-opacity duration-500
+        ${showSavingDraft ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}
+      `}
+      style={{ minWidth: 48, minHeight: 48 }}
+    >
+      {showSavingDraft && (
+        <span className="inline-flex items-center bg-white shadow-lg rounded-full p-3">
+          <RefreshCw className="animate-spin text-blue-600" size={24} />
+        </span>
+      )}
+    </div>
+
       <button
         onClick={() => navigate("/")}
         className="absolute top-4 left-4 flex items-center text-gray-600 hover:text-blue-600"
@@ -854,11 +882,11 @@ const CreateProduct: React.FC = () => {
       <div className="max-w-md mx-auto">
         <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">Create New Product</h2>
 
-        {savingDraft && (
+        {/* {savingDraft && (
           <div className="mt-2 text-center text-sm text-gray-500">
             <span className="inline-block animate-pulse">Saving draft...</span>
           </div>
-        )}
+        )} */}
 
         {/* Image Visualizer */}
         {allImages.length > 0 && (
@@ -962,6 +990,8 @@ const CreateProduct: React.FC = () => {
               ))}
             </select>
           </div>
+
+          
 
           {/* Price */}
           <div>
@@ -1213,9 +1243,7 @@ const CreateProduct: React.FC = () => {
             />
           </div>
 
-          {/* Materials */}
-          {/* Add checkbox for Materials section (before the Materials input, around line 560) */}
-          {/* Replace the Materials section with: */}
+                    {/* Materials */}
           <div>
             <div className="flex items-center justify-between mb-2">
               <label htmlFor="materials" className="block text-sm font-medium text-gray-700">
@@ -1320,6 +1348,7 @@ const CreateProduct: React.FC = () => {
                 ))}
             </ul>
           </div>
+
 
           {/* Image */}
           <div>

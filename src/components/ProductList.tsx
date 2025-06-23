@@ -124,11 +124,13 @@ const ProductList: React.FC<ProductListProps> = ({ onProductClick, selectedTypes
               />
             </div>
             <div className="p-6 flex flex-col justify-center">
-              <h3 className="text-xl font-semibold mb-2"
+              <h3 className="text-xl font-semibold mb-2 cursor-pointer"
               style ={{
                 color: "var(--color-text-header)",
               }}
-              >{product.title}</h3>
+              onClick={() => navigate(`/product/${product._id}`)}
+              >
+                {product.title}</h3>
               <p className="text-gray-600 mb-4"
               style={{
                 color: "var(--color-text-info)",

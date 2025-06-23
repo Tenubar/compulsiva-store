@@ -129,11 +129,14 @@ const ProductGrid: React.FC<ProductGridProps> = ({ onProductClick, selectedTypes
               />
             </div>
             <div className="p-4">
-              <h3 className="text-lg font-semibold mb-2"
+              <h3 className="text-xl font-semibold mb-2 cursor-pointer"
               style ={{
                 color: "var(--color-text-header)",
               }}
-              >{product.title}</h3>
+              onClick={() => navigate(`/product/${product._id}`)}
+              >
+              {product.title}
+              </h3>
               <p className="mb-2"
               style={{
                 color: "var(--color-text-info)",

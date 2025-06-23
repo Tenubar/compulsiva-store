@@ -52,6 +52,8 @@ const EditDraft: React.FC = () => {
   const [deletingImage, setDeletingImage] = useState<string | null>(null)
   const [draftId, setDraftId] = useState<string | null>(null)
   const [savingDraft, setSavingDraft] = useState(false)
+  // Add this state for fade-out animation
+  const [showSavingDraft, setShowSavingDraft] = useState(false)
   const [siteFilters, setSiteFilters] = useState<string[]>(["Other"])
 
   const navigate = useNavigate()
@@ -835,6 +837,21 @@ const EditDraft: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      {/* Saving Draft Spinner */}
+      <div
+        className={`
+        fixed top-6 right-8 z-50 transition-opacity duration-500
+        ${showSavingDraft ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}
+      `}
+        style={{ minWidth: 48, minHeight: 48 }}
+      >
+        {showSavingDraft && (
+          <span className="inline-flex items-center bg-white shadow-lg rounded-full p-3">
+            <RefreshCw className="animate-spin text-blue-600" size={24} />
+          </span>
+        )}
+      </div>
+
       <button
         onClick={() => navigate("/admin/drafts")}
         className="absolute top-4 left-4 flex items-center text-gray-600 hover:text-blue-600"
@@ -845,11 +862,11 @@ const EditDraft: React.FC = () => {
       <div className="max-w-md mx-auto">
         <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">Edit Draft</h2>
 
-        {savingDraft && (
+        {/* {savingDraft && (
           <div className="mt-2 text-center text-sm text-gray-500">
             <span className="inline-block animate-pulse">Saving draft...</span>
           </div>
-        )}
+        )} */}
 
         {/* Image Visualizer */}
         {allImages.length > 0 && (
@@ -967,6 +984,7 @@ const EditDraft: React.FC = () => {
               }`}
             />
           </div>
+
           {/* Product Quantity */}
           <div>
             <label htmlFor="productQuantity" className="block text-sm font-medium text-gray-700">
@@ -993,192 +1011,8 @@ const EditDraft: React.FC = () => {
               }`}
             />
           </div>
-          <div>
-            <label htmlFor="image" className="block text-sm font-medium text-gray-700">
-              Image
-            </label>
-            <div className="flex items-center">
-              <input
-                type="text"
-                id="image"
-                required
-                value={image}
-                readOnly
-                className="mt-1 block flex-grow border border-gray-300 rounded-md shadow-sm py-2 px-3 bg-gray-100 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-              />
-              <button
-                type="button"
-                className={`ml-2 px-4 py-2 text-sm font-medium text-white 
-      ${uploading ? "bg-gray-500 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"} 
-      rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
-                onClick={() => {
-                  const fileInput = document.createElement("input")
-                  fileInput.type = "file"
-                  fileInput.accept = "image/jpeg, image/png"
-                  fileInput.onchange = (e) => {
-                    const file = (e.target as HTMLInputElement).files?.[0]
-                    if (file) {
-                      handleFileUpload(file, "image", image)
-                    }
-                  }
-                  fileInput.click()
-                }}
-                disabled={uploading || deletingImage === image}
-              >
-                {uploading ? (
-                  "Saving..."
-                ) : image ? (
-                  <span className="flex items-center">
-                    <RefreshCw size={16} className="mr-1" /> Change
-                  </span>
-                ) : (
-                  "Upload"
-                )}
-              </button>
-              <button
-                type="button"
-                className={`ml-2 px-4 py-2 text-sm font-medium text-white 
-      ${uploading ? "bg-gray-500 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"} 
-      rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500`}
-                onClick={() => {
-                  setSelectedImageField("image")
-                  setIsGalleryModalOpen(true)
-                }}
-                disabled={uploading}
-              >
-                Gallery
-              </button>
-              {image && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setImageToDelete({ path: image, field: "image" })
-                    setIsDeleteModalOpen(true)
-                  }}
-                  disabled={deletingImage === image}
-                  className={`ml-2 p-2 text-white bg-red-600 hover:bg-red-700 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 ${
-                    deletingImage === image ? "opacity-50 cursor-not-allowed" : ""
-                  }`}
-                >
-                  <Trash2 size={16} />
-                </button>
-              )}
-            </div>
-            {image && (
-              <button
-                type="button"
-                onClick={() => {
-                  setImage("")
-                  saveDraftWithImage("image", "")
-                }}
-                className="mt-1 text-sm text-gray-500 hover:text-gray-700"
-              >
-                Clear
-              </button>
-            )}
-          </div>
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label htmlFor="hoverImage" className="block text-sm font-medium text-gray-700">
-                Hover Image
-              </label>
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="useSameImage"
-                  checked={useSameImage}
-                  onChange={(e) => setUseSameImage(e.target.checked)}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                <label htmlFor="useSameImage" className="ml-2 text-sm text-gray-600">
-                  Use the same as Image
-                </label>
-              </div>
-            </div>
-            <div className="flex items-center">
-              <input
-                type="text"
-                id="hoverImage"
-                required={!useSameImage}
-                value={useSameImage ? "Using main image" : hoverImage}
-                readOnly
-                className={`mt-1 block flex-grow border border-gray-300 rounded-md shadow-sm py-2 px-3 ${
-                  useSameImage ? "bg-gray-200 text-gray-500" : "bg-gray-100"
-                } focus:outline-none focus:ring-blue-500 focus:border-blue-500`}
-              />
-              <button
-                type="button"
-                className={`ml-2 px-4 py-2 text-sm font-medium text-white 
-      ${uploading || useSameImage ? "bg-gray-500 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"} 
-      rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
-                onClick={() => {
-                  const fileInput = document.createElement("input")
-                  fileInput.type = "file"
-                  fileInput.accept = "image/jpeg, image/png"
-                  fileInput.onchange = (e) => {
-                    const file = (e.target as HTMLInputElement).files?.[0]
-                    if (file) {
-                      handleFileUpload(file, "hoverImage", hoverImage)
-                    }
-                  }
-                  fileInput.click()
-                }}
-                disabled={uploading || deletingImage === hoverImage || useSameImage}
-              >
-                {uploading ? (
-                  "Saving..."
-                ) : hoverImage && !useSameImage ? (
-                  <span className="flex items-center">
-                    <RefreshCw size={16} className="mr-1" /> Change
-                  </span>
-                ) : (
-                  "Upload"
-                )}
-              </button>
-              <button
-                type="button"
-                className={`ml-2 px-4 py-2 text-sm font-medium text-white 
-      ${uploading || useSameImage ? "bg-gray-500 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"} 
-      rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500`}
-                onClick={() => {
-                  setSelectedImageField("hoverImage")
-                  setIsGalleryModalOpen(true)
-                }}
-                disabled={uploading || useSameImage}
-              >
-                Gallery
-              </button>
-              {hoverImage && !useSameImage && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setImageToDelete({ path: hoverImage, field: "hoverImage" })
-                    setIsDeleteModalOpen(true)
-                  }}
-                  disabled={deletingImage === hoverImage}
-                  className={`ml-2 p-2 text-white bg-red-600 hover:bg-red-700 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 ${
-                    deletingImage === hoverImage ? "opacity-50 cursor-not-allowed" : ""
-                  }`}
-                >
-                  <Trash2 size={16} />
-                </button>
-              )}
-            </div>
-            {hoverImage && !useSameImage && (
-              <button
-                type="button"
-                onClick={() => {
-                  setHoverImage("")
-                  saveDraftWithImage("hoverImage", "")
-                }}
-                className="mt-1 text-sm text-gray-500 hover:text-gray-700"
-              >
-                Clear
-              </button>
-            )}
-          </div>
-          {/* Add checkbox for Sizes section (before the Sizes input, around line 460) */}
-          {/* Replace the Sizes label with: */}
+
+          {/* Sizes Label */}
           <div className="flex items-center justify-between mb-2">
             <label htmlFor="sizes" className="block text-sm font-medium text-gray-700">
               Sizes
@@ -1196,6 +1030,8 @@ const EditDraft: React.FC = () => {
               </label>
             </div>
           </div>
+
+          {/* Sizes (Name - Quantity - Price - Color) */}
           <div>
             <div className="flex items-center mt-1 space-x-2">
               <input
@@ -1382,6 +1218,8 @@ const EditDraft: React.FC = () => {
               ))}
             </div>
           </div>
+
+          {/* Description */}
           <div>
             <label htmlFor="description" className="block text-sm font-medium text-gray-700">
               Description
@@ -1404,8 +1242,8 @@ const EditDraft: React.FC = () => {
               className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
             ></textarea>
           </div>
-          {/* Add checkbox for Materials section (before the Materials input, around line 560) */}
-          {/* Replace the Materials section with: */}
+
+          {/* Materials */}
           <div>
             <div className="flex items-center justify-between mb-2">
               <label htmlFor="materials" className="block text-sm font-medium text-gray-700">
@@ -1445,6 +1283,8 @@ const EditDraft: React.FC = () => {
               }`}
             ></textarea>
           </div>
+
+          {/* Shipping */}
           <div>
             <div className="flex items-center justify-between">
               <label className="block text-sm font-medium text-gray-700">Shipping Options</label>
@@ -1516,6 +1356,197 @@ const EditDraft: React.FC = () => {
               ))}
             </ul>
           </div>
+
+          {/* Image */}
+          <div>
+            <label htmlFor="image" className="block text-sm font-medium text-gray-700">
+              Image
+            </label>
+            <div className="flex items-center">
+              <input
+                type="text"
+                id="image"
+                required
+                value={image}
+                readOnly
+                className="mt-1 block flex-grow border border-gray-300 rounded-md shadow-sm py-2 px-3 bg-gray-100 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              />
+              <button
+                type="button"
+                className={`ml-2 px-4 py-2 text-sm font-medium text-white 
+                ${uploading ? "bg-gray-500 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"} 
+                rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
+                onClick={() => {
+                  const fileInput = document.createElement("input")
+                  fileInput.type = "file"
+                  fileInput.accept = "image/jpeg, image/png"
+                  fileInput.onchange = (e) => {
+                    const file = (e.target as HTMLInputElement).files?.[0]
+                    if (file) {
+                      handleFileUpload(file, "image", image)
+                    }
+                  }
+                  fileInput.click()
+                }}
+                disabled={uploading || deletingImage === image}
+              >
+                {uploading ? (
+                  "Saving..."
+                ) : image ? (
+                  <span className="flex items-center">
+                    <RefreshCw size={16} className="mr-1" /> Change
+                  </span>
+                ) : (
+                  "Upload"
+                )}
+              </button>
+              <button
+                type="button"
+                className={`ml-2 px-4 py-2 text-sm font-medium text-white 
+                ${uploading ? "bg-gray-500 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"} 
+                rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500`}
+                onClick={() => {
+                  setSelectedImageField("image")
+                  setIsGalleryModalOpen(true)
+                }}
+                disabled={uploading}
+              >
+                Gallery
+              </button>
+              {image && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setImageToDelete({ path: image, field: "image" })
+                    setIsDeleteModalOpen(true)
+                  }}
+                  disabled={deletingImage === image}
+                  className={`ml-2 p-2 text-white bg-red-600 hover:bg-red-700 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 ${
+                    deletingImage === image ? "opacity-50 cursor-not-allowed" : ""
+                  }`}
+                >
+                  <Trash2 size={16} />
+                </button>
+              )}
+            </div>
+            {image && (
+              <button
+                type="button"
+                onClick={() => {
+                  setImage("")
+                  saveDraftWithImage("image", "")
+                }}
+                className="mt-1 text-sm text-gray-500 hover:text-gray-700"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+
+          {/* Hover Image */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label htmlFor="hoverImage" className="block text-sm font-medium text-gray-700">
+                Hover Image
+              </label>
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="useSameImage"
+                  checked={useSameImage}
+                  onChange={(e) => setUseSameImage(e.target.checked)}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label htmlFor="useSameImage" className="ml-2 text-sm text-gray-600">
+                  Use the same as Image
+                </label>
+              </div>
+            </div>
+            <div className="flex items-center">
+              <input
+                type="text"
+                id="hoverImage"
+                required={!useSameImage}
+                value={useSameImage ? "Using main image" : hoverImage}
+                readOnly
+                className={`mt-1 block flex-grow border border-gray-300 rounded-md shadow-sm py-2 px-3 ${
+                  useSameImage ? "bg-gray-200 text-gray-500" : "bg-gray-100"
+                } focus:outline-none focus:ring-blue-500 focus:border-blue-500`}
+              />
+              <button
+                type="button"
+                className={`ml-2 px-4 py-2 text-sm font-medium text-white 
+                ${uploading || useSameImage ? "bg-gray-500 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"} 
+                rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
+                onClick={() => {
+                  const fileInput = document.createElement("input")
+                  fileInput.type = "file"
+                  fileInput.accept = "image/jpeg, image/png"
+                  fileInput.onchange = (e) => {
+                    const file = (e.target as HTMLInputElement).files?.[0]
+                    if (file) {
+                      handleFileUpload(file, "hoverImage", hoverImage)
+                    }
+                  }
+                  fileInput.click()
+                }}
+                disabled={uploading || deletingImage === hoverImage || useSameImage}
+              >
+                {uploading ? (
+                  "Saving..."
+                ) : hoverImage && !useSameImage ? (
+                  <span className="flex items-center">
+                    <RefreshCw size={16} className="mr-1" /> Change
+                  </span>
+                ) : (
+                  "Upload"
+                )}
+              </button>
+              <button
+                type="button"
+                className={`ml-2 px-4 py-2 text-sm font-medium text-white 
+                ${uploading || useSameImage ? "bg-gray-500 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"} 
+                rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500`}
+                onClick={() => {
+                  setSelectedImageField("hoverImage")
+                  setIsGalleryModalOpen(true)
+                }}
+                disabled={uploading || useSameImage}
+              >
+                Gallery
+              </button>
+              {hoverImage && !useSameImage && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setImageToDelete({ path: hoverImage, field: "hoverImage" })
+                    setIsDeleteModalOpen(true)
+                  }}
+                  disabled={deletingImage === hoverImage}
+                  className={`ml-2 p-2 text-white bg-red-600 hover:bg-red-700 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 ${
+                    deletingImage === hoverImage ? "opacity-50 cursor-not-allowed" : ""
+                  }`}
+                >
+                  <Trash2 size={16} />
+                </button>
+              )}
+            </div>
+            {hoverImage && !useSameImage && (
+              <button
+                type="button"
+                onClick={() => {
+                  setHoverImage("")
+                  saveDraftWithImage("hoverImage", "")
+                }}
+                className="mt-1 text-sm text-gray-500 hover:text-gray-700"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+
+
+          {/* Additional Images */}
           <div>
             <label className="block text-sm font-medium text-gray-700">Additional Images</label>
             <div className="mt-1 flex items-center">

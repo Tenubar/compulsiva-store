@@ -30,10 +30,21 @@ const Cart: React.FC = () => {
   const [processing, setProcessing] = useState(false)
   const navigate = useNavigate()
   const paypalRef = useRef<HTMLDivElement>(null)
+  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchCartItems()
   }, [])
+
+  useEffect(() => {
+    // Fetch userId on mount
+    fetch(`${import.meta.env.VITE_SITE_URL}/get-user-details`, {
+      credentials: "include",
+    })
+      .then(res => res.json())
+      .then(data => setUserId(data._id))
+      .catch(() => setUserId(null));
+  }, []);
 
   useEffect(() => {
     if (cartItems.length === 0) return;
@@ -51,7 +62,7 @@ const Cart: React.FC = () => {
     }
 
     function renderPayPalButton() {
-      if ((window as any).paypal && paypalRef.current) {
+      if ((window as any).paypal && paypalRef.current && userId) {
         (window as any).paypal.Buttons({
           createOrder: async () => {
             // Prepara los items con shipping incluido
@@ -94,7 +105,7 @@ const Cart: React.FC = () => {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               credentials: "include",
-              body: JSON.stringify({ orderID: data.orderID }),
+              body: JSON.stringify({ orderID: data.orderID, userId }), // <-- send userId
             });
             const captureData = await captureRes.json();
             if (captureData.success) {
@@ -114,7 +125,7 @@ const Cart: React.FC = () => {
     return () => {
       if (paypalRef.current) paypalRef.current.innerHTML = "";
     };
-  }, [cartItems, navigate])
+  }, [cartItems, navigate, userId])
 
   const fetchCartItems = async () => {
     try {
