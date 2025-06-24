@@ -1702,6 +1702,10 @@ app.post("/api/orders", authenticateToken, async (req, res) => {
     })
 
     await order.save()
+
+    // Envía correo al admin
+    await sendAdminOrderEmail(order);
+
     res.status(201).json({ message: "Order created successfully", order })
   } catch (error) {
     res.status(500).json({ message: "Error creating order", error: error.message })
@@ -1812,9 +1816,6 @@ app.post("/api/paypal/ipn", express.raw({ type: "application/x-www-form-urlencod
 
   await ipnLog.save();
   console.log("IPN Log saved:", ipnLog);
-
-  // Envía correo al admin
-  await sendAdminOrderEmail(order);
 
   res.status(200).send("OK");
 });
@@ -1989,6 +1990,7 @@ async function createOrderFromIPN(ipnData) {
 
     await order.save();
     console.log("Order saved successfully:", order);
+
 
     await CartItem.deleteMany({ userId, productId });
     return order;
