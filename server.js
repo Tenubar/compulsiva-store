@@ -1703,9 +1703,6 @@ app.post("/api/orders", authenticateToken, async (req, res) => {
 
     await order.save()
 
-    // Envía correo al admin
-    await sendAdminOrderEmail(order);
-
     res.status(201).json({ message: "Order created successfully", order })
   } catch (error) {
     res.status(500).json({ message: "Error creating order", error: error.message })
@@ -2347,7 +2344,7 @@ app.post("/api/paypal/capture-cart-order", async (req, res) => {
     };
   }
 
-  await Order.create({
+  const newOrder = await Order.create({
     userId: userId,
     paypalTransactionId: req.body?.transactionId || "",
     shippingAddress: {
@@ -2373,7 +2370,15 @@ app.post("/api/paypal/capture-cart-order", async (req, res) => {
     shippingCost,
     status: "completed",
     paymentDetails: captureData,
+    payerEmail: user.email,
+    payerName: user.name,
   });
+
+  // Envía correo al admin
+  await sendAdminOrderEmail(newOrder);
+
+  // (Opcional) Envía correo al usuario
+  // await sendUserOrderEmail(newOrder);
 
   // Borra del carrito
   await CartItem.deleteMany({ userId, productId: item.sku });
