@@ -308,6 +308,35 @@ async function sendAdminOrderEmail(order) {
   }
 }
 
+async function sendUserOrderEmail(order) {
+  try {
+    if (!order.payerEmail) {
+      console.warn('No se encontró el correo del comprador para enviar la notificación.');
+      return;
+    }
+    await resend.emails.send({
+      from: 'onboarding@resend.dev', // Cambia por tu remitente verificado si tienes uno propio
+      to: order.payerEmail,
+      subject: '¡Gracias por tu compra en Carol Store!',
+      html: `
+        <h2>¡Compra exitosa!</h2>
+        <p>Hola ${order.payerName || 'Cliente'},</p>
+        <p>Tu compra fue procesada correctamente. Aquí tienes los detalles:</p>
+        <ul>
+          <li><b>Producto:</b> ${order.title}</li>
+          <li><b>Cantidad:</b> ${order.quantity}</li>
+          <li><b>Precio:</b> $${order.price}</li>
+          <li><b>ID de Orden:</b> ${order._id}</li>
+        </ul>
+        <p>¡Gracias por confiar en nosotros!</p>
+      `,
+    });
+    console.log('Correo enviado al comprador:', order.payerEmail);
+  } catch (err) {
+    console.error('Error enviando correo al comprador:', err);
+  }
+}
+
 // Route for uploading image to GridFS
 app.post("/api/upload/productImage", upload.single("image"), async (req, res) => {
   if (!req.file) {
@@ -2378,7 +2407,7 @@ app.post("/api/paypal/capture-cart-order", async (req, res) => {
   await sendAdminOrderEmail(newOrder);
 
   // (Opcional) Envía correo al usuario
-  // await sendUserOrderEmail(newOrder);
+  await sendUserOrderEmail(newOrder);
 
   // Borra del carrito
   await CartItem.deleteMany({ userId, productId: item.sku });
