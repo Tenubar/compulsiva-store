@@ -337,6 +337,30 @@ async function sendUserOrderEmail(order) {
   }
 }
 
+async function sendWelcomeEmail(user) {
+  try {
+    if (!user.email) {
+      console.warn('No se encontró el correo del usuario para enviar la bienvenida.');
+      return;
+    }
+    await resend.emails.send({
+      from: 'onboarding@resend.dev', // Cambia por tu remitente verificado si tienes uno propio
+      to: user.email,
+      subject: '¡Bienvenido a Carol Store!',
+      html: `
+        <h2>¡Gracias por registrarte en Carol Store!</h2>
+        <p>Hola ${user.name || 'Cliente'},</p>
+        <p>Tu cuenta ha sido creada exitosamente. ¡Esperamos que disfrutes de tu experiencia de compra!</p>
+        <p>Si tienes alguna pregunta, no dudes en contactarnos.</p>
+        <p>¡Bienvenido a la familia Carol Store!</p>
+      `,
+    });
+    console.log('Correo de bienvenida enviado a:', user.email);
+  } catch (err) {
+    console.error('Error enviando correo de bienvenida:', err);
+  }
+}
+
 // Route for uploading image to GridFS
 app.post("/api/upload/productImage", upload.single("image"), async (req, res) => {
   if (!req.file) {
@@ -479,7 +503,8 @@ app.post("/register", async (req, res) => {
       avatar: avatar || "",
     })
 
-    await user.save()
+    await user.save();
+    await sendWelcomeEmail(user);
     res.status(201).json({ message: "User created successfully" })
   } catch (error) {
     res.status(500).json({ message: "Error creating user", error: error.message })
