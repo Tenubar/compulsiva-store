@@ -116,6 +116,9 @@ interface SiteSettings {
     backgroundDanger: string  
   }
   filters: string[]
+  // Añadido para los límites de mensajes
+  messagePerDay: string
+  messageCharLimit: string
 }
 
 const AdminSettings: React.FC = () => {
@@ -143,6 +146,8 @@ const AdminSettings: React.FC = () => {
       backgroundDanger: "#fee2e2",
     },
     filters: ["Shirt", "Pants", "Shoes", "Bracelet", "Collar", "Other"],
+    messagePerDay: "1",
+    messageCharLimit: "2000",
   })
 
   const [loading, setLoading] = useState(true)
@@ -218,6 +223,8 @@ const AdminSettings: React.FC = () => {
             backgroundDanger: data.siteColors?.find((c: any) => c.name === "backgroundDanger")?.value || "#fee2e2",
           },
           filters: filtersWithOther,
+          messagePerDay: data.siteMessageLimits?.[0]?.messagePerDay || "1",
+          messageCharLimit: data.siteMessageLimits?.[0]?.messageCharLimit || "2000",
         })
 
         // Set the selected font combination
@@ -266,6 +273,12 @@ const AdminSettings: React.FC = () => {
           { name: "backgroundDanger", value: settings.colors.backgroundDanger }, 
         ],
         siteFilters: settings.filters,
+        siteMessageLimits: [
+          {
+            messagePerDay: settings.messagePerDay,
+            messageCharLimit: settings.messageCharLimit,
+          },
+        ],
       }
 
       // Send the request with credentials to include cookies
@@ -919,6 +932,36 @@ const AdminSettings: React.FC = () => {
                   })}
                 </div>
               </div>
+
+              {/* LÍMITES DE MENSAJES DEL CHAT */}
+              <div className="mt-8">
+                <h2 className="text-lg font-semibold mb-2">Límites del chat</h2>
+                <div className="flex flex-col gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Mensajes por día</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="99"
+                      value={settings.messagePerDay}
+                      onChange={e => setSettings(s => ({ ...s, messagePerDay: e.target.value.replace(/[^0-9]/g, '').slice(0,2) }))}
+                      className="mt-1 block w-32 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Límite de caracteres por mensaje</label>
+                    <input
+                      type="number"
+                      min="100"
+                      max="10000"
+                      value={settings.messageCharLimit}
+                      onChange={e => setSettings(s => ({ ...s, messageCharLimit: e.target.value.replace(/[^0-9]/g, '').slice(0,5) }))}
+                      className="mt-1 block w-32 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                    />
+                  </div>
+                </div>
+              </div>
+
             </div>
           </div>
         </div>

@@ -70,6 +70,8 @@ const userSchema = new mongoose.Schema(
       postalCode: { type: String, default: "" },
       country: { type: String, default: "" },
     },
+    messagesSent: { type: Number, default: 0 },
+    lastMessageDate: { type: Date, default: null }, // Nueva fecha del último mensaje
   },
   { timestamps: true },
 )
@@ -275,6 +277,18 @@ const pageSettingsSchema = new mongoose.Schema(
     siteFilters: {
       type: [String],
       default: [""],
+    },
+    // Nuevo campo para límites de mensajes en el chat
+    siteMessageLimits: {
+      type: [
+        {
+          messagePerDay: { type: String, default: "1" },
+          messageCharLimit: { type: String, default: "2000" },
+        },
+      ],
+      default: [
+        { messagePerDay: "1", messageCharLimit: "2000" },
+      ],
     },
   },
   { timestamps: true },
@@ -1400,7 +1414,7 @@ app.delete("/api/drafts/:id", authenticateToken, async (req, res) => {
           await ImageModel.findByIdAndDelete(image._id)
         }
       } catch (err) {
-        console.error(`Error deleting image ${imagePath}:`, err)
+        console.error("Error deleting image:", err)
         // Continue with other deletions even if one fails
       }
     }
@@ -1995,7 +2009,9 @@ async function createOrderFromIPN(ipnData) {
     let finalPrice = product.price;
     if (selectedSize && product.sizes?.length > 0) {
       const sizeObj = product.sizes.find(
-        (s) => s.size === selectedSize && s.color === (selectedColor || "Default")
+        s =>
+          s.size.toLowerCase() === selectedSize.toLowerCase() &&
+          (typeof s.color === "string" && s.color.toLowerCase() === (selectedColor || "").toLowerCase())
       );
       if (sizeObj && typeof sizeObj.sizePrice === "number") {
         finalPrice = sizeObj.sizePrice;
@@ -2416,7 +2432,7 @@ app.post("/api/paypal/capture-cart-order", async (req, res) => {
     type: product.type,
     price: correctPrice, // <-- Always use the correct price
     quantity: Number(item.quantity),
-    sizes, // <-- Save size info if available
+    sizes: sizes, // <-- Save size info if available
     image: product.image,
     hoverImage: product.hoverImage,
     additionalImages: product.additionalImages,
@@ -2644,6 +2660,121 @@ app.patch("/api/page-settings/:field", authenticateToken, isAdmin, async (req, r
     res.status(500).json({ message: "Error updating page setting", error: error.message })
   }
 })
+
+// Chat bubble: send message to admin
+app.post("/api/send-admin-message", authenticateToken, async (req, res) => {
+  console.log("POST /api/send-admin-message called");
+  try {
+    const user = await User.findById(req.user.userId);
+    if (!user) {
+      console.error("User not found for userId:", req.user.userId);
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Obtener límites globales
+    const pageSettings = await PageSettings.findOne();
+    let messagePerDay = 1;
+    if (pageSettings && Array.isArray(pageSettings.siteMessageLimits) && pageSettings.siteMessageLimits.length > 0) {
+      messagePerDay = Number(pageSettings.siteMessageLimits[0].messagePerDay) || 1;
+    }
+
+    if (user.messagesSent >= messagePerDay) {
+      console.warn(`User ${user.email} reached daily limit: ${user.messagesSent}/${messagePerDay}`);
+      return res.status(429).json({ message: "Límite diario alcanzado" });
+    }
+
+    // Log el mensaje recibido
+    console.log("Enviando mensaje del chat:", {
+      name: user.name,
+      email: user.email,
+      message: req.body.message,
+    });
+
+    // Aquí iría el código para enviar el mensaje al admin (puedes mantener el existente)
+    await sendAdminChatMessage({
+      name: user.name,
+      email: user.email,
+      message: req.body.message.trim(),
+    });
+
+    // Incrementar el contador y actualizar la fecha
+    user.messagesSent = user.messagesSent + 1;
+    user.lastMessageDate = new Date();
+    await user.save();
+
+    console.log("Mensaje enviado exitosamente y contador actualizado para:", user.email);
+
+    res.json({ message: "Mensaje enviado exitosamente" });
+  } catch (error) {
+    console.error("Error en /api/send-admin-message:", error);
+    res.status(500).json({ message: "Error enviando mensaje", error: error.message, stack: error.stack });
+  }
+});
+
+// Función para enviar mensaje del chat bubble al admin
+async function sendAdminChatMessage({ name, email, message }) {
+  try {
+    await resend.emails.send({
+      from: 'onboarding@resend.dev',
+      to: process.env.VITE_ADMIN_USER_EMAIL,
+      subject: 'Nuevo mensaje de cliente desde el chat',
+      html: `
+        <h2>Nuevo mensaje desde el chat de la tienda</h2>
+        <ul>
+          <li><b>Nombre:</b> ${name}</li>
+          <li><b>Email:</b> ${email}</li>
+        </ul>
+        <p style="margin-top:16px;"><b>Mensaje:</b></p>
+        <div style="background:#f3f4f6;padding:16px;border-radius:8px;">${message.replace(/\n/g, '<br>')}</div>
+      `,
+    });
+    console.log('Mensaje del chat enviado al admin');
+  } catch (err) {
+    console.error('Error enviando mensaje del chat al admin:', err);
+    throw err;
+  }
+}
+
+// Endpoint para checar y actualizar el límite diario de mensajes individuales
+app.get("/api/chat/check-limit", authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    // Obtener límites globales
+    const pageSettings = await PageSettings.findOne();
+    let messagePerDay = 1;
+    if (pageSettings && Array.isArray(pageSettings.siteMessageLimits) && pageSettings.siteMessageLimits.length > 0) {
+      messagePerDay = Number(pageSettings.siteMessageLimits[0].messagePerDay) || 1;
+    }
+
+    // Calcular si ha pasado un día (UTC)
+    const now = new Date();
+    const lastDate = user.lastMessageDate ? new Date(user.lastMessageDate) : null;
+    let messagesSent = user.messagesSent;
+    let updated = false;
+    if (lastDate) {
+      // Comparar solo la fecha UTC (ignorar hora)
+      const lastDay = Date.UTC(lastDate.getUTCFullYear(), lastDate.getUTCMonth(), lastDate.getUTCDate());
+      const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+      if (today > lastDay && messagesSent > 0) {
+        messagesSent = Math.max(messagesSent - 1, 0);
+        user.messagesSent = messagesSent;
+        user.lastMessageDate = now;
+        await user.save();
+        updated = true;
+      }
+    }
+    res.json({
+      messagesSent,
+      messagePerDay,
+      limitReached: messagesSent >= messagePerDay,
+      updated
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Error checking chat limit", error: error.message });
+  }
+});
 
 const PORT = process.env.VITE_PORT || 3000
 app.listen(PORT, () => {

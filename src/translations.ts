@@ -49,6 +49,7 @@ export const translations = {
     avatarUpdated: "Avatar Updated",
     failedToUpdateProfile: "Failed to update profile",
     avatarUploadError: "Avatar upload error",
+    profileUpdated: "Profile updated successfully",
 
     // Profile Information
     profileInformation: "Profile Information",
@@ -381,6 +382,7 @@ export const translations = {
     // Profile
     myProfile: "My Profile",
     personalInfo: "Personal Information",
+    name: "Name",
     orderHistory: "Order History",
     wishlist: "Wishlist",
     accountSettings: "Account Settings",
@@ -848,6 +850,7 @@ export const translations = {
 
     // Profile
     myProfile: "Mi Perfil",
+    name: "Nombre",
     personalInfo: "Información Personal",
     orderHistory: "Historial de Pedidos",
     wishlist: "Lista de Deseos",
@@ -863,6 +866,7 @@ export const translations = {
     orderDate: "Fecha del Pedido",
     orderTotal: "Total",
     id: "Cédula",
+    profileUpdated: "Perfil actualizado",
 
     // Shipping Policy
     shippingPolicy: "Política de Envío",

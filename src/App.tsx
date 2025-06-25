@@ -102,6 +102,57 @@ function App() {
   const [exchangeRate, setExchangeRate] = useState(1)
   const [siteFilters, setSiteFilters] = useState<ProductType[]>(["Other"])
   const [isChatOpen, setIsChatOpen] = useState(false)
+  // Chat user state
+  const [chatUser, setChatUser] = useState<{ name: string; email: string } | null>(null)
+  const [chatLoading, setChatLoading] = useState(true)
+
+  // Chat bubble states
+  const [chatMessage, setChatMessage] = useState("");
+  const [chatSending, setChatSending] = useState(false);
+  const [chatSent, setChatSent] = useState<"success"|"error"|null>(null);
+  const [chatError, setChatError] = useState("");
+
+  // Chat bubble limits
+  const [messageCharLimit, setMessageCharLimit] = useState(2000)
+  const [messagePerDay, setMessagePerDay] = useState(1)
+  const [messagesSent, setMessagesSent] = useState(0)
+  const [limitReached, setLimitReached] = useState(false)
+
+  // Check login status for chat bubble y checar límite individual
+  useEffect(() => {
+    if (!isChatOpen) return;
+    setChatLoading(true);
+    // Checar usuario y límite individual
+    Promise.all([
+      fetch(`${import.meta.env.VITE_SITE_URL}/get-user-details`, { credentials: "include" }),
+      fetch(`${import.meta.env.VITE_SITE_URL}/api/chat/check-limit`, { credentials: "include" })
+    ])
+      .then(async ([userRes, limitRes]) => {
+        if (userRes.ok) {
+          const user = await userRes.json();
+          setChatUser({ name: user.name, email: user.email })
+        } else {
+          setChatUser(null)
+        }
+        if (limitRes.ok) {
+          const data = await limitRes.json();
+          setMessagePerDay(data.messagePerDay)
+          setMessagesSent(data.messagesSent)
+          setLimitReached(data.limitReached)
+        } else {
+          setMessagePerDay(1)
+          setMessagesSent(0)
+          setLimitReached(false)
+        }
+      })
+      .catch(() => {
+        setChatUser(null)
+        setMessagePerDay(1)
+        setMessagesSent(0)
+        setLimitReached(false)
+      })
+      .finally(() => setChatLoading(false));
+  }, [isChatOpen])
 
   useEffect(() => {
   const setFavicon = async () => {
@@ -226,6 +277,69 @@ function App() {
   const toggleChat = () => {
     setIsChatOpen((prev) => !prev)
   }
+
+  // Send chat message to admin email
+  const handleChatSend = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!chatUser || chatMessage.trim().length < 15 || chatMessage.length > messageCharLimit || limitReached) return;
+    setChatSending(true);
+    setChatError("");
+    setChatSent(null);
+    try {
+      const res = await fetch(`${import.meta.env.VITE_SITE_URL}/api/send-admin-message`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ message: chatMessage.trim() })
+      });
+      if (res.ok) {
+        setChatSent("success");
+        // Actualizar contador individual tras éxito
+        setMessagesSent((prev) => prev + 1);
+        if (messagesSent + 1 >= messagePerDay) setLimitReached(true);
+      } else {
+        const data = await res.json();
+        setChatSent("error");
+        setChatError(data?.message || "Hubo un error al enviar el mensaje");
+      }
+    } catch {
+      setChatSent("error");
+      setChatError("Hubo un error al enviar el mensaje");
+    } finally {
+      setChatSending(false);
+    }
+  };
+
+  const handleChatOk = () => {
+    setIsChatOpen(false);
+    setChatSent(null);
+    setChatMessage("");
+    setChatError("");
+  }
+
+  // Cargar límites desde la API al abrir el chat
+  useEffect(() => {
+    if (!isChatOpen) return;
+    const fetchLimits = async () => {
+      try {
+        const response = await fetch(`${import.meta.env.VITE_SITE_URL}/api/page-settings`)
+        if (response.ok) {
+          const data = await response.json()
+          if (Array.isArray(data.siteMessageLimits) && data.siteMessageLimits.length > 0) {
+            setMessageCharLimit(Number(data.siteMessageLimits[0].messageCharLimit) || 2000)
+            setMessagePerDay(Number(data.siteMessageLimits[0].messagePerDay) || 1)
+          } else {
+            setMessageCharLimit(2000)
+            setMessagePerDay(1)
+          }
+        }
+      } catch {
+        setMessageCharLimit(2000)
+        setMessagePerDay(1)
+      }
+    }
+    fetchLimits()
+  }, [isChatOpen])
 
   return (
     <ThemeProvider>
@@ -420,7 +534,7 @@ function App() {
                 }}
               >
                 <img
-                  src="/chat_icon.png" // Replace with your chat icon path
+                  src="/chat_icon.png"
                   alt="Chat"
                   style={{ width: "30px", height: "30px" }}
                 />
@@ -454,55 +568,107 @@ function App() {
                       ✖
                     </button>
                   </div>
-                  <form>
-                    <input
-                      type="text"
-                      placeholder="Name"
+                  {chatLoading ? (
+                    <div style={{ color: '#888', textAlign: 'center', margin: '20px 0' }}>Cargando...</div>
+                  ) : chatUser ? (
+                    chatSent === "success" ? (
+                      <div style={{ textAlign: 'center', padding: '30px 0' }}>
+                        <svg width="48" height="48" fill="none" viewBox="0 0 24 24" style={{ margin: '0 auto', display: 'block' }}><circle cx="12" cy="12" r="10" fill="#22c55e"/><path d="M8 12.5l2.5 2.5 5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                        <div style={{ color: '#22c55e', fontWeight: 600, fontSize: 18, marginTop: 10 }}>Mensaje Enviado</div>
+                        <div style={{ color: '#888', fontSize: 13, marginTop: 4 }}>atención al cliente te responderá pronto</div>
+                        <button onClick={handleChatOk} style={{ marginTop: 18, padding: '8px 24px', background: 'var(--color-primary)', color: '#fff', border: 'none', borderRadius: 5, cursor: 'pointer', fontWeight: 500 }}>OK</button>
+                      </div>
+                    ) : chatSent === "error" ? (
+                      <div style={{ textAlign: 'center', padding: '30px 0' }}>
+                        <svg width="48" height="48" fill="none" viewBox="0 0 24 24" style={{ margin: '0 auto', display: 'block' }}><circle cx="12" cy="12" r="10" fill="#ef4444"/><path d="M15 9l-6 6M9 9l6 6" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                        <div style={{ color: '#ef4444', fontWeight: 600, fontSize: 18, marginTop: 10 }}>Hubo un error al enviar el mensaje</div>
+                        <button onClick={handleChatOk} style={{ marginTop: 18, padding: '8px 24px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: 5, cursor: 'pointer', fontWeight: 500 }}>X</button>
+                      </div>
+                    ) : (
+                      <form onSubmit={handleChatSend}>
+                        <input
+                          type="text"
+                          placeholder="Name"
+                          value={chatUser.name}
+                          readOnly
+                          style={{
+                            width: "100%",
+                            padding: "10px",
+                            margin: "10px 0",
+                            borderRadius: "5px",
+                            border: "1px solid #ccc",
+                            background: "#f5f5f5"
+                          }}
+                        />
+                        <input
+                          type="email"
+                          placeholder="Email"
+                          value={chatUser.email}
+                          readOnly
+                          style={{
+                            width: "100%",
+                            padding: "10px",
+                            margin: "10px 0",
+                            borderRadius: "5px",
+                            border: "1px solid #ccc",
+                            background: "#f5f5f5"
+                          }}
+                        />
+                        <textarea
+                          placeholder="Message"
+                          rows={4}
+                          value={chatMessage}
+                          onChange={e => {
+                            if (e.target.value.length <= messageCharLimit) setChatMessage(e.target.value)
+                          }}
+                          minLength={15}
+                          maxLength={messageCharLimit}
+                          required
+                          style={{
+                            width: "100%",
+                            padding: "10px",
+                            margin: "10px 0",
+                            borderRadius: "5px",
+                            border: "1px solid #ccc",
+                          }}
+                        ></textarea>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, color: '#bbb', marginBottom: 8 }}>
+                          <span>Mensajes hoy: {messagesSent} / {messagePerDay}</span>
+                          <span>{chatMessage.length} / {messageCharLimit}</span>
+                        </div>
+                        <button
+                          type="submit"
+                          disabled={chatSending || chatMessage.trim().length < 15 || chatMessage.length > messageCharLimit || limitReached}
+                          style={{
+                            width: "100%",
+                            padding: "10px",
+                            backgroundColor: chatMessage.trim().length < 15 || chatMessage.length > messageCharLimit || limitReached ? '#ccc' : "var(--color-primary)",
+                            color: "white",
+                            border: "none",
+                            borderRadius: "5px",
+                            cursor: chatMessage.trim().length < 15 || chatMessage.length > messageCharLimit || limitReached ? 'not-allowed' : 'pointer',
+                            opacity: chatSending ? 0.7 : 1
+                          }}
+                        >
+                          {limitReached ? 'Límite diario alcanzado' : chatSending ? 'Enviando...' : 'Send'}
+                        </button>
+                      </form>
+                    )
+                  ) : (
+                    <div
                       style={{
-                        width: "100%",
-                        padding: "10px",
-                        margin: "10px 0",
-                        borderRadius: "5px",
-                        border: "1px solid #ccc",
-                      }}
-                    />
-                    <input
-                      type="email"
-                      placeholder="Email"
-                      style={{
-                        width: "100%",
-                        padding: "10px",
-                        margin: "10px 0",
-                        borderRadius: "5px",
-                        border: "1px solid #ccc",
-                      }}
-                    />
-                    <textarea
-                      placeholder="Message"
-                      rows={4}
-                      style={{
-                        width: "100%",
-                        padding: "10px",
-                        margin: "10px 0",
-                        borderRadius: "5px",
-                        border: "1px solid #ccc",
-                      }}
-                    ></textarea>
-                    <button
-                      type="submit"
-                      style={{
-                        width: "100%",
-                        padding: "10px",
-                        backgroundColor: "var(--color-primary)",
-                        color: "white",
-                        border: "none",
-                        borderRadius: "5px",
-                        cursor: "pointer",
+                        background: "#f3f4f6",
+                        color: "#555",
+                        borderRadius: "8px",
+                        padding: "18px 10px",
+                        textAlign: "center",
+                        fontSize: "15px",
+                        marginTop: "18px"
                       }}
                     >
-                      Send
-                    </button>
-                  </form>
+                      Para enviarnos un mensaje por favor logeate,<br />¿no tienes cuenta? <a href="/register" style={{ color: 'var(--color-primary)', textDecoration: 'underline' }}>registrate</a>.
+                    </div>
+                  )}
                 </div>
               )}
             </div>

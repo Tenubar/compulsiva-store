@@ -305,6 +305,38 @@ const Profile: React.FC = () => {
           )}
 
           <div className="px-4 py-5 sm:p-6 space-y-6">
+            {/* Personal Information Section */}
+            <div className="border-b border-gray-200 pb-6 mb-6">
+              <h2 className="text-lg font-medium text-gray-900 mb-4">{t("personalInfo") || "Personal Information"}</h2>
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                <div>
+                  <label htmlFor="personalName" className="block text-sm font-medium text-gray-700">
+                    {t("name")}
+                  </label>
+                  <input
+                    type="text"
+                    id="personalName"
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    required
+                  />
+                </div>
+                <div>
+                  <label htmlFor="personalEmail" className="block text-sm font-medium text-gray-700">
+                    {t("email")}
+                  </label>
+                  <input
+                    type="email"
+                    id="personalEmail"
+                    value={user?.email || ""}
+                    readOnly
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 bg-gray-100 text-gray-500 cursor-not-allowed sm:text-sm"
+                  />
+                </div>
+              </div>
+            </div>
+
             {/* Avatar Section */}
             <div className="border-b border-gray-200 pb-6">
               <h2 className="text-lg font-medium text-gray-900 mb-4">{t("changeAvatar")}</h2>
@@ -358,7 +390,7 @@ const Profile: React.FC = () => {
 
             {/* Profile Information Section */}
             <div className="border-b border-gray-200 pb-6">
-              <h2 className="text-lg font-medium text-gray-900 mb-4">{t("profileInformation")}</h2>
+              <h2 className="text-lg font-medium text-gray-900 mb-4">{t("shippingInformation")}</h2>
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                 <div>
                   <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">
