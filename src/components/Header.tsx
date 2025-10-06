@@ -67,6 +67,7 @@ const Header: React.FC<HeaderProps> = ({ currency, setCurrency, language, setLan
   const [loading, setLoading] = useState(false)
   const [draftCount, setDraftCount] = useState(0)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [isSellerOrAdmin, setIsSellerOrAdmin] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [siteLogo, setSiteLogo] = useState<string>("/placeholder.png")
   const [isSearchOpen, setIsSearchOpen] = useState(false)
@@ -118,6 +119,11 @@ const Header: React.FC<HeaderProps> = ({ currency, setCurrency, language, setLan
           // Check if user is admin
           const adminEmail = import.meta.env.VITE_ADMIN_USER_EMAIL
           setIsAdmin(userData.email === adminEmail)
+          // Check seller or admin access
+          try {
+            const sellerRes = await fetch(getApiUrl("api/check-seller-or-admin"), { credentials: "include" })
+            setIsSellerOrAdmin(sellerRes.ok)
+          } catch {}
         }
       } catch (error) {
         console.error("Auth check failed:", error)
@@ -415,6 +421,13 @@ const Header: React.FC<HeaderProps> = ({ currency, setCurrency, language, setLan
                     )}
                   </div>
 
+                  {isSellerOrAdmin && !isAdmin && (
+                    <a href="/upload" className="text-textBanner group relative">
+                      Upload
+                      <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-yellow-300 transition-all duration-300 group-hover:w-full"></span>
+                    </a>
+                  )}
+
                   {isAdmin && (
                     <div className="relative" ref={adminMenuRef}>
                       <button
@@ -564,6 +577,13 @@ const Header: React.FC<HeaderProps> = ({ currency, setCurrency, language, setLan
                       </div>
                     )}
                   </div>
+
+                  {isSellerOrAdmin && !isAdmin && (
+                    <a href="/upload" className="text-textBanner group relative transform transition-transform hover:scale-[1.1]">
+                      Upload
+                      <span className="absolute -bottom-1 left-0 w-0 h-0.5 transition-all duration-300 group-hover:w-full" style={{ backgroundColor: "var(--color-background)" }}></span>
+                    </a>
+                  )}
 
                   {isAdmin && (
                     <div className="relative" ref={adminMenuRef}>

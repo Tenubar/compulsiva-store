@@ -40,6 +40,7 @@ let bucket
 const storage = multer.memoryStorage()
 const upload = multer({ storage })
 
+
 mongoose
   .connect(mongoURI)
   .then(() => {
@@ -51,7 +52,6 @@ mongoose
     bucket = new GridFSBucket(db, { bucketName: "uploads" })
   })
   .catch((err) => console.error("MongoDB connection error:", err))
-
 // User Schema
 const userSchema = new mongoose.Schema(
   {
@@ -63,6 +63,11 @@ const userSchema = new mongoose.Schema(
     id: { type: String, default: "" },
     firstName: { type: String, default: "" },
     lastName: { type: String, default: "" },
+    // Verification and role fields
+    verifyCode: { type: Number, default: null },
+    isVerified: { type: Boolean, default: false },
+    role: { type: String, enum: ["seller", "buyer", null], default: null },
+    privacyAcceptedAt: { type: Date, default: null },
     address: {
       street: { type: String, default: "" },
       city: { type: String, default: "" },
@@ -77,45 +82,6 @@ const userSchema = new mongoose.Schema(
 )
 
 const User = mongoose.model("User", userSchema)
-
-// Comment Schema
-const commentSchema = new mongoose.Schema(
-  {
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-    productId: { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: true },
-    text: { type: String, required: true },
-    parentId: { type: mongoose.Schema.Types.ObjectId, ref: "Comment", default: null }, // For replies
-    likes: { type: Number, default: 0 },
-    dislikes: { type: Number, default: 0 },
-  },
-  { timestamps: true },
-)
-
-const Comment = mongoose.model("Comment", commentSchema)
-
-// Suggestion Schema
-const suggestionSchema = new mongoose.Schema(
-  {
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-    userName: { type: String, required: true },
-    message: { type: String, required: true },
-  },
-  { timestamps: true },
-)
-
-const Suggestion = mongoose.model("Suggestion", suggestionSchema)
-
-// Rating Schema
-const ratingSchema = new mongoose.Schema(
-  {
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-    productId: { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: true },
-    value: { type: Number, required: true, min: 1, max: 5 },
-  },
-  { timestamps: true },
-)
-
-const Rating = mongoose.model("Rating", ratingSchema)
 
 // Product Schema - Updated with new fields
 const productSchema = new mongoose.Schema(
@@ -145,6 +111,9 @@ const productSchema = new mongoose.Schema(
     visits: { type: Number, default: 0 },
     ratingSum: { type: Number, default: 0 }, // Sum of all ratings
     ratingCount: { type: Number, default: 0 }, // Count of ratings
+    // Approval and ownership
+    approved: { type: Boolean, default: true },
+    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
   },
   { timestamps: true },
 )
@@ -322,6 +291,41 @@ async function sendAdminOrderEmail(order) {
   }
 }
 
+// Seller or Admin middleware
+const isSellerOrAdmin = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user.userId)
+    const isAdminUser = user && user.email === process.env.VITE_ADMIN_USER_EMAIL
+    if (isAdminUser || (user && user.role === 'seller')) {
+      req.currentUser = user
+      return next()
+    }
+    return res.status(403).json({ message: 'Seller or Admin access required' })
+  } catch (error) {
+    return res.status(500).json({ message: 'Error checking role', error: error.message })
+  }
+}
+
+// Send 6-digit verification code via email
+async function sendVerificationEmail(email, code) {
+  try {
+    if (!email || !code) return
+    await resend.emails.send({
+      from: 'onboarding@resend.dev',
+      to: email,
+      subject: 'Your verification code',
+      html: `
+        <h2>Email Verification</h2>
+        <p>Your verification code is:</p>
+        <div style="font-size:28px;font-weight:700;letter-spacing:6px;">${String(code).padStart(6, '0')}</div>
+        <p>If you did not request this, you can ignore this email.</p>
+      `,
+    })
+  } catch (err) {
+    console.error('Error sending verification email:', err)
+  }
+}
+
 async function sendUserOrderEmail(order) {
   try {
     if (!order.payerEmail) {
@@ -353,8 +357,8 @@ async function sendUserOrderEmail(order) {
 
 async function sendWelcomeEmail(user) {
   try {
-    if (!user.email) {
-      console.warn('No se encontró el correo del usuario para enviar la bienvenida.');
+    if (!user.email || !user.isVerified) {
+      console.warn('No se encontró el correo del usuario o no ha sido verificado para enviar la bienvenida.');
       return;
     }
     await resend.emails.send({
@@ -510,18 +514,80 @@ app.post("/register", async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10)
+    const verifyCode = Math.floor(100000 + Math.random() * 900000)
     const user = new User({
       name,
       password: hashedPassword,
       email,
       avatar: avatar || "",
+      verifyCode,
+      isVerified: false,
+      role: null,
     })
 
     await user.save();
-    await sendWelcomeEmail(user);
-    res.status(201).json({ message: "User created successfully" })
+    await sendVerificationEmail(user.email, verifyCode)
+    res.status(201).json({ message: "User created. Verification code sent to email.", email: user.email })
   } catch (error) {
     res.status(500).json({ message: "Error creating user", error: error.message })
+  }
+})
+
+// Request a new verification code
+app.post('/api/verify/request-code', async (req, res) => {
+  try {
+    const { email } = req.body
+    if (!email) return res.status(400).json({ message: 'Email is required' })
+    const user = await User.findOne({ email })
+    if (!user) return res.status(404).json({ message: 'User not found' })
+    const verifyCode = Math.floor(100000 + Math.random() * 900000)
+    user.verifyCode = verifyCode
+    await user.save()
+    await sendVerificationEmail(email, verifyCode)
+    res.json({ message: 'Verification code sent' })
+  } catch (error) {
+    res.status(500).json({ message: 'Error requesting verification code', error: error.message })
+  }
+})
+
+// Confirm verification code
+app.post('/api/verify/confirm', async (req, res) => {
+  try {
+    const { email, code } = req.body
+    if (!email || !code) return res.status(400).json({ message: 'Email and code are required' })
+    const user = await User.findOne({ email })
+    if (!user) return res.status(404).json({ message: 'User not found' })
+    if (Number(user.verifyCode) === Number(code)) {
+      user.isVerified = true
+      user.verifyCode = null
+      await user.save()
+      return res.json({ message: 'Verification successful' })
+    } else {
+      return res.status(400).json({ message: 'Invalid verification code' })
+    }
+  } catch (error) {
+    res.status(500).json({ message: 'Error verifying code', error: error.message })
+  }
+})
+
+// Set user role
+app.post('/api/users/set-role', authenticateToken, async (req, res) => {
+  try {
+    const { role, acceptPrivacy } = req.body
+    if (!role || !['seller', 'buyer'].includes(role)) {
+      return res.status(400).json({ message: 'Invalid role' })
+    }
+    if (!acceptPrivacy) {
+      return res.status(400).json({ message: 'Privacy conditions must be accepted' })
+    }
+    const updated = await User.findByIdAndUpdate(
+      req.user.userId,
+      { role, privacyAcceptedAt: new Date() },
+      { new: true }
+    ).select('-password')
+    res.json({ message: 'Role set', user: updated })
+  } catch (error) {
+    res.status(500).json({ message: 'Error setting role', error: error.message })
   }
 })
 
@@ -2570,7 +2636,6 @@ app.get("/api/check-admin", authenticateToken, async (req, res) => {
       res.status(403).json({ message: "Not an admin user" })
     }
   } catch (error) {
-    res.status(500).json({ message: "Error checking admin status", error: error.message })
   }
 })
 

@@ -80,7 +80,9 @@ const Register: React.FC = () => {
       })
 
       if (response.ok) {
-        navigate("/login")
+        // Redirect to verification page with email prefilled
+        const params = new URLSearchParams({ email })
+        navigate(`/verify?${params.toString()}`)
       } else {
         const data = await response.json()
         setError(data.message || t("registrationFailed"))
